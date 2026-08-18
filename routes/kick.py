@@ -216,39 +216,114 @@ def _exchange_code(code, verifier):
 
 
 def _subscribe_chat(access_token, broadcaster_id=None):
+    # Recria a assinatura para eliminar uma assinatura antiga do Worker.
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
-    response = requests.get(
-        f"{KICK_API}/events/subscriptions", headers=headers, timeout=20
-    )
-    if response.status_code < 400:
-        existing = response.json().get("data") or []
-        if any(str(item.get("event") or item.get("name")) == "chat.message.sent" for item in existing):
-            return {"ok": True, "already": True, "data": existing}
 
+    params = {}
+    if broadcaster_id is not None:
+        params["broadcaster_user_id"] = int(broadcaster_id)
+
+    # 1) Lista as assinaturas atuais deste canal.
+    response = requests.get(
+        f"{KICK_API}/events/subscriptions",
+        headers=headers,
+        params=params,
+        timeout=20,
+    )
+
+    try:
+        data = response.json()
+    except Exception:
+        data = {"raw": response.text[:1000]}
+
+    print(
+        f"[KICK-EVENTS] subscriptions -> HTTP {response.status_code}: {data}",
+        flush=True,
+    )
+
+    if response.status_code >= 400:
+        raise RuntimeError(
+            f"Falha ao consultar assinaturas Kick: HTTP "
+            f"{response.status_code}: {data}"
+        )
+
+    existing = data.get("data") or []
+
+    # 2) Remove assinaturas antigas de chat.message.sent.
+    chat_ids = [
+        str(item.get("id"))
+        for item in existing
+        if item.get("id")
+        and str(item.get("event") or item.get("name") or "") == "chat.message.sent"
+    ]
+
+    if chat_ids:
+        delete_response = requests.delete(
+            f"{KICK_API}/events/subscriptions",
+            headers=headers,
+            params=[("id", subscription_id) for subscription_id in chat_ids],
+            timeout=20,
+        )
+
+        try:
+            delete_data = delete_response.json()
+        except Exception:
+            delete_data = delete_response.text[:1000]
+
+        print(
+            f"[KICK-EVENTS] delete chat subscriptions {chat_ids} -> "
+            f"HTTP {delete_response.status_code}: {delete_data}",
+            flush=True,
+        )
+
+        if delete_response.status_code >= 400:
+            raise RuntimeError(
+                f"Falha ao remover assinaturas antigas: HTTP "
+                f"{delete_response.status_code}: {delete_data}"
+            )
+
+    # 3) Cria uma nova assinatura.
+    # Com user access token, a Kick identifica o broadcaster pelo token.
     payload = {
         "events": [{"name": "chat.message.sent", "version": 1}],
         "method": "webhook",
     }
-    if broadcaster_id is not None:
-        payload["broadcaster_user_id"] = int(broadcaster_id)
+
     response = requests.post(
         f"{KICK_API}/events/subscriptions",
         headers=headers,
         json=payload,
         timeout=20,
     )
+
     try:
         data = response.json()
     except Exception:
         data = {"raw": response.text[:1000]}
-    print(f"[KICK-EVENTS] subscribe chat.message.sent -> HTTP {response.status_code}: {data}", flush=True)
+
+    print(
+        f"[KICK-EVENTS] CREATE chat.message.sent -> "
+        f"HTTP {response.status_code}: {data}",
+        flush=True,
+    )
+
     if response.status_code >= 400:
-        raise RuntimeError(f"Falha ao assinar chat.message.sent: HTTP {response.status_code}: {data}")
-    return {"ok": True, "already": False, "data": data}
+        raise RuntimeError(
+            f"Falha ao criar chat.message.sent: HTTP "
+            f"{response.status_code}: {data}"
+        )
+
+    return {
+        "ok": True,
+        "already": False,
+        "recreated": True,
+        "deleted_subscription_ids": chat_ids,
+        "data": data,
+    }
 
 
 def _fetch_public_key():
