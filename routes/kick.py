@@ -215,7 +215,7 @@ def _exchange_code(code, verifier):
     return data
 
 
-def _subscribe_chat(access_token):
+def _subscribe_chat(access_token, broadcaster_id=None):
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
@@ -233,6 +233,8 @@ def _subscribe_chat(access_token):
         "events": [{"name": "chat.message.sent", "version": 1}],
         "method": "webhook",
     }
+    if broadcaster_id is not None:
+        payload["broadcaster_user_id"] = int(broadcaster_id)
     response = requests.post(
         f"{KICK_API}/events/subscriptions",
         headers=headers,
@@ -462,8 +464,8 @@ def _process_chat(payload):
 
 
 def _process_webhook(payload):
-    event_type = request.headers.get("Kick-Event-Type", "")
     if event_type == "chat.message.sent":
+        print("[KICK-WEBHOOK] processando chat.message.sent", flush=True)
         _process_chat(payload)
 
 
@@ -501,7 +503,7 @@ def callback():
         token_data = _exchange_code(request.args.get("code", ""), verifier)
         user = _kick_user(token_data["access_token"])
         broadcaster_id = _save_connection(user, token_data)
-        subscription = _subscribe_chat(token_data["access_token"])
+        subscription = _subscribe_chat(token_data["access_token"], broadcaster_id)
         return jsonify({
             "ok": True,
             "message": "Kick conectado ao SN7 Core.",
@@ -545,7 +547,7 @@ def subscribe():
     if not conn_data:
         return jsonify({"ok": False, "error": "Canal não conectado ao Core."}), 404
     try:
-        result = _subscribe_chat(conn_data["access_token"])
+        result = _subscribe_chat(conn_data["access_token"], int(broadcaster_id))
         return jsonify(result)
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
@@ -557,6 +559,8 @@ def webhook():
     message_id = request.headers.get("Kick-Event-Message-Id", "")
     timestamp = request.headers.get("Kick-Event-Message-Timestamp", "")
     signature = request.headers.get("Kick-Event-Signature", "")
+    event_type = request.headers.get("Kick-Event-Type", "")
+    print(f"[KICK-WEBHOOK] recebido type={event_type} message_id={message_id}", flush=True)
     if not _verify_signature(raw_body, message_id, timestamp, signature):
         return jsonify({"ok": False, "error": "assinatura Kick inválida"}), 401
 
