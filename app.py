@@ -1,5 +1,4 @@
-import os
-from flask import Flask, jsonify, render_template, request, redirect, url_for, session
+from flask import Flask, jsonify, render_template, request
 from core.database import init_db
 from routes.economy import economy_bp
 from routes.ranking import ranking_bp
@@ -9,7 +8,7 @@ from routes.settings import settings_bp
 from routes.kick import kick_bp
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "change-me-in-production")
+app.secret_key = __import__("os").environ.get("FLASK_SECRET_KEY", "change-me")
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
 app.register_blueprint(ranking_bp, url_prefix="/api/ranking")
@@ -19,8 +18,8 @@ app.register_blueprint(settings_bp, url_prefix="/api/settings")
 app.register_blueprint(kick_bp, url_prefix="/kick")
 
 @app.before_request
-def ensure_db():
-    if os.getenv("DATABASE_URL"):
+def database_bootstrap():
+    if __import__("os").environ.get("DATABASE_URL"):
         init_db()
 
 @app.get("/")
@@ -29,26 +28,22 @@ def home():
 
 @app.get("/dashboard")
 def dashboard():
-    broadcaster_id = session.get("broadcaster_id")
-    if not broadcaster_id:
-        # Development fallback; production should require Kick OAuth.
-        broadcaster_id = request.args.get("broadcaster_id")
-    if not broadcaster_id:
-        return redirect(url_for("home"))
+    broadcaster_id = request.args.get("broadcaster_id", "1")
     return render_template("dashboard.html", broadcaster_id=broadcaster_id)
 
 @app.get("/health")
 def health():
-    return jsonify({"ok": True, "service": "SN7 Core API", "version": "1.0.0"})
+    return jsonify({"ok": True, "service": "SN7 Core API", "version": "1.1.0"})
 
 @app.get("/api")
-def api_info():
+def api():
     return jsonify({
         "ok": True,
         "service": "SN7 Core API",
-        "modules": ["kick", "economy", "ranking", "duel", "commands", "settings"],
-        "v_d": False
+        "multi_streamer": True,
+        "v_d": False,
+        "modules": ["economy", "ranking", "duel", "commands", "settings", "kick"]
     })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "10000")))
+    app.run(host="0.0.0.0", port=int(__import__("os").environ.get("PORT", "10000")))
