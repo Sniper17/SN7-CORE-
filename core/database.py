@@ -65,6 +65,12 @@ CREATE TABLE IF NOT EXISTS kick_connections (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS kick_webhook_events (
+    message_id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL DEFAULT '',
+    received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 '''
 
 def get_conn():

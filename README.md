@@ -1,6 +1,6 @@
 # SN7 Core API
 
-Base nova do SN7 para concentrar Worker Kick, economia, ranking, duelo, comandos e painel.
+O SN7 Core concentra a economia, ranking, duelo, comandos personalizados e a integração oficial com a Kick.
 
 ## Regras
 
@@ -9,20 +9,52 @@ Base nova do SN7 para concentrar Worker Kick, economia, ranking, duelo, comandos
 - Nome, comando e emoji dos pontos são configuráveis.
 - Ranking separado por live.
 - Duelo usa pontos.
-- **V/D não faz parte do SN7 Core.**
+- V/D não faz parte do SN7 Core.
 - Comandos personalizados são separados por live.
 - PostgreSQL é o banco principal.
+- Warzone, RedSec, Central API e Kick-Duelo antigo não fazem parte desta versão.
+
+## Kick
+
+O Core agora recebe `chat.message.sent` diretamente da Kick via webhook.
+
+### Variáveis do Render
+
+- `DATABASE_URL`
+- `FLASK_SECRET_KEY`
+- `KICK_CLIENT_ID`
+- `KICK_CLIENT_SECRET`
+- `KICK_REDIRECT_URI` = `https://SEU-DOMINIO/kick/callback`
+- `KICK_WEBHOOK_URL` = `https://SEU-DOMINIO/kick/webhook`
+
+Scopes usados:
+
+`user:read chat:write events:subscribe`
+
+### Conectar a Kick
+
+Abra:
+
+`https://SEU-DOMINIO/kick/login`
+
+Depois da autorização, o Core salva o access token/refresh token no PostgreSQL e cria a assinatura de `chat.message.sent`.
+
+### Endpoints
+
+- `GET /kick/login`
+- `GET /kick/callback`
+- `GET /kick/status`
+- `POST /kick/subscribe?broadcaster_id=ID`
+- `POST /kick/webhook`
+
+O webhook valida a assinatura da Kick e usa `Kick-Event-Message-Id` para impedir processamento duplicado.
 
 ## Render
 
 Build:
+
 `pip install -r requirements.txt`
 
 Start:
+
 `gunicorn app:app`
-
-Configure `DATABASE_URL` e `FLASK_SECRET_KEY`.
-
-## Observação
-
-Esta versão é a fundação do Core. A migração integral do OAuth/webhook e de todos os comportamentos do Worker atual será feita preservando o sistema que já funciona.
