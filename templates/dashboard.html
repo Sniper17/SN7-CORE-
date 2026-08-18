@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SN7 Core</title><link rel="stylesheet" href="/static/css/style.css">
+</head><body><div class="layout">
+<aside><div class="brand">SN7 <span>CORE</span></div>
+<nav>
+<button data-tab="overview">🏠 Visão geral</button>
+<button data-tab="economy">💰 Economia</button>
+<button data-tab="ranking">🏆 Ranking</button>
+<button data-tab="duel">⚔️ Duelo</button>
+<button data-tab="bank">🏦 Banco</button>
+<button data-tab="commands">💬 Comandos</button>
+<button data-tab="appearance">🎨 Aparência</button>
+</nav></aside>
+<main><header><div><h1 id="title">Visão geral</h1><p>Configurações da sua live</p></div><span class="status">● ONLINE</span></header>
+
+<section id="overview" class="tab active"><div class="grid">
+<div class="stat"><span>Pontos</span><strong id="statCurrency">—</strong></div>
+<div class="stat"><span>Comando</span><strong id="statCommand">—</strong></div>
+<div class="stat"><span>Emoji</span><strong id="statEmoji">—</strong></div>
+<div class="stat"><span>V/D</span><strong>DESATIVADO</strong></div>
+</div></section>
+
+<section id="economy" class="tab"><div class="panel"><h2>Economia</h2>
+<label>Nome dos pontos<input id="currency_name"></label>
+<label>Comando<input id="currency_command"></label>
+<label>Emoji<input id="currency_emoji"></label>
+<button class="btn" onclick="saveSettings()">Salvar</button><p id="settingsMsg"></p>
+</div></section>
+
+<section id="ranking" class="tab"><div class="panel"><h2>Ranking</h2>
+<label>Título<input id="rank_title"></label>
+<label>Quantidade<input id="rank_limit" type="number" min="1" max="50"></label>
+<button class="btn" onclick="saveSettings()">Salvar</button></div></section>
+
+<section id="duel" class="tab"><div class="panel"><h2>Duelo</h2>
+<p class="muted">O duelo altera pontos. O Core não registra V/D.</p>
+<label>Recompensa da vitória<input id="duel_win_points" type="number" min="0"></label>
+<label>Perda de pontos<input id="duel_loss_points" type="number" min="0"></label>
+<button class="btn" onclick="saveSettings()">Salvar</button></div></section>
+
+<section id="bank" class="tab"><div class="panel"><h2>Assalto ao Banco</h2>
+<p>Área reservada para a migração do sistema atual.</p></div></section>
+
+<section id="commands" class="tab"><div class="panel"><h2>Comandos personalizados</h2>
+<div class="row"><input id="cmd" placeholder="!discord"><input id="response" placeholder="Resposta"><button class="btn" onclick="saveCommand()">Salvar</button></div>
+<div id="commandsList"></div></div></section>
+
+<section id="appearance" class="tab"><div class="panel"><h2>Aparência</h2>
+<p>Área preparada para estilos e formatos personalizados.</p></div></section>
+</main></div>
+<script>const BROADCASTER_ID={{ broadcaster_id|tojson }};</script>
+<script src="/static/js/app.js"></script></body></html>

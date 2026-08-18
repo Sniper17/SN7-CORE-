@@ -1,0 +1,2 @@
+-- Schema executado automaticamente pelo app quando DATABASE_URL estiver configurado.
+-- O modelo do Core não possui campos de V/D.
