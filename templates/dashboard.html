@@ -77,7 +77,7 @@
           <label>Título do ranking<input id="rank_title" placeholder="Ranking" autocomplete="off"></label>
           <label>Quantidade de posições<input id="rank_limit" type="number" inputmode="numeric" min="1" max="50"></label>
         </div>
-        <div class="info-box">O limite define quantos usuários aparecem quando o ranking for consultado.</div>
+        <div class="info-box">O ranking considera somente usuários com mais de 0 pontos e ordena sempre do maior para o menor.</div>
         <div class="save-row"><button type="button" class="btn" onclick="saveSettings()">Salvar alterações</button></div>
       </div>
     </section>
@@ -100,16 +100,7 @@
     </section>
 
     <section id="commands" class="tab">
-      <div class="section-head"><div><h2>Comandos personalizados</h2><p>Crie respostas próprias para o chat da sua live.</p></div></div>
-      <div class="panel form-panel">
-        <div class="command-form">
-          <input id="cmd" placeholder="!discord" autocomplete="off" autocapitalize="none" spellcheck="false">
-          <input id="response" placeholder="Resposta que o bot vai enviar" autocomplete="off">
-          <button type="button" class="btn" onclick="saveCommand()">Adicionar</button>
-        </div>
-        <div class="list-head"><span>Comando</span><span>Resposta</span><span></span></div>
-        <div id="commandsList" class="commands-list"></div>
-      </div>
+      <div class="section-head"><div><h2>Comandos</h2><p>Comandos da live. Alterações são salvas diretamente no banco.</p></div></div>
     </section>
 
     <section id="appearance" class="tab">
@@ -123,5 +114,6 @@
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }};</script>
 <script src="/static/js/app.js"></script>
+<script src="/static/js/commands-v23.js"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, render_template, request
-from core.database import init_db
+from core.database import init_db, get_conn
 from routes.economy import economy_bp
 from routes.ranking import ranking_bp
 from routes.duel import duel_bp
@@ -18,20 +18,53 @@ app.register_blueprint(commands_bp, url_prefix="/api/commands")
 app.register_blueprint(settings_bp, url_prefix="/api/settings")
 app.register_blueprint(kick_bp, url_prefix="/kick")
 
+
 @app.before_request
 def database_bootstrap():
     if os.environ.get("DATABASE_URL"):
         init_db()
 
+
+def _dashboard_broadcaster_id():
+    requested = str(request.args.get("broadcaster_id") or "").strip()
+    if requested.isdigit():
+        return requested
+
+    # Sem broadcaster_id na URL, usa o canal Kick conectado mais recentemente.
+    # Isso evita o painel operar no ID fictício "1" enquanto o webhook usa o ID real.
+    if os.environ.get("DATABASE_URL"):
+        try:
+            conn = get_conn()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT broadcaster_user_id
+                          FROM kick_connections
+                         ORDER BY updated_at DESC
+                         LIMIT 1
+                        """
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        return str(row[0])
+            finally:
+                conn.close()
+        except Exception as exc:
+            print(f"[DASHBOARD] não foi possível resolver canal conectado: {exc}", flush=True)
+
+    return "1"
+
+
 @app.get("/")
 def home():
-    broadcaster_id = request.args.get("broadcaster_id", "1")
-    return render_template("dashboard.html", broadcaster_id=broadcaster_id)
+    return render_template("dashboard.html", broadcaster_id=_dashboard_broadcaster_id())
+
 
 @app.get("/dashboard")
 def dashboard():
-    broadcaster_id = request.args.get("broadcaster_id", "1")
-    return render_template("dashboard.html", broadcaster_id=broadcaster_id)
+    return render_template("dashboard.html", broadcaster_id=_dashboard_broadcaster_id())
+
 
 @app.get("/health")
 def health():
@@ -43,6 +76,7 @@ def health():
         "kick_webhook": True,
         "v_d": False
     })
+
 
 @app.get("/api")
 def api():
@@ -62,6 +96,7 @@ def api():
             "kick"
         ]
     })
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "10000")))

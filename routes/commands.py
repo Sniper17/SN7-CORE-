@@ -12,6 +12,30 @@ from core.command_system import (
 commands_bp = Blueprint("commands", __name__)
 
 
+def _normalize_aliases(raw):
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        raw = [raw]
+    if not isinstance(raw, list):
+        raise ValueError("Variantes inválidas.")
+
+    result = []
+    seen = set()
+    for value in raw:
+        alias = str(value or "").strip().lower()
+        if not alias:
+            continue
+        if not alias.startswith("!"):
+            raise ValueError("A variante deve começar com !")
+        if len(alias) > 64:
+            raise ValueError("A variante é muito longa.")
+        if alias not in seen:
+            seen.add(alias)
+            result.append(alias)
+    return result
+
+
 @commands_bp.get("/<int:broadcaster_id>")
 def get_commands(broadcaster_id):
     try:
@@ -37,45 +61,72 @@ def create_command(broadcaster_id):
     if len(response) > 500:
         return jsonify({"ok": False, "error": "A resposta pode ter no máximo 500 caracteres."}), 400
 
-    conn = get_conn()
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT 1 FROM command_configs
-                 WHERE broadcaster_user_id=%s AND command=%s
-                UNION ALL
-                SELECT 1 FROM command_aliases
-                 WHERE broadcaster_user_id=%s AND alias=%s
-                LIMIT 1
-                """,
-                (int(broadcaster_id), command, int(broadcaster_id), command),
-            )
-            if cur.fetchone():
-                return jsonify({"ok": False, "error": "Essa palavra de ativação já está em uso."}), 409
+        aliases = _normalize_aliases(data.get("aliases"))
+        if command in aliases:
+            return jsonify({"ok": False, "error": "A variante não pode ser igual ao comando principal."}), 400
 
-            cur.execute(
-                """
-                INSERT INTO command_configs
-                    (broadcaster_user_id,command_key,command,description,response,enabled,category,is_system)
-                VALUES (%s,%s,%s,%s,%s,%s,'custom',FALSE)
-                """,
-                (
-                    int(broadcaster_id),
-                    "custom:" + command,
-                    command,
-                    description[:200],
-                    response,
-                    bool(data.get("enabled", True)),
-                ),
-            )
-        conn.commit()
+        conn = get_conn()
+        try:
+            with conn.cursor() as cur:
+                # O comando principal e todas as variantes precisam estar livres.
+                candidates = [command] + aliases
+                for word in candidates:
+                    cur.execute(
+                        """
+                        SELECT 1 FROM command_configs
+                         WHERE broadcaster_user_id=%s AND command=%s
+                        UNION ALL
+                        SELECT 1 FROM command_aliases
+                         WHERE broadcaster_user_id=%s AND alias=%s
+                        LIMIT 1
+                        """,
+                        (int(broadcaster_id), word, int(broadcaster_id), word),
+                    )
+                    if cur.fetchone():
+                        return jsonify({
+                            "ok": False,
+                            "error": f"A palavra de ativação {word} já está em uso."
+                        }), 409
+
+                cur.execute(
+                    """
+                    INSERT INTO command_configs
+                        (broadcaster_user_id,command_key,command,description,response,enabled,category,is_system)
+                    VALUES (%s,%s,%s,%s,%s,%s,'custom',FALSE)
+                    RETURNING id
+                    """,
+                    (
+                        int(broadcaster_id),
+                        "custom:" + command,
+                        command,
+                        description[:200],
+                        response,
+                        bool(data.get("enabled", True)),
+                    ),
+                )
+                command_id = cur.fetchone()[0]
+
+                for alias in aliases:
+                    cur.execute(
+                        """
+                        INSERT INTO command_aliases(broadcaster_user_id,command_id,alias)
+                        VALUES(%s,%s,%s)
+                        """,
+                        (int(broadcaster_id), command_id, alias),
+                    )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
     except Exception as exc:
-        conn.rollback()
         print(f"[COMMANDS] POST erro: {exc}", flush=True)
         return jsonify({"ok": False, "error": "Não foi possível criar o comando. " + str(exc)}), 500
-    finally:
-        conn.close()
 
     return jsonify({"ok": True, "commands": list_commands(broadcaster_id)})
 
