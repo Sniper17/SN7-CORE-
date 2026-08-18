@@ -217,7 +217,7 @@ def _exchange_code(code, verifier):
 
 
 def _subscribe_chat(access_token, broadcaster_id=None):
-    # Recria a assinatura para eliminar uma assinatura antiga do Worker.
+    """Recria a assinatura de chat e confirma no próprio endpoint da Kick."""
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
@@ -228,38 +228,26 @@ def _subscribe_chat(access_token, broadcaster_id=None):
     if broadcaster_id is not None:
         params["broadcaster_user_id"] = int(broadcaster_id)
 
-    # 1) Lista as assinaturas atuais deste canal.
     response = requests.get(
         f"{KICK_API}/events/subscriptions",
         headers=headers,
         params=params,
         timeout=20,
     )
-
     try:
         data = response.json()
     except Exception:
         data = {"raw": response.text[:1000]}
 
-    print(
-        f"[KICK-EVENTS] subscriptions -> HTTP {response.status_code}: {data}",
-        flush=True,
-    )
-
+    print(f"[KICK-EVENTS] subscriptions -> HTTP {response.status_code}: {data}", flush=True)
     if response.status_code >= 400:
-        raise RuntimeError(
-            f"Falha ao consultar assinaturas Kick: HTTP "
-            f"{response.status_code}: {data}"
-        )
+        raise RuntimeError(f"Falha ao consultar assinaturas Kick: HTTP {response.status_code}: {data}")
 
     existing = data.get("data") or []
-
-    # 2) Remove assinaturas antigas de chat.message.sent.
     chat_ids = [
         str(item.get("id"))
         for item in existing
-        if item.get("id")
-        and str(item.get("event") or item.get("name") or "") == "chat.message.sent"
+        if item.get("id") and str(item.get("event") or "") == "chat.message.sent"
     ]
 
     if chat_ids:
@@ -269,34 +257,30 @@ def _subscribe_chat(access_token, broadcaster_id=None):
             params=[("id", subscription_id) for subscription_id in chat_ids],
             timeout=20,
         )
-
-        try:
-            delete_data = delete_response.json()
-        except Exception:
-            delete_data = delete_response.text[:1000]
-
+        delete_text = delete_response.text[:1000]
         print(
             f"[KICK-EVENTS] delete chat subscriptions {chat_ids} -> "
-            f"HTTP {delete_response.status_code}: {delete_data}",
+            f"HTTP {delete_response.status_code}: {delete_text}",
             flush=True,
         )
-
-        if delete_response.status_code >= 400:
+        if delete_response.status_code not in (200, 204):
+            try:
+                delete_data = delete_response.json()
+            except Exception:
+                delete_data = delete_text
             raise RuntimeError(
                 f"Falha ao remover assinaturas antigas: HTTP "
                 f"{delete_response.status_code}: {delete_data}"
             )
 
-    # 3) Cria uma nova assinatura.
-    # Com user access token, a Kick identifica o broadcaster pelo token.
+    # Com user access token a Kick ignora broadcaster_user_id e usa o canal
+    # autorizado. Omitimos o campo para seguir exatamente a API atual.
     payload = {
-        "broadcaster_user_id": int(broadcaster_id) if broadcaster_id is not None else None,
         "events": [{"name": "chat.message.sent", "version": 1}],
         "method": "webhook",
     }
-    payload = {k: v for k, v in payload.items() if v is not None}
     print(
-        f"[KICK-EVENTS] criando assinatura para broadcaster={broadcaster_id} "
+        f"[KICK-EVENTS] criando chat.message.sent para broadcaster={broadcaster_id} "
         f"webhook={_webhook_url()}",
         flush=True,
     )
@@ -307,22 +291,60 @@ def _subscribe_chat(access_token, broadcaster_id=None):
         json=payload,
         timeout=20,
     )
-
     try:
-        data = response.json()
+        create_data = response.json()
     except Exception:
-        data = {"raw": response.text[:1000]}
+        create_data = {"raw": response.text[:1000]}
 
     print(
         f"[KICK-EVENTS] CREATE chat.message.sent -> "
-        f"HTTP {response.status_code}: {data}",
+        f"HTTP {response.status_code}: {create_data}",
         flush=True,
     )
 
     if response.status_code >= 400:
         raise RuntimeError(
             f"Falha ao criar chat.message.sent: HTTP "
-            f"{response.status_code}: {data}"
+            f"{response.status_code}: {create_data}"
+        )
+
+    created_items = create_data.get("data") or []
+    event_errors = [
+        item for item in created_items
+        if str(item.get("name") or "") == "chat.message.sent"
+        and item.get("error")
+    ]
+    if event_errors:
+        raise RuntimeError(
+            f"Kick recusou chat.message.sent: {event_errors}"
+        )
+
+    # Confirma no GET que a assinatura realmente existe.
+    verify_response = requests.get(
+        f"{KICK_API}/events/subscriptions",
+        headers=headers,
+        params=params,
+        timeout=20,
+    )
+    try:
+        verify_data = verify_response.json()
+    except Exception:
+        verify_data = {"raw": verify_response.text[:1000]}
+
+    if verify_response.status_code >= 400:
+        raise RuntimeError(
+            f"Assinatura criada, mas não foi possível confirmar: "
+            f"HTTP {verify_response.status_code}: {verify_data}"
+        )
+
+    verified = [
+        item for item in (verify_data.get("data") or [])
+        if str(item.get("event") or "") == "chat.message.sent"
+    ]
+    if not verified:
+        raise RuntimeError(
+            "A Kick respondeu à criação, mas o chat.message.sent não aparece "
+            "na lista de assinaturas."
         )
 
     return {
@@ -330,9 +352,9 @@ def _subscribe_chat(access_token, broadcaster_id=None):
         "already": False,
         "recreated": True,
         "deleted_subscription_ids": chat_ids,
-        "data": data,
+        "subscription": verified[0],
+        "data": create_data,
     }
-
 
 def _fetch_public_key():
     # Busca e mantém em cache a chave RSA pública usada pela Kick.
@@ -491,69 +513,280 @@ def _format_ranking(bid):
  return '🏆 Ranking: '+' • '.join(f'{i}. {n} {p}' for i,(n,p) in enumerate(rows,1))
 def _commands_text(bid):
  a=[x for x in list_commands(bid) if x['category']=='custom' and x['enabled']];return '📜 Nenhum comando personalizado configurado.' if not a else '📜 Comandos: '+' '.join(x['command'] for x in a[:25])
+def _is_moderator(sender, broadcaster_id):
+    if str(sender.get("user_id") or "") == str(broadcaster_id):
+        return True
+    if sender.get("is_moderator") or sender.get("is_broadcaster") or sender.get("is_owner"):
+        return True
+    identity = sender.get("identity") or {}
+    for badge in identity.get("badges") or []:
+        badge_type = str((badge or {}).get("type") or "").lower()
+        if badge_type in {"moderator", "broadcaster", "owner"}:
+            return True
+    return False
+
+
 def _process_chat(payload):
- broadcaster=payload.get('broadcaster') or {};sender=payload.get('sender') or {}
- try:bid=int(broadcaster.get('user_id'));uid=int(sender.get('user_id')) if sender.get('user_id') else None
- except (TypeError,ValueError):return
- user=str(sender.get('username') or sender.get('slug') or '').strip();content=str(payload.get('content') or '').strip()
- if not bid or not user or not content.startswith('!'):return
- ensure_channel(bid,str(broadcaster.get('username') or broadcaster.get('slug') or ''));ensure_player(bid,user,uid)
- pieces=content.split();cmd=pieces[0].lower();args=pieces[1:]
- try:
-  cfg=find_command(bid,cmd)
-  if not cfg or not cfg['enabled']:return
-  ch=get_channel(bid);key=cfg['command_key'];currency=str(ch['currency_name']);emoji=str(ch['currency_emoji'])
-  if key=='points':_send_chat(bid,_render_response(cfg['response'],_format_balance(bid,user)));return
-  if key=='ranking':_send_chat(bid,_render_response(cfg['response'],{'ranking':_format_ranking(bid)}));return
-  if key=='cmds':_send_chat(bid,_render_response(cfg['response'],{'commands':_commands_text(bid)}));return
-  if key=='duel':
-   if not args:return _send_chat(bid,_render_response(cfg['response'],{'duel_result':'⚔️ Use !duelo @usuário'}))
-   defender=args[0].lstrip('@').strip()
-   if not defender or defender.lower()==user.lower():return _send_chat(bid,_render_response(cfg['response'],{'duel_result':'⚔️ Você não pode duelar consigo mesmo.'}))
-   ensure_player(bid,defender);import random;winner=random.choice([user,defender]);loser=defender if winner==user else user;win=int(ch['duel_win_points']);loss=int(ch['duel_loss_points']);c=get_conn()
-   try:
-    with c.cursor() as x:
-     x.execute('UPDATE players SET points=points+%s WHERE broadcaster_user_id=%s AND username=%s',(win,bid,winner));x.execute('UPDATE players SET points=GREATEST(0,points-%s) WHERE broadcaster_user_id=%s AND username=%s',(loss,bid,loser));x.execute('INSERT INTO duel_events(broadcaster_user_id,attacker,defender,winner,winner_points_delta,loser_points_delta) VALUES(%s,%s,%s,%s,%s,%s)',(bid,user,defender,winner,win,-loss))
-    c.commit()
-   finally:c.close()
-   result=f'⚔️ {user} atacou primeiro! 💥 {winner} venceu o duelo! 🏆 +{win} {currency} para {winner}. 💀 {loser} perdeu {loss}.';_send_chat(bid,_render_response(cfg['response'],{'duel_result':result,'attacker':user,'defender':defender,'winner':winner,'loser':loser,'win':win,'loss':loss,'currency':currency,'emoji':emoji}));return
-  ismod=bool(sender.get('is_moderator') or sender.get('is_broadcaster') or sender.get('is_owner') or str(sender.get('user_id') or '')==str(bid))
-  if key in {'addcmd','addpoint','settpoint','delcmd'} and not ismod:return _send_chat(bid,'⛔ Apenas streamer/mod pode usar este comando.')
-  if key=='addcmd':
-   if len(args)<2:return _send_chat(bid,'Use !addcmd !comando resposta')
-   custom=args[0].lower();custom=custom if custom.startswith('!') else '!'+custom;resp=' '.join(args[1:]);allc=list_commands(bid);used={x['command'] for x in allc}|{a for x in allc for a in x['aliases']}
-   if custom in used:return _send_chat(bid,'⛔ Essa palavra de ativação já está em uso.')
-   c=get_conn()
-   try:
-    with c.cursor() as x:x.execute("INSERT INTO command_configs(broadcaster_user_id,command_key,command,description,response,enabled,category,is_system) VALUES(%s,%s,%s,%s,%s,TRUE,'custom',FALSE)",(bid,'custom:'+custom,custom,'Comando personalizado desta live.',resp))
-    c.commit()
-   finally:c.close()
-   _send_chat(bid,_render_response(cfg['response'],{'command':custom}));return
-  if key in {'addpoint','settpoint'}:
-   if len(args)<2:return _send_chat(bid,f'Use {cfg["command"]} @usuário quantidade')
-   target=args[0].lstrip('@').strip()
-   try:amount=int(args[1]);amount=max(0,amount) if key=='settpoint' else amount
-   except ValueError:return _send_chat(bid,'❌ Quantidade inválida.')
-   if key=='addpoint' and amount<=0:return _send_chat(bid,'❌ A quantidade precisa ser maior que 0.')
-   ensure_player(bid,target);c=get_conn()
-   try:
-    with c.cursor() as x:
-     x.execute('UPDATE players SET points='+('points+%s' if key=='addpoint' else '%s')+' WHERE broadcaster_user_id=%s AND username=%s RETURNING points',(amount,bid,target));row=x.fetchone()
-    c.commit()
-   finally:c.close()
-   new=int(row[0]) if row else amount;_send_chat(bid,_render_response(cfg['response'],{'target':target,'amount':amount,'new_points':new,'currency':currency,'emoji':emoji}));return
-  if key=='delcmd':
-   if not args:return _send_chat(bid,'Use !delcmd !comando')
-   target=find_command(bid,args[0].lower())
-   if not target or target['is_system']:return _send_chat(bid,'❌ Esse comando personalizado não existe.')
-   c=get_conn()
-   try:
-    with c.cursor() as x:x.execute('DELETE FROM command_configs WHERE broadcaster_user_id=%s AND command_key=%s AND is_system=FALSE',(bid,target['command_key']));deleted=x.rowcount>0
-    c.commit()
-   finally:c.close()
-   _send_chat(bid,_render_response(cfg['response'],{'command':args[0]}) if deleted else '❌ Comando não existe.');return
-  if not cfg['is_system']:_send_chat(bid,_render_response(cfg['response'],{'user':user}))
- except Exception as exc:print(f'[KICK-CHAT] erro processando {content!r}: {exc}',flush=True)
+    broadcaster = payload.get("broadcaster") or {}
+    sender = payload.get("sender") or {}
+    try:
+        bid = int(broadcaster.get("user_id"))
+        uid = int(sender.get("user_id")) if sender.get("user_id") else None
+    except (TypeError, ValueError):
+        print(f"[KICK-CHAT] payload sem IDs válidos: {payload}", flush=True)
+        return
+
+    user = str(sender.get("username") or sender.get("slug") or "").strip()
+    content = str(payload.get("content") or "").strip()
+    if not bid or not user or not content.startswith("!"):
+        return
+
+    ensure_channel(
+        bid,
+        str(broadcaster.get("username") or broadcaster.get("channel_slug") or ""),
+    )
+    ensure_player(bid, user, uid)
+
+    pieces = content.split()
+    cmd = pieces[0].lower()
+    args = pieces[1:]
+
+    try:
+        cfg = find_command(bid, cmd)
+        print(
+            f"[KICK-CHAT] {user}: {content} -> "
+            f"{cfg['command_key'] if cfg else 'não encontrado'}",
+            flush=True,
+        )
+        if not cfg or not cfg["enabled"]:
+            return
+
+        ch = get_channel(bid)
+        key = cfg["command_key"]
+        currency = str(ch["currency_name"])
+        emoji = str(ch["currency_emoji"])
+
+        if key == "points":
+            _send_chat(bid, _render_response(cfg["response"], _format_balance(bid, user)))
+            return
+
+        if key == "ranking":
+            _send_chat(bid, _render_response(cfg["response"], {"ranking": _format_ranking(bid)}))
+            return
+
+        if key == "cmds":
+            _send_chat(bid, _render_response(cfg["response"], {"commands": _commands_text(bid)}))
+            return
+
+        if key == "duel":
+            if not args:
+                _send_chat(
+                    bid,
+                    _render_response(
+                        cfg["response"],
+                        {"duel_result": "⚔️ Use !duelo @usuário"},
+                    ),
+                )
+                return
+
+            defender = args[0].lstrip("@").strip()
+            if not defender or defender.lower() == user.lower():
+                _send_chat(
+                    bid,
+                    _render_response(
+                        cfg["response"],
+                        {"duel_result": "⚔️ Você não pode duelar consigo mesmo."},
+                    ),
+                )
+                return
+
+            ensure_player(bid, defender)
+            import random
+            winner = random.choice([user, defender])
+            loser = defender if winner == user else user
+            win = int(ch["duel_win_points"])
+            loss = int(ch["duel_loss_points"])
+            conn = get_conn()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE players SET points=points+%s WHERE broadcaster_user_id=%s AND username=%s",
+                        (win, bid, winner),
+                    )
+                    cur.execute(
+                        "UPDATE players SET points=GREATEST(0,points-%s) WHERE broadcaster_user_id=%s AND username=%s",
+                        (loss, bid, loser),
+                    )
+                    cur.execute(
+                        """
+                        INSERT INTO duel_events
+                            (broadcaster_user_id,attacker,defender,winner,winner_points_delta,loser_points_delta)
+                        VALUES (%s,%s,%s,%s,%s,%s)
+                        """,
+                        (bid, user, defender, winner, win, -loss),
+                    )
+                conn.commit()
+            finally:
+                conn.close()
+
+            result = (
+                f"⚔️ {user} atacou primeiro! 💥 {winner} venceu o duelo! "
+                f"🏆 +{win} {currency} para {winner}. 💀 {loser} perdeu {loss}."
+            )
+            _send_chat(
+                bid,
+                _render_response(
+                    cfg["response"],
+                    {
+                        "duel_result": result,
+                        "attacker": user,
+                        "defender": defender,
+                        "winner": winner,
+                        "loser": loser,
+                        "win": win,
+                        "loss": loss,
+                        "currency": currency,
+                        "emoji": emoji,
+                    },
+                ),
+            )
+            return
+
+        ismod = _is_moderator(sender, bid)
+        if key in {"addcmd", "addpoint", "settpoint", "delcmd"} and not ismod:
+            _send_chat(bid, "⛔ Apenas streamer/mod pode usar este comando.")
+            return
+
+        if key == "addcmd":
+            if len(args) < 2:
+                _send_chat(bid, "Use !addcmd !comando resposta")
+                return
+
+            custom = args[0].lower()
+            custom = custom if custom.startswith("!") else "!" + custom
+            resp = " ".join(args[1:]).strip()
+            if len(custom) > 64:
+                _send_chat(bid, "❌ Comando muito longo.")
+                return
+            if not resp:
+                _send_chat(bid, "❌ Informe uma resposta.")
+                return
+
+            all_commands = list_commands(bid)
+            used = {x["command"] for x in all_commands}
+            used.update(alias for x in all_commands for alias in x["aliases"])
+            if custom in used:
+                _send_chat(bid, "⛔ Essa palavra de ativação já está em uso.")
+                return
+
+            conn = get_conn()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO command_configs
+                            (broadcaster_user_id,command_key,command,description,response,enabled,category,is_system)
+                        VALUES (%s,%s,%s,%s,%s,TRUE,'custom',FALSE)
+                        """,
+                        (bid, "custom:" + custom, custom,
+                         "Comando personalizado desta live.", resp[:500]),
+                    )
+                conn.commit()
+            finally:
+                conn.close()
+
+            _send_chat(
+                bid,
+                _render_response(cfg["response"], {"command": custom}),
+            )
+            return
+
+        if key in {"addpoint", "settpoint"}:
+            if len(args) < 2:
+                _send_chat(bid, f'Use {cfg["command"]} @usuário quantidade')
+                return
+
+            target = args[0].lstrip("@").strip()
+            try:
+                amount = int(args[1])
+                amount = max(0, amount) if key == "settpoint" else amount
+            except ValueError:
+                _send_chat(bid, "❌ Quantidade inválida.")
+                return
+
+            if key == "addpoint" and amount <= 0:
+                _send_chat(bid, "❌ A quantidade precisa ser maior que 0.")
+                return
+
+            ensure_player(bid, target)
+            conn = get_conn()
+            try:
+                with conn.cursor() as cur:
+                    expression = "points+%s" if key == "addpoint" else "%s"
+                    cur.execute(
+                        f"""
+                        UPDATE players
+                           SET points={expression}, updated_at=NOW()
+                         WHERE broadcaster_user_id=%s AND username=%s
+                         RETURNING points
+                        """,
+                        (amount, bid, target),
+                    )
+                    row = cur.fetchone()
+                conn.commit()
+            finally:
+                conn.close()
+
+            new_points = int(row[0]) if row else amount
+            _send_chat(
+                bid,
+                _render_response(
+                    cfg["response"],
+                    {
+                        "target": target,
+                        "amount": amount,
+                        "new_points": new_points,
+                        "currency": currency,
+                        "emoji": emoji,
+                    },
+                ),
+            )
+            return
+
+        if key == "delcmd":
+            if not args:
+                _send_chat(bid, "Use !delcmd !comando")
+                return
+
+            target = find_command(bid, args[0].lower())
+            if not target or target["is_system"]:
+                _send_chat(bid, "❌ Esse comando personalizado não existe.")
+                return
+
+            conn = get_conn()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "DELETE FROM command_configs WHERE broadcaster_user_id=%s AND command_key=%s AND is_system=FALSE",
+                        (bid, target["command_key"]),
+                    )
+                    deleted = cur.rowcount > 0
+                conn.commit()
+            finally:
+                conn.close()
+
+            _send_chat(
+                bid,
+                _render_response(cfg["response"], {"command": args[0]})
+                if deleted else "❌ Comando não existe.",
+            )
+            return
+
+        if not cfg["is_system"]:
+            _send_chat(bid, _render_response(cfg["response"], {"user": user}))
+
+    except Exception as exc:
+        print(f"[KICK-CHAT] erro processando {content!r}: {exc}", flush=True)
 
 def _process_webhook(payload, event_type):
     print(f"[KICK-WEBHOOK] evento recebido para processamento: {event_type}", flush=True)
