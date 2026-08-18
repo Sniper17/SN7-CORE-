@@ -9,7 +9,7 @@ DEFAULT_SETTINGS = {
     "broadcaster_user_id": 1,
     "username": "",
     "currency_name": "Placos",
-    "currency_command": "!placos",
+    "currency_command": "!points",
     "currency_emoji": "🪙",
     "points_response": "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank).",
     "rank_title": "Ranking",

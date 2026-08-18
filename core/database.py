@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS channels (
     broadcaster_user_id BIGINT UNIQUE NOT NULL,
     username TEXT NOT NULL DEFAULT '',
     currency_name TEXT NOT NULL DEFAULT 'Placos',
-    currency_command TEXT NOT NULL DEFAULT '!placos',
+    currency_command TEXT NOT NULL DEFAULT '!points',
     currency_emoji TEXT NOT NULL DEFAULT '🪙',
     points_response TEXT NOT NULL DEFAULT '$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank).',
     rank_title TEXT NOT NULL DEFAULT 'Ranking',
@@ -120,6 +120,24 @@ def init_db():
                 ALTER TABLE channels
                 ALTER COLUMN points_response SET DEFAULT '{default_sql}'
             """)
+
+            cur.execute("""
+                UPDATE channels
+                   SET currency_command = '!points',
+                       points_response = %s,
+                       updated_at = NOW()
+                 WHERE currency_command = '!tabaco'
+                   AND (points_response IS NULL OR BTRIM(points_response) = '' OR LOWER(BTRIM(points_response)) = 'ola')
+            """, (DEFAULT_POINTS_RESPONSE,))
+
+            cur.execute("""
+                UPDATE command_configs
+                   SET command = '!points',
+                       response = %s,
+                       updated_at = NOW()
+                 WHERE command_key = 'points'
+                   AND command = '!tabaco'
+            """, (DEFAULT_POINTS_RESPONSE,))
 
             cur.execute("""
                 ALTER TABLE channels

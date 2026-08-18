@@ -87,11 +87,14 @@ function injectCommandStyles() {
     .sn7-toggle{display:flex!important;align-items:center;gap:8px}
     .sn7-toggle input{width:20px!important;height:20px;margin:0!important;accent-color:#ef4444;cursor:pointer}
     .sn7-system-action{border:1px solid #ef4444!important;color:#ff8f8f!important;background:rgba(239,68,68,.08)!important}
-    .sn7-system-action.off{border-color:var(--border)!important;color:var(--muted)!important;background:transparent!important}
+    .sn7-system-action.off{border-color:#ef4444!important;color:#ff8f8f!important;background:rgba(239,68,68,.08)!important}
     .sn7-alias-row{display:flex;gap:8px;margin-top:7px}
     .sn7-alias-row input{margin:0}
     .sn7-danger{border:1px solid #63383b;background:transparent;color:#ff9c9c;border-radius:8px;padding:8px 11px;cursor:pointer}
     .sn7-actions{display:flex;justify-content:space-between;gap:10px;margin-top:20px}
+    .sn7-system-action:disabled{opacity:.72;cursor:wait}
+    .sn7-spinner{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-2px;margin-right:7px;animation:sn7spin .65s linear infinite}
+    @keyframes sn7spin{to{transform:rotate(360deg)}}
     .sn7-actions>div{display:flex;gap:8px}
     .sn7-variant-list{display:flex;flex-direction:column;gap:7px;margin-top:8px}
     .sn7-variant-item{display:flex;align-items:center;gap:8px}
@@ -99,7 +102,7 @@ function injectCommandStyles() {
     .sn7-variant-remove{border:1px solid #63383b;background:transparent;color:#ff9c9c;border-radius:8px;padding:7px 9px;cursor:pointer}
     .sn7-remove-all{margin-top:8px}
     .sn7-help{font-size:11px;color:var(--muted);margin-top:6px}
-    .sn7-points-response{min-height:105px!important}
+    .sn7-points-response{min-height:105px!important;background:#0b0d12!important;color:#fff!important;border:1px solid #303744!important}
     @media(max-width:700px){
       .sn7-command-category{padding:16px}
       .sn7-command-row{align-items:flex-start}
@@ -290,7 +293,7 @@ function showCommand(command, isNew = false) {
       </label>
       <div class="sn7-actions">
         <button class="${command.is_system ? "sn7-system-action" : "sn7-danger"} ${command.is_system && !command.enabled ? "off" : ""}" type="button"
-          onclick="deleteCommandV2('${encodeURIComponent(command.command_key)}',${command.is_system})">
+          onclick="deleteCommandV2('${encodeURIComponent(command.command_key)}',${command.is_system},this)">
           ${command.is_system ? (command.enabled ? "Desativar comando" : "Ativar comando") : "Excluir"}
         </button>
         <div>
@@ -363,12 +366,36 @@ async function removeAlias(encodedKey, encodedAlias) {
   }
 }
 
-async function deleteCommandV2(encodedKey, isSystem) {
+async function deleteCommandV2(encodedKey, isSystem, button) {
+  button = button || document.querySelector(".sn7-system-action");
+  const originalText = button ? button.textContent.trim() : "";
+
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = `<span class="sn7-spinner"></span>${isSystem ? "Atualizando..." : "Excluindo..."}`;
+  }
+
   try {
-    await apiJson(`/api/commands/${BROADCASTER_ID}/${encodedKey}`, { method: "DELETE" });
+    const data = await apiJson(`/api/commands/${BROADCASTER_ID}/${encodedKey}`, { method: "DELETE" });
+    commandCache = Array.isArray(data.commands) ? data.commands : commandCache;
+    renderCommands();
+
+    if (isSystem) {
+      const updated = commandCache.find((item) => item.command_key === decodeURIComponent(encodedKey));
+      if (button && updated) {
+        button.disabled = false;
+        button.classList.toggle("off", !updated.enabled);
+        button.innerHTML = updated.enabled ? "Desativar comando" : "Ativar comando";
+      }
+      return;
+    }
+
     document.querySelector(".sn7-modal")?.remove();
-    await loadCommands();
   } catch (error) {
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText || (isSystem ? "Desativar comando" : "Excluir");
+    }
     alert(error.message);
   }
 }

@@ -3,7 +3,7 @@ from core.database import get_conn
 DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank)."
 
 SYSTEM = {
-    "points": ("!placos", "Consulta seu saldo de pontos.", "public", DEFAULT_POINTS_RESPONSE),
+    "points": ("!points", "Consulta seu saldo de pontos.", "public", DEFAULT_POINTS_RESPONSE),
     "ranking": ("!ranking", "Mostra o ranking do canal.", "public", "$(ranking)"),
     "duel": ("!duelo", "Inicia um duelo contra outro usuário.", "public", "$(duel_result)"),
     "cmds": ("!cmds", "Lista os comandos personalizados da live.", "public", "$(commands)"),
