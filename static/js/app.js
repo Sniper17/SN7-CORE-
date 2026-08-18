@@ -272,10 +272,6 @@ function showCommand(command, isNew = false) {
       <label>Mensagem / resposta
         <textarea id="v2resp" maxlength="500" placeholder="Resposta que o bot enviará">${esc(command.response)}</textarea>
       </label>
-      <label class="sn7-toggle">
-        <input id="v2enabled" type="checkbox" ${command.enabled ? "checked" : ""}>
-        Comando ativo
-      </label>
       <label>Variantes
         ${isNew ? `
           <div class="sn7-alias-row">
@@ -312,7 +308,6 @@ async function saveCommandV2(encodedKey, isNew) {
     command: $("v2cmd")?.value.trim(),
     description: $("v2desc")?.value.trim(),
     response: $("v2resp")?.value,
-    enabled: $("v2enabled")?.checked,
   };
   if (isNew) body.aliases = [...draftAliases];
 

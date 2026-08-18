@@ -112,7 +112,12 @@ def init_db():
             cur.execute("""
                 UPDATE channels
                 SET points_response = %s
-                WHERE points_response IS NULL
+                WHERE points_response IS NULL OR BTRIM(points_response) = ''
+            """, (DEFAULT_POINTS_RESPONSE,))
+
+            cur.execute("""
+                ALTER TABLE channels
+                ALTER COLUMN points_response SET DEFAULT %s
             """, (DEFAULT_POINTS_RESPONSE,))
 
             cur.execute("""

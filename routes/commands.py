@@ -154,9 +154,13 @@ def edit_command(broadcaster_id, key):
 @commands_bp.delete("/<int:broadcaster_id>/<path:key>")
 def delete_command(broadcaster_id, key):
     try:
-        # Sistema: desativa. Personalizado: remove de verdade.
+        # Personalizado: remove de verdade. Sistema: alterna ativo/desativado.
         if not delete_custom(broadcaster_id, key):
-            update_command(broadcaster_id, key, enabled=False)
+            commands = list_commands(broadcaster_id)
+            target = next((item for item in commands if item["command_key"] == key), None)
+            if not target:
+                return jsonify({"ok": False, "error": "Comando não encontrado."}), 404
+            update_command(broadcaster_id, key, enabled=not bool(target["enabled"]))
         return jsonify({"ok": True, "commands": list_commands(broadcaster_id)})
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
