@@ -32,8 +32,8 @@ def get_channel(broadcaster_id):
             cur.execute(
                 """
                 SELECT broadcaster_user_id, username, currency_name,
-                       currency_command, currency_emoji, rank_title,
-                       rank_limit, duel_win_points, duel_loss_points
+                       currency_command, currency_emoji, points_response,
+                       rank_title, rank_limit, duel_win_points, duel_loss_points
                   FROM channels
                  WHERE broadcaster_user_id=%s
                 """,
@@ -44,8 +44,8 @@ def get_channel(broadcaster_id):
                 return None
             keys = [
                 "broadcaster_user_id", "username", "currency_name",
-                "currency_command", "currency_emoji", "rank_title",
-                "rank_limit", "duel_win_points", "duel_loss_points"
+                "currency_command", "currency_emoji", "points_response",
+                "rank_title", "rank_limit", "duel_win_points", "duel_loss_points"
             ]
             return dict(zip(keys, row))
     finally:

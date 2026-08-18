@@ -1,31 +1,38 @@
 from core.database import get_conn
 
+DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank)."
+
 SYSTEM = {
-    "points": ("!placos", "Consulta seu saldo de pontos.", "public", "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank)."),
+    "points": ("!placos", "Consulta seu saldo de pontos.", "public", DEFAULT_POINTS_RESPONSE),
     "ranking": ("!ranking", "Mostra o ranking do canal.", "public", "$(ranking)"),
     "duel": ("!duelo", "Inicia um duelo contra outro usuário.", "public", "$(duel_result)"),
     "cmds": ("!cmds", "Lista os comandos personalizados da live.", "public", "$(commands)"),
     "addcmd": ("!addcmd", "Cria ou atualiza um comando personalizado.", "mod", "✅ $(command) configurado."),
     "addpoint": ("!addpoint", "Adiciona pontos a um usuário.", "mod", "🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency)."),
-    "settpoint": ("!settpoint", "Define o saldo de um usuário.", "mod", "🪙 Saldo de $(target): $(new_points) $(currency)."),
+    "settpoint": ("!setpoint", "Define o saldo de um usuário.", "mod", "🪙 Saldo de $(target): $(new_points) $(currency)."),
     "delcmd": ("!delcmd", "Remove um comando personalizado.", "mod", "🗑️ $(command) removido."),
 }
 
+
 def ensure_command_defaults(bid):
-    """Garante os comandos do sistema sem sobrescrever configurações do streamer."""
     bid = int(bid)
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT currency_command FROM channels WHERE broadcaster_user_id=%s", (bid,))
+            cur.execute(
+                "SELECT currency_command, points_response FROM channels WHERE broadcaster_user_id=%s",
+                (bid,),
+            )
             row = cur.fetchone()
             points_command = str((row[0] if row else None) or "!placos").strip().lower()
+            points_response = str((row[1] if row else None) or DEFAULT_POINTS_RESPONSE)
             if not points_command.startswith("!"):
                 points_command = "!placos"
 
             for key, (command, description, category, response) in SYSTEM.items():
                 if key == "points":
                     command = points_command
+                    response = points_response
                 cur.execute(
                     """
                     INSERT INTO command_configs
@@ -36,27 +43,30 @@ def ensure_command_defaults(bid):
                     (bid, key, command, description, response, category),
                 )
 
-            # Points Stats é a única exceção: o comando principal é a fonte de
-            # verdade da tabela channels.
             cur.execute(
                 """
                 UPDATE command_configs
-                   SET command=%s, updated_at=NOW()
+                   SET command=%s, response=%s, updated_at=NOW()
                  WHERE broadcaster_user_id=%s
                    AND command_key='points'
-                   AND command<>%s
+                   AND (command<>%s OR response<>%s)
                 """,
-                (points_command, bid, points_command),
+                (points_command, points_response, bid, points_command, points_response),
             )
 
-            # Migra a tabela antiga somente quando o comando ainda não existe.
-            cur.execute("SELECT command,response FROM custom_commands WHERE broadcaster_user_id=%s", (bid,))
-            for command, response in cur.fetchall():
+            cur.execute(
+                "SELECT command,response FROM custom_commands WHERE broadcaster_user_id=%s",
+                (bid,),
+            )
+            legacy = cur.fetchall()
+
+            for command, response in legacy:
                 command = str(command or "").strip().lower()
                 if not command:
                     continue
                 if not command.startswith("!"):
                     command = "!" + command
+
                 cur.execute(
                     """
                     INSERT INTO command_configs
@@ -68,13 +78,23 @@ def ensure_command_defaults(bid):
                             AND (command_key=%s OR command=%s)
                      )
                     """,
-                    (bid, "custom:" + command, command,
-                     "Comando personalizado desta live.", str(response or ""),
-                     bid, "custom:" + command, command),
+                    (
+                        bid, "custom:" + command, command,
+                        "Comando personalizado desta live.", str(response or ""),
+                        bid, "custom:" + command, command
+                    ),
                 )
+
+            if legacy:
+                cur.execute(
+                    "DELETE FROM custom_commands WHERE broadcaster_user_id=%s",
+                    (bid,),
+                )
+
         conn.commit()
     finally:
         conn.close()
+
 
 def _dict_from_row(row):
     if not row:
@@ -85,6 +105,7 @@ def _dict_from_row(row):
         "enabled": bool(row[6]), "category": row[7], "is_system": bool(row[8]),
         "aliases": [],
     }
+
 
 def list_commands(bid):
     ensure_command_defaults(bid)
@@ -113,6 +134,7 @@ def list_commands(bid):
     finally:
         conn.close()
 
+
 def find_command(bid, typed):
     ensure_command_defaults(bid)
     typed = str(typed or "").strip().lower()
@@ -136,6 +158,7 @@ def find_command(bid, typed):
             return _dict_from_row(cur.fetchone())
     finally:
         conn.close()
+
 
 def update_command(bid, key, command=None, response=None, enabled=None, description=None):
     conn = get_conn()
@@ -179,6 +202,7 @@ def update_command(bid, key, command=None, response=None, enabled=None, descript
                 if value is not None:
                     fields.append(name + "=%s")
                     values.append(value)
+
             if not fields:
                 return
 
@@ -199,6 +223,7 @@ def update_command(bid, key, command=None, response=None, enabled=None, descript
         conn.commit()
     finally:
         conn.close()
+
 
 def add_alias(bid, key, alias):
     alias = str(alias or "").strip().lower()
@@ -237,6 +262,7 @@ def add_alias(bid, key, alias):
     finally:
         conn.close()
 
+
 def delete_alias(bid, alias):
     conn = get_conn()
     try:
@@ -251,15 +277,29 @@ def delete_alias(bid, alias):
     finally:
         conn.close()
 
+
 def delete_custom(bid, key):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
+                "SELECT command FROM command_configs WHERE broadcaster_user_id=%s AND command_key=%s AND is_system=FALSE",
+                (int(bid), key),
+            )
+            row = cur.fetchone()
+
+            cur.execute(
                 "DELETE FROM command_configs WHERE broadcaster_user_id=%s AND command_key=%s AND is_system=FALSE",
                 (int(bid), key),
             )
             deleted = cur.rowcount > 0
+
+            if row:
+                cur.execute(
+                    "DELETE FROM custom_commands WHERE broadcaster_user_id=%s AND command=%s",
+                    (int(bid), str(row[0]).strip().lower()),
+                )
+
         conn.commit()
         return deleted
     finally:

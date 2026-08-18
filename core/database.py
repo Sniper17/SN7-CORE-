@@ -1,7 +1,9 @@
 import os
 import psycopg
 
-SCHEMA = '''
+DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank)."
+
+SCHEMA = """
 CREATE TABLE IF NOT EXISTS channels (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT UNIQUE NOT NULL,
@@ -9,6 +11,7 @@ CREATE TABLE IF NOT EXISTS channels (
     currency_name TEXT NOT NULL DEFAULT 'Placos',
     currency_command TEXT NOT NULL DEFAULT '!placos',
     currency_emoji TEXT NOT NULL DEFAULT '🪙',
+    points_response TEXT NOT NULL DEFAULT '$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank).',
     rank_title TEXT NOT NULL DEFAULT 'Ranking',
     rank_limit INTEGER NOT NULL DEFAULT 5,
     duel_win_points INTEGER NOT NULL DEFAULT 10,
@@ -79,14 +82,16 @@ CREATE TABLE IF NOT EXISTS command_configs (
  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
  UNIQUE(broadcaster_user_id,command_key), UNIQUE(broadcaster_user_id,command)
 );
+
 CREATE TABLE IF NOT EXISTS command_aliases (
  id BIGSERIAL PRIMARY KEY, broadcaster_user_id BIGINT NOT NULL,
  command_id BIGINT NOT NULL REFERENCES command_configs(id) ON DELETE CASCADE, alias TEXT NOT NULL,
  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(broadcaster_user_id,alias)
 );
+
 CREATE INDEX IF NOT EXISTS idx_command_configs_channel ON command_configs(broadcaster_user_id,category,enabled);
 CREATE INDEX IF NOT EXISTS idx_command_aliases_channel ON command_aliases(broadcaster_user_id,alias);
-'''
+"""
 
 def get_conn():
     url = os.environ.get("DATABASE_URL")
@@ -99,6 +104,10 @@ def init_db():
     try:
         with conn.cursor() as cur:
             cur.execute(SCHEMA)
+            cur.execute(
+                "ALTER TABLE channels ADD COLUMN IF NOT EXISTS points_response TEXT NOT NULL DEFAULT %s",
+                (DEFAULT_POINTS_RESPONSE,),
+            )
         conn.commit()
     finally:
         conn.close()

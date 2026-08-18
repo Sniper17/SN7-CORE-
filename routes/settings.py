@@ -11,6 +11,7 @@ DEFAULT_SETTINGS = {
     "currency_name": "Placos",
     "currency_command": "!placos",
     "currency_emoji": "🪙",
+    "points_response": "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank).",
     "rank_title": "Ranking",
     "rank_limit": 5,
     "duel_win_points": 10,
@@ -32,7 +33,7 @@ def get_settings(broadcaster_id):
 def update_settings(broadcaster_id):
     data = request.get_json(silent=True) or {}
     allowed = {
-        "currency_name", "currency_command", "currency_emoji",
+        "currency_name", "currency_command", "currency_emoji", "points_response",
         "rank_title", "rank_limit", "duel_win_points", "duel_loss_points"
     }
     values = {k: data[k] for k in allowed if k in data}
@@ -45,20 +46,31 @@ def update_settings(broadcaster_id):
         if not values["currency_command"].startswith("!"):
             return jsonify({"ok": False, "error": "O comando deve começar com !"}), 400
 
+    if "points_response" in values:
+        values["points_response"] = str(values["points_response"])
+        if not values["points_response"].strip():
+            return jsonify({"ok": False, "error": "A mensagem do saldo não pode ficar vazia."}), 400
+        if len(values["points_response"]) > 500:
+            return jsonify({"ok": False, "error": "A mensagem do saldo pode ter no máximo 500 caracteres."}), 400
+
     try:
         ensure_channel(broadcaster_id)
 
-        if "currency_command" in values:
+        if "currency_command" in values or "points_response" in values:
             update_command(
                 broadcaster_id,
                 "points",
-                command=values["currency_command"]
+                command=values.get("currency_command"),
+                response=values.get("points_response"),
             )
 
         channel_values = {
             k: v for k, v in values.items()
-            if k != "currency_command"
+            if k not in {"currency_command", "points_response"}
         }
+
+        if "points_response" in values:
+            channel_values["points_response"] = values["points_response"]
 
         if channel_values:
             sets = ", ".join(f"{k}=%s" for k in channel_values)

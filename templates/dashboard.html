@@ -66,6 +66,9 @@
           <label>Comando principal<input id="currency_command" placeholder="!placos" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
           <label>Emoji<input id="currency_emoji" placeholder="🪙" autocomplete="off"></label>
         </div>
+        <label>Mensagem do saldo
+          <textarea id="points_response" class="sn7-points-response" maxlength="500" placeholder="Mensagem que o bot enviará ao consultar o saldo"></textarea>
+        </label>
         <div class="save-row"><p id="settingsMsg"></p><button type="button" class="btn" onclick="saveSettings()">Salvar alterações</button></div>
       </div>
     </section>
@@ -100,7 +103,7 @@
     </section>
 
     <section id="commands" class="tab">
-      <div class="section-head"><div><h2>Comandos</h2><p>Comandos da live. Alterações são salvas diretamente no banco.</p></div></div>
+      <div class="section-head"><div><h2>Comandos</h2><p>Alterações são salvas diretamente no banco.</p></div></div>
     </section>
 
     <section id="appearance" class="tab">
@@ -114,6 +117,5 @@
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }};</script>
 <script src="/static/js/app.js"></script>
-<script src="/static/js/commands-v23.js"></script>
 </body>
 </html>
