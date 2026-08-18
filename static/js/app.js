@@ -1,4 +1,5 @@
 const $ = id => document.getElementById(id);
+let commandCache = [];
 
 function openTab(tab) {
   const button = document.querySelector(`nav button[data-tab="${tab}"]`);
@@ -74,8 +75,8 @@ function injectCommandStyles() {
   document.head.appendChild(style);
 }
 
-function buildCommandCatalog(){const section=$('commands');if(!section)return;section.innerHTML=`<div class="section-head"><div><h2>Comandos</h2><p>Um comando por função. Aliases ficam dentro do comando.</p></div></div><div class="panel command-catalog"><div class="command-category"><h3>🌐 Públicos</h3><div id="publicCommandsList"></div></div><div class="command-category"><h3>🛡️ ADM / MOD</h3><div id="modCommandsList"></div></div><div class="command-category"><div class="command-category-head"><h3>✨ Personalizados</h3><button class="btn" onclick="newCommand()">＋ Novo comando</button></div><div id="customCommandsList"></div></div></div>`;injectV2Styles()}
-function injectV2Styles(){if($('sn7v2styles'))return;const s=document.createElement('style');s.id='sn7v2styles';s.textContent='.command-category{padding:18px 20px;border-bottom:1px solid var(--border)}.command-category h3{margin:0 0 10px}.system-command{display:flex;justify-content:space-between;gap:10px;padding:12px 8px;border-top:1px solid var(--border);cursor:pointer}.system-command.disabled{opacity:.4}.system-command small{display:block;color:var(--muted);margin-top:4px}.aliases{font-size:11px;color:var(--muted);margin-top:4px}.cmd-modal{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;padding:16px;z-index:9999}.cmd-box{width:min(620px,100%);max-height:90vh;overflow:auto;background:#11151d;border:1px solid var(--border);border-radius:16px;padding:20px}.cmd-box label{display:block;margin-top:14px;font-size:12px}.cmd-box input,.cmd-box textarea{width:100%;margin-top:7px}.cmd-box textarea{min-height:110px}.alias-row{display:flex;gap:8px;margin-top:7px}.alias-row input{margin:0}.danger{border:1px solid #63383b;background:transparent;color:#ff9c9c;border-radius:8px;padding:7px 10px}.cmd-actions{display:flex;justify-content:space-between;margin-top:18px}.cmd-actions div{display:flex;gap:8px}';document.head.appendChild(s)}
+function buildCommandCatalog(){const section=$('commands');if(!section)return;section.innerHTML=`<div class="section-head"><div><h2>Comandos</h2><p>Um comando por função. Aliases ficam dentro do comando.</p></div></div><div class="panel command-catalog"><div class="command-category"><h3>🌐 Públicos</h3><div id="publicCommandsList"></div></div><div class="command-category"><h3>🛡️ ADM / MOD</h3><div id="modCommandsList"></div></div><div class="command-category"><div class="command-category-head"><h3>✨ Personalizados</h3><button class="subtle-btn" type="button" onclick="newCommand()">＋ Novo comando</button></div><div id="customCommandsList"></div></div></div>`;injectV2Styles()}
+function injectV2Styles(){if(!document.getElementById('sn7subtlebtn')){const z=document.createElement('style');z.id='sn7subtlebtn';z.textContent='.subtle-btn{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;transition:.15s ease}.subtle-btn:hover{color:#fff;border-color:#394253;background:#171c25}.subtle-btn:active{transform:translateY(1px)}';document.head.appendChild(z)}if($('sn7v2styles'))return;const s=document.createElement('style');s.id='sn7v2styles';s.textContent='.command-category{padding:18px 20px;border-bottom:1px solid var(--border)}.command-category h3{margin:0 0 10px}.system-command{display:flex;justify-content:space-between;gap:10px;padding:12px 8px;border-top:1px solid var(--border);cursor:pointer}.system-command.disabled{opacity:.4}.system-command small{display:block;color:var(--muted);margin-top:4px}.aliases{font-size:11px;color:var(--muted);margin-top:4px}.cmd-modal{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;padding:16px;z-index:9999}.cmd-box{width:min(620px,100%);max-height:90vh;overflow:auto;background:#11151d;border:1px solid var(--border);border-radius:16px;padding:20px}.cmd-box label{display:block;margin-top:14px;font-size:12px}.cmd-box input,.cmd-box textarea{width:100%;margin-top:7px}.cmd-box textarea{min-height:110px}.alias-row{display:flex;gap:8px;margin-top:7px}.alias-row input{margin:0}.danger{border:1px solid #63383b;background:transparent;color:#ff9c9c;border-radius:8px;padding:7px 10px}.cmd-actions{display:flex;justify-content:space-between;margin-top:18px}.cmd-actions div{display:flex;gap:8px}';document.head.appendChild(s)}
 function renderCommands(){['public','mod','custom'].forEach(cat=>{const id=cat==='public'?'publicCommandsList':cat==='mod'?'modCommandsList':'customCommandsList',el=$(id);if(!el)return;const rows=commandCache.filter(c=>c.category===cat);el.innerHTML=rows.length?rows.map(c=>`<div class="system-command ${c.enabled?'':'disabled'}" onclick="openCommand('${encodeURIComponent(c.command_key)}')"><div><code>${esc(c.command)}</code><small>${esc(c.description)}</small>${c.aliases?.length?`<div class="aliases">Atalhos: ${c.aliases.map(esc).join(', ')}</div>`:''}</div><small>${c.enabled?'🟢 Ativo':'⚪ Desativado'}</small></div>`).join(''):'<div class="empty-panel"><p>Nenhum comando.</p></div>'})}
 function openCommand(k){const c=commandCache.find(x=>x.command_key===decodeURIComponent(k));if(c)showCommand(c)}
 function newCommand(){showCommand({command_key:'',command:'',description:'Comando personalizado desta live.',response:'',enabled:true,aliases:[],is_system:false,category:'custom'},true)}
@@ -138,6 +139,7 @@ async function saveSettings() {
     const r = await fetch(`/api/settings/${BROADCASTER_ID}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
+      cache: "no-store",
       body: JSON.stringify(data)
     });
 
@@ -146,6 +148,7 @@ async function saveSettings() {
     if (d.ok) {
       updatePreview(d.settings);
       renderSystemCommands(d.settings);
+      await loadCommands();
       setMessage("✓ Alterações salvas.", true);
     } else {
       setMessage("⚠ " + (d.error || "Não foi possível salvar."));
@@ -162,6 +165,7 @@ async function loadCommands() {
     const r = await fetch(`/api/commands/${BROADCASTER_ID}`, { cache: "no-store" });
     const d = await r.json();
     const list = d.commands || [];
+    commandCache = list;
 
     if ($("commandCount")) $("commandCount").textContent = list.filter(c => c.category === "custom").length;
     renderCommands();
