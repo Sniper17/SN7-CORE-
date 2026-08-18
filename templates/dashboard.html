@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
 <link rel="stylesheet" href="/static/css/style.css">
 </head>
@@ -15,15 +16,15 @@
       <div><strong>Minha live</strong><small>Canal conectado</small></div>
     </div>
     <nav>
-      <button data-tab="overview" class="active"><span>⌂</span> Visão geral</button>
-      <button data-tab="economy"><span>◉</span> Economia</button>
-      <button data-tab="ranking"><span>♛</span> Ranking</button>
-      <button data-tab="duel"><span>⚔</span> Duelo</button>
-      <button data-tab="bank"><span>▣</span> Banco</button>
-      <button data-tab="commands"><span>⌘</span> Comandos</button>
-      <button data-tab="appearance"><span>✦</span> Aparência</button>
+      <button type="button" data-tab="overview" class="active"><span>⌂</span> Visão geral</button>
+      <button type="button" data-tab="economy"><span>◉</span> Economia</button>
+      <button type="button" data-tab="ranking"><span>♛</span> Ranking</button>
+      <button type="button" data-tab="duel"><span>⚔</span> Duelo</button>
+      <button type="button" data-tab="bank"><span>▣</span> Banco</button>
+      <button type="button" data-tab="commands"><span>⌘</span> Comandos</button>
+      <button type="button" data-tab="appearance"><span>✦</span> Aparência</button>
     </nav>
-    <div class="sidebar-footer">SN7 CORE <span>v1.1</span></div>
+    <div class="sidebar-footer">SN7 CORE <span>v1.2</span></div>
   </aside>
 
   <main>
@@ -39,19 +40,19 @@
     <section id="overview" class="tab active">
       <div class="section-head"><div><h2>Resumo</h2><p>Configurações atuais deste canal.</p></div></div>
       <div class="grid stats-grid">
-        <div class="stat"><span class="stat-icon">◉</span><div><small>Moeda do canal</small><strong id="statCurrency">—</strong></div></div>
-        <div class="stat"><span class="stat-icon">!</span><div><small>Comando da moeda</small><strong id="statCommand">—</strong></div></div>
-        <div class="stat"><span class="stat-icon">☺</span><div><small>Emoji</small><strong id="statEmoji">—</strong></div></div>
+        <div class="stat"><span class="stat-icon">◉</span><div><small>Moeda do canal</small><strong id="statCurrency">Placos</strong></div></div>
+        <div class="stat"><span class="stat-icon">!</span><div><small>Comando da moeda</small><strong id="statCommand">!placos</strong></div></div>
+        <div class="stat"><span class="stat-icon">☺</span><div><small>Emoji</small><strong id="statEmoji">🪙</strong></div></div>
         <div class="stat"><span class="stat-icon">V/D</span><div><small>Sistema de V/D</small><strong>Desativado</strong></div></div>
       </div>
 
       <div class="overview-grid">
         <div class="panel">
-          <div class="panel-title"><div><h3>Economia</h3><p>Nome, comando e símbolo usados no chat.</p></div><button class="link-btn" onclick="openTab('economy')">Editar →</button></div>
+          <div class="panel-title"><div><h3>Economia</h3><p>Nome, comando e símbolo usados no chat.</p></div><button type="button" class="link-btn" onclick="openTab('economy')">Editar →</button></div>
           <div class="preview-line"><span id="previewEmoji">🪙</span><strong id="previewCurrency">Placos</strong><code id="previewCommand">!placos</code></div>
         </div>
         <div class="panel">
-          <div class="panel-title"><div><h3>Comandos</h3><p>Respostas personalizadas da live.</p></div><button class="link-btn" onclick="openTab('commands')">Gerenciar →</button></div>
+          <div class="panel-title"><div><h3>Comandos</h3><p>Respostas personalizadas da live.</p></div><button type="button" class="link-btn" onclick="openTab('commands')">Gerenciar →</button></div>
           <div class="command-count"><strong id="commandCount">0</strong><span>comandos cadastrados</span></div>
         </div>
       </div>
@@ -61,11 +62,11 @@
       <div class="section-head"><div><h2>Economia</h2><p>Personalize a moeda do seu canal.</p></div></div>
       <div class="panel form-panel">
         <div class="form-grid">
-          <label>Nome dos pontos<input id="currency_name" placeholder="Placos"></label>
-          <label>Comando principal<input id="currency_command" placeholder="!placos"></label>
-          <label>Emoji<input id="currency_emoji" placeholder="🪙"></label>
+          <label>Nome dos pontos<input id="currency_name" placeholder="Placos" autocomplete="off"></label>
+          <label>Comando principal<input id="currency_command" placeholder="!placos" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+          <label>Emoji<input id="currency_emoji" placeholder="🪙" autocomplete="off"></label>
         </div>
-        <div class="save-row"><p id="settingsMsg"></p><button class="btn" onclick="saveSettings()">Salvar alterações</button></div>
+        <div class="save-row"><p id="settingsMsg"></p><button type="button" class="btn" onclick="saveSettings()">Salvar alterações</button></div>
       </div>
     </section>
 
@@ -73,11 +74,11 @@
       <div class="section-head"><div><h2>Ranking</h2><p>Defina como o ranking do canal será apresentado.</p></div></div>
       <div class="panel form-panel">
         <div class="form-grid">
-          <label>Título do ranking<input id="rank_title" placeholder="Ranking"></label>
-          <label>Quantidade de posições<input id="rank_limit" type="number" min="1" max="50"></label>
+          <label>Título do ranking<input id="rank_title" placeholder="Ranking" autocomplete="off"></label>
+          <label>Quantidade de posições<input id="rank_limit" type="number" inputmode="numeric" min="1" max="50"></label>
         </div>
         <div class="info-box">O limite define quantos usuários aparecem quando o ranking for consultado.</div>
-        <div class="save-row"><button class="btn" onclick="saveSettings()">Salvar alterações</button></div>
+        <div class="save-row"><button type="button" class="btn" onclick="saveSettings()">Salvar alterações</button></div>
       </div>
     </section>
 
@@ -85,11 +86,11 @@
       <div class="section-head"><div><h2>Duelo</h2><p>Controle a recompensa e a penalidade dos duelos.</p></div></div>
       <div class="panel form-panel">
         <div class="form-grid">
-          <label>Recompensa da vitória<input id="duel_win_points" type="number" min="0"></label>
-          <label>Perda de pontos<input id="duel_loss_points" type="number" min="0"></label>
+          <label>Recompensa da vitória<input id="duel_win_points" type="number" inputmode="numeric" min="0"></label>
+          <label>Perda de pontos<input id="duel_loss_points" type="number" inputmode="numeric" min="0"></label>
         </div>
         <div class="info-box">O duelo altera os pontos dos participantes. O Core não mantém um V/D separado.</div>
-        <div class="save-row"><button class="btn" onclick="saveSettings()">Salvar alterações</button></div>
+        <div class="save-row"><button type="button" class="btn" onclick="saveSettings()">Salvar alterações</button></div>
       </div>
     </section>
 
@@ -102,9 +103,9 @@
       <div class="section-head"><div><h2>Comandos personalizados</h2><p>Crie respostas próprias para o chat da sua live.</p></div></div>
       <div class="panel form-panel">
         <div class="command-form">
-          <input id="cmd" placeholder="!discord">
-          <input id="response" placeholder="Resposta que o bot vai enviar">
-          <button class="btn" onclick="saveCommand()">Adicionar</button>
+          <input id="cmd" placeholder="!discord" autocomplete="off" autocapitalize="none" spellcheck="false">
+          <input id="response" placeholder="Resposta que o bot vai enviar" autocomplete="off">
+          <button type="button" class="btn" onclick="saveCommand()">Adicionar</button>
         </div>
         <div class="list-head"><span>Comando</span><span>Resposta</span><span></span></div>
         <div id="commandsList" class="commands-list"></div>
