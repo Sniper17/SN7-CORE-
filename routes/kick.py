@@ -334,37 +334,96 @@ def _subscribe_chat(access_token, broadcaster_id=None):
 
 
 def _fetch_public_key():
+    # Busca e mantém em cache a chave RSA pública usada pela Kick.
     global _public_key_pem
-    response = requests.get(KICK_PUBLIC_KEY_URL, timeout=20)
+
+    response = requests.get(
+        KICK_PUBLIC_KEY_URL,
+        headers={"Accept": "application/json"},
+        timeout=20,
+    )
+
+    try:
+        data = response.json()
+    except Exception:
+        data = {"raw": response.text[:1000]}
+
+    print(
+        f"[KICK-WEBHOOK] public-key -> HTTP {response.status_code}: "
+        f"{data if response.status_code >= 400 else 'OK'}",
+        flush=True,
+    )
+
     response.raise_for_status()
-    data = response.json()
-    _public_key_pem = data.get("publicKey") or data.get("public_key")
-    if not _public_key_pem:
-        raise RuntimeError("Kick não retornou a chave pública.")
+
+    # A resposta atual da Kick é:
+    # {"data": {"public_key": "-----BEGIN PUBLIC KEY-----..."},
+    #  "message": "OK"}
+    wrapper = data.get("data") if isinstance(data, dict) else None
+    wrapper = wrapper if isinstance(wrapper, dict) else {}
+
+    key = (
+        wrapper.get("public_key")
+        or wrapper.get("publicKey")
+        or data.get("public_key")
+        or data.get("publicKey")
+    )
+
+    if not isinstance(key, str) or "BEGIN PUBLIC KEY" not in key:
+        raise RuntimeError(
+            "Kick retornou HTTP 200, mas a chave pública não foi encontrada "
+            f"na resposta: {data}"
+        )
+
+    _public_key_pem = key.strip()
     return _public_key_pem
 
 
 def _verify_signature(raw_body, message_id, timestamp, signature):
     global _public_key_pem
+
     if not message_id or not timestamp or not signature:
+        print("[KICK-WEBHOOK] headers de assinatura incompletos", flush=True)
         return False
-    body = f"{message_id}.{timestamp}.".encode("utf-8") + raw_body
+
+    # A Kick assina exatamente:
+    # Kick-Event-Message-Id.Kick-Event-Message-Timestamp.raw_body
+    signed_message = (
+        f"{message_id}.{timestamp}.".encode("utf-8") + raw_body
+    )
+
     for attempt in range(2):
         try:
             if not _public_key_pem:
                 _fetch_public_key()
-            public_key = serialization.load_pem_public_key(_public_key_pem.encode("utf-8"))
-            sig = base64.b64decode(signature)
-            if isinstance(public_key, rsa.RSAPublicKey):
-                public_key.verify(sig, body, padding.PKCS1v15(), hashes.SHA256())
-            elif isinstance(public_key, ed25519.Ed25519PublicKey):
-                public_key.verify(sig, body)
-            else:
-                raise RuntimeError(f"Tipo de chave Kick não suportado: {type(public_key).__name__}")
+
+            public_key = serialization.load_pem_public_key(
+                _public_key_pem.encode("utf-8")
+            )
+            signature_bytes = base64.b64decode(signature, validate=True)
+
+            if not isinstance(public_key, rsa.RSAPublicKey):
+                raise RuntimeError(
+                    f"Tipo de chave Kick não suportado: "
+                    f"{type(public_key).__name__}"
+                )
+
+            public_key.verify(
+                signature_bytes,
+                signed_message,
+                padding.PKCS1v15(),
+                hashes.SHA256(),
+            )
             return True
+
         except Exception as exc:
-            print(f"[KICK-WEBHOOK] assinatura inválida/tentativa {attempt + 1}: {exc}", flush=True)
+            print(
+                f"[KICK-WEBHOOK] assinatura inválida/tentativa "
+                f"{attempt + 1}: {exc}",
+                flush=True,
+            )
             _public_key_pem = None
+
     return False
 
 
