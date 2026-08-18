@@ -104,10 +104,21 @@ def init_db():
     try:
         with conn.cursor() as cur:
             cur.execute(SCHEMA)
-            cur.execute(
-                "ALTER TABLE channels ADD COLUMN IF NOT EXISTS points_response TEXT NOT NULL DEFAULT %s",
-                (DEFAULT_POINTS_RESPONSE,),
-            )
+            cur.execute("""
+                ALTER TABLE channels
+                ADD COLUMN IF NOT EXISTS points_response TEXT
+            """)
+
+            cur.execute("""
+                UPDATE channels
+                SET points_response = %s
+                WHERE points_response IS NULL
+            """, (DEFAULT_POINTS_RESPONSE,))
+
+            cur.execute("""
+                ALTER TABLE channels
+                ALTER COLUMN points_response SET NOT NULL
+            """)
         conn.commit()
     finally:
         conn.close()
