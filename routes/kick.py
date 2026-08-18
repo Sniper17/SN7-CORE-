@@ -11,6 +11,7 @@ from flask import Blueprint, jsonify, redirect, request, session
 
 from core.database import get_conn
 from core.services import ensure_channel, ensure_player, get_channel, get_player, get_rank
+from core.command_system import find_command, list_commands
 
 
 kick_bp = Blueprint("kick", __name__)
@@ -475,455 +476,84 @@ def _send_chat(broadcaster_id, content):
     return response.status_code < 400
 
 
-def _format_balance(broadcaster_id, username):
-    channel = get_channel(broadcaster_id)
-    player = get_player(broadcaster_id, username)
-    rank = get_rank(broadcaster_id, username)
-    return (
-        f"{username}, você tem {player['points']} {channel['currency_name']}. "
-        f"{channel['currency_emoji']} Sua posição no ranking é #{rank}."
-    )
-
-
-def _format_ranking(broadcaster_id):
-    channel = get_channel(broadcaster_id)
-    limit = max(1, min(int(channel["rank_limit"]), 10))
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """SELECT username, points FROM players
-                   WHERE broadcaster_user_id=%s
-                   ORDER BY points DESC, username ASC LIMIT %s""",
-                (int(broadcaster_id), limit),
-            )
-            rows = cur.fetchall()
-    finally:
-        conn.close()
-    if not rows:
-        return f"🏆 Ranking: ninguém possui {channel['currency_name']} ainda."
-    parts = [f"{i}. {name} {points}" for i, (name, points) in enumerate(rows, 1)]
-    return f"🏆 Ranking: " + " • ".join(parts)
-
-
-def _custom_command(broadcaster_id, command, username):
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT response FROM custom_commands WHERE broadcaster_user_id=%s AND command=%s",
-                (int(broadcaster_id), command),
-            )
-            row = cur.fetchone()
-    finally:
-        conn.close()
-    if not row:
-        return None
-    return str(row[0]).replace("$(user)", username).replace("{user}", username)
-
-
+def _render_response(template,values):
+ text=str(template or '')
+ for key,value in values.items():text=text.replace('$('+key+')',str(value))
+ return text
+def _format_balance(bid,user):
+ ch=get_channel(bid);p=get_player(bid,user);return {'user':user,'points':int(p['points']),'currency':ch['currency_name'],'emoji':ch['currency_emoji'],'rank':get_rank(bid,user)}
+def _format_ranking(bid):
+ ch=get_channel(bid);limit=max(1,min(int(ch['rank_limit']),10));c=get_conn()
+ try:
+  with c.cursor() as x:x.execute('SELECT username,points FROM players WHERE broadcaster_user_id=%s AND points>0 ORDER BY points DESC,username ASC LIMIT %s',(int(bid),limit));rows=x.fetchall()
+ finally:c.close()
+ if not rows:return f"🏆 Ranking: ninguém possui {ch['currency_name']} ainda."
+ return '🏆 Ranking: '+' • '.join(f'{i}. {n} {p}' for i,(n,p) in enumerate(rows,1))
+def _commands_text(bid):
+ a=[x for x in list_commands(bid) if x['category']=='custom' and x['enabled']];return '📜 Nenhum comando personalizado configurado.' if not a else '📜 Comandos: '+' '.join(x['command'] for x in a[:25])
 def _process_chat(payload):
-    broadcaster = payload.get("broadcaster") or {}
-    sender = payload.get("sender") or {}
-
-    try:
-        broadcaster_id = int(broadcaster.get("user_id"))
-        user_id = int(sender.get("user_id")) if sender.get("user_id") else None
-    except (TypeError, ValueError):
-        print("[KICK-CHAT] payload sem IDs válidos", flush=True)
-        return
-
-    username = str(
-        sender.get("username")
-        or sender.get("slug")
-        or ""
-    ).strip()
-
-    content = str(payload.get("content") or "").strip()
-
-    if not broadcaster_id or not username:
-        return
-
-    ensure_channel(
-        broadcaster_id,
-        str(
-            broadcaster.get("username")
-            or broadcaster.get("slug")
-            or ""
-        )
-    )
-    ensure_player(broadcaster_id, username, user_id)
-
-    if not content.startswith("!"):
-        return
-
-    pieces = content.split()
-    command = pieces[0].lower()
-    args = pieces[1:]
-
-    try:
-        channel = get_channel(broadcaster_id)
-        currency_command = str(
-            channel.get("currency_command") or "!placos"
-        ).lower()
-        currency_name = str(
-            channel.get("currency_name") or "Placos"
-        )
-
-        # -------- ECONOMIA --------
-        if command in {currency_command, "!saldo", "!balance"}:
-            _send_chat(
-                broadcaster_id,
-                _format_balance(broadcaster_id, username)
-            )
-            return
-
-        if command in {"!ranking", "!rank", "!top"}:
-            _send_chat(
-                broadcaster_id,
-                _format_ranking(broadcaster_id)
-            )
-            return
-
-        # -------- DUELO --------
-        if command in {"!duelo", "!duel"}:
-            if len(args) < 1:
-                _send_chat(broadcaster_id, "⚔️ Use !duelo @usuário")
-                return
-
-            defender = args[0].lstrip("@").strip()
-
-            if not defender or defender.lower() == username.lower():
-                _send_chat(
-                    broadcaster_id,
-                    "⚔️ Você não pode duelar consigo mesmo."
-                )
-                return
-
-            ensure_player(broadcaster_id, defender)
-
-            import random
-            winner = random.choice([username, defender])
-            loser = defender if winner == username else username
-            win = int(channel["duel_win_points"])
-            loss = int(channel["duel_loss_points"])
-
-            conn = get_conn()
-            try:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """UPDATE players
-                           SET points=points+%s
-                           WHERE broadcaster_user_id=%s AND username=%s""",
-                        (win, broadcaster_id, winner),
-                    )
-                    cur.execute(
-                        """UPDATE players
-                           SET points=GREATEST(0,points-%s)
-                           WHERE broadcaster_user_id=%s AND username=%s""",
-                        (loss, broadcaster_id, loser),
-                    )
-                    cur.execute(
-                        """INSERT INTO duel_events
-                           (broadcaster_user_id, attacker, defender, winner,
-                            winner_points_delta, loser_points_delta)
-                           VALUES (%s,%s,%s,%s,%s,%s)""",
-                        (
-                            broadcaster_id,
-                            username,
-                            defender,
-                            winner,
-                            win,
-                            -loss,
-                        ),
-                    )
-                conn.commit()
-            finally:
-                conn.close()
-
-            _send_chat(
-                broadcaster_id,
-                f"⚔️ {username} atacou primeiro! "
-                f"💥 {winner} venceu o duelo! "
-                f"🏆 +{win} {currency_name} para {winner}. "
-                f"💀 {loser} perdeu {loss}."
-            )
-            return
-
-        # -------- MODERAÇÃO --------
-        is_broadcaster = str(sender.get("user_id") or "") == str(broadcaster_id)
-        is_mod = bool(
-            sender.get("is_moderator")
-            or sender.get("is_broadcaster")
-            or sender.get("is_owner")
-            or is_broadcaster
-        )
-
-        # -------- ADMIN: ADICIONAR PONTOS --------
-        if command in {"!addplacos", "!addpontos"}:
-            if not is_mod:
-                _send_chat(
-                    broadcaster_id,
-                    "⛔ Apenas streamer/mod pode usar este comando."
-                )
-                return
-
-            if len(args) < 2:
-                _send_chat(
-                    broadcaster_id,
-                    "Use !addplacos @usuário quantidade"
-                )
-                return
-
-            target = args[0].lstrip("@").strip()
-
-            try:
-                amount = int(args[1])
-            except ValueError:
-                _send_chat(broadcaster_id, "❌ Quantidade inválida.")
-                return
-
-            if amount <= 0:
-                _send_chat(
-                    broadcaster_id,
-                    "❌ A quantidade precisa ser maior que 0."
-                )
-                return
-
-            ensure_player(broadcaster_id, target)
-
-            conn = get_conn()
-            try:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """UPDATE players
-                           SET points=points+%s
-                           WHERE broadcaster_user_id=%s AND username=%s
-                           RETURNING points""",
-                        (amount, broadcaster_id, target),
-                    )
-                    row = cur.fetchone()
-                conn.commit()
-            finally:
-                conn.close()
-
-            saldo = int(row[0]) if row else amount
-            _send_chat(
-                broadcaster_id,
-                f"🪙 {target} recebeu +{amount} {currency_name}. "
-                f"Saldo: {saldo} {currency_name}."
-            )
-            return
-
-        # -------- ADMIN: DEFINIR PONTOS --------
-        if command in {"!setplacos", "!setpontos"}:
-            if not is_mod:
-                _send_chat(
-                    broadcaster_id,
-                    "⛔ Apenas streamer/mod pode usar este comando."
-                )
-                return
-
-            if len(args) < 2:
-                _send_chat(
-                    broadcaster_id,
-                    "Use !setplacos @usuário quantidade"
-                )
-                return
-
-            target = args[0].lstrip("@").strip()
-
-            try:
-                amount = max(0, int(args[1]))
-            except ValueError:
-                _send_chat(broadcaster_id, "❌ Quantidade inválida.")
-                return
-
-            ensure_player(broadcaster_id, target)
-
-            conn = get_conn()
-            try:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """UPDATE players
-                           SET points=%s
-                           WHERE broadcaster_user_id=%s AND username=%s
-                           RETURNING points""",
-                        (amount, broadcaster_id, target),
-                    )
-                    row = cur.fetchone()
-                conn.commit()
-            finally:
-                conn.close()
-
-            saldo = int(row[0]) if row else amount
-            _send_chat(
-                broadcaster_id,
-                f"🪙 Saldo de {target}: {saldo} {currency_name}."
-            )
-            return
-
-        # -------- COMANDOS PERSONALIZADOS --------
-        if command in {"!cmds", "!comandos"}:
-            conn = get_conn()
-            try:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """SELECT command FROM custom_commands
-                           WHERE broadcaster_user_id=%s
-                           ORDER BY command""",
-                        (broadcaster_id,),
-                    )
-                    rows = cur.fetchall()
-            finally:
-                conn.close()
-
-            commands = [str(row[0]) for row in rows]
-
-            if not commands:
-                _send_chat(
-                    broadcaster_id,
-                    "📜 Nenhum comando personalizado configurado."
-                )
-            else:
-                _send_chat(
-                    broadcaster_id,
-                    "📜 Comandos: " + " ".join(commands[:25])
-                )
-            return
-
-        if command in {"!addcmd", "!addcomando"}:
-            if not is_mod:
-                _send_chat(
-                    broadcaster_id,
-                    "⛔ Apenas streamer/mod pode configurar comandos."
-                )
-                return
-
-            if len(args) < 2:
-                _send_chat(
-                    broadcaster_id,
-                    "Use !addcmd !comando resposta"
-                )
-                return
-
-            custom = args[0].lower()
-            if not custom.startswith("!"):
-                custom = "!" + custom
-
-            response_text = " ".join(args[1:]).strip()
-
-            reserved = {
-                currency_command,
-                "!saldo",
-                "!balance",
-                "!ranking",
-                "!rank",
-                "!top",
-                "!duelo",
-                "!duel",
-                "!addplacos",
-                "!addpontos",
-                "!setplacos",
-                "!setpontos",
-                "!cmds",
-                "!comandos",
-                "!addcmd",
-                "!addcomando",
-                "!delcmd",
-                "!delcomando",
-            }
-
-            if custom in reserved:
-                _send_chat(
-                    broadcaster_id,
-                    "⛔ Esse comando é reservado pelo sistema."
-                )
-                return
-
-            conn = get_conn()
-            try:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """INSERT INTO custom_commands
-                           (broadcaster_user_id, command, response)
-                           VALUES (%s,%s,%s)
-                           ON CONFLICT (broadcaster_user_id, command)
-                           DO UPDATE SET response=EXCLUDED.response""",
-                        (
-                            broadcaster_id,
-                            custom,
-                            response_text,
-                        ),
-                    )
-                conn.commit()
-            finally:
-                conn.close()
-
-            _send_chat(
-                broadcaster_id,
-                f"✅ {custom} configurado."
-            )
-            return
-
-        if command in {"!delcmd", "!delcomando"}:
-            if not is_mod:
-                _send_chat(
-                    broadcaster_id,
-                    "⛔ Apenas streamer/mod pode configurar comandos."
-                )
-                return
-
-            if not args:
-                _send_chat(
-                    broadcaster_id,
-                    "Use !delcmd !comando"
-                )
-                return
-
-            custom = args[0].lower()
-            if not custom.startswith("!"):
-                custom = "!" + custom
-
-            conn = get_conn()
-            try:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """DELETE FROM custom_commands
-                           WHERE broadcaster_user_id=%s AND command=%s""",
-                        (broadcaster_id, custom),
-                    )
-                    deleted = cur.rowcount > 0
-                conn.commit()
-            finally:
-                conn.close()
-
-            _send_chat(
-                broadcaster_id,
-                f"🗑️ {custom} removido."
-                if deleted
-                else f"❌ {custom} não existe."
-            )
-            return
-
-        # -------- CUSTOM --------
-        custom = _custom_command(
-            broadcaster_id,
-            command,
-            username
-        )
-
-        if custom is not None:
-            _send_chat(
-                broadcaster_id,
-                custom
-            )
-
-    except Exception as exc:
-        print(
-            f"[KICK-CHAT] erro processando {content!r}: {exc}",
-            flush=True
-        )
+ broadcaster=payload.get('broadcaster') or {};sender=payload.get('sender') or {}
+ try:bid=int(broadcaster.get('user_id'));uid=int(sender.get('user_id')) if sender.get('user_id') else None
+ except (TypeError,ValueError):return
+ user=str(sender.get('username') or sender.get('slug') or '').strip();content=str(payload.get('content') or '').strip()
+ if not bid or not user or not content.startswith('!'):return
+ ensure_channel(bid,str(broadcaster.get('username') or broadcaster.get('slug') or ''));ensure_player(bid,user,uid)
+ pieces=content.split();cmd=pieces[0].lower();args=pieces[1:]
+ try:
+  cfg=find_command(bid,cmd)
+  if not cfg or not cfg['enabled']:return
+  ch=get_channel(bid);key=cfg['command_key'];currency=str(ch['currency_name']);emoji=str(ch['currency_emoji'])
+  if key=='points':_send_chat(bid,_render_response(cfg['response'],_format_balance(bid,user)));return
+  if key=='ranking':_send_chat(bid,_render_response(cfg['response'],{'ranking':_format_ranking(bid)}));return
+  if key=='cmds':_send_chat(bid,_render_response(cfg['response'],{'commands':_commands_text(bid)}));return
+  if key=='duel':
+   if not args:return _send_chat(bid,_render_response(cfg['response'],{'duel_result':'⚔️ Use !duelo @usuário'}))
+   defender=args[0].lstrip('@').strip()
+   if not defender or defender.lower()==user.lower():return _send_chat(bid,_render_response(cfg['response'],{'duel_result':'⚔️ Você não pode duelar consigo mesmo.'}))
+   ensure_player(bid,defender);import random;winner=random.choice([user,defender]);loser=defender if winner==user else user;win=int(ch['duel_win_points']);loss=int(ch['duel_loss_points']);c=get_conn()
+   try:
+    with c.cursor() as x:
+     x.execute('UPDATE players SET points=points+%s WHERE broadcaster_user_id=%s AND username=%s',(win,bid,winner));x.execute('UPDATE players SET points=GREATEST(0,points-%s) WHERE broadcaster_user_id=%s AND username=%s',(loss,bid,loser));x.execute('INSERT INTO duel_events(broadcaster_user_id,attacker,defender,winner,winner_points_delta,loser_points_delta) VALUES(%s,%s,%s,%s,%s,%s)',(bid,user,defender,winner,win,-loss))
+    c.commit()
+   finally:c.close()
+   result=f'⚔️ {user} atacou primeiro! 💥 {winner} venceu o duelo! 🏆 +{win} {currency} para {winner}. 💀 {loser} perdeu {loss}.';_send_chat(bid,_render_response(cfg['response'],{'duel_result':result,'attacker':user,'defender':defender,'winner':winner,'loser':loser,'win':win,'loss':loss,'currency':currency,'emoji':emoji}));return
+  ismod=bool(sender.get('is_moderator') or sender.get('is_broadcaster') or sender.get('is_owner') or str(sender.get('user_id') or '')==str(bid))
+  if key in {'addcmd','addpoint','settpoint','delcmd'} and not ismod:return _send_chat(bid,'⛔ Apenas streamer/mod pode usar este comando.')
+  if key=='addcmd':
+   if len(args)<2:return _send_chat(bid,'Use !addcmd !comando resposta')
+   custom=args[0].lower();custom=custom if custom.startswith('!') else '!'+custom;resp=' '.join(args[1:]);allc=list_commands(bid);used={x['command'] for x in allc}|{a for x in allc for a in x['aliases']}
+   if custom in used:return _send_chat(bid,'⛔ Essa palavra de ativação já está em uso.')
+   c=get_conn()
+   try:
+    with c.cursor() as x:x.execute("INSERT INTO command_configs(broadcaster_user_id,command_key,command,description,response,enabled,category,is_system) VALUES(%s,%s,%s,%s,%s,TRUE,'custom',FALSE)",(bid,'custom:'+custom,custom,'Comando personalizado desta live.',resp))
+    c.commit()
+   finally:c.close()
+   _send_chat(bid,_render_response(cfg['response'],{'command':custom}));return
+  if key in {'addpoint','settpoint'}:
+   if len(args)<2:return _send_chat(bid,f'Use {cfg["command"]} @usuário quantidade')
+   target=args[0].lstrip('@').strip()
+   try:amount=int(args[1]);amount=max(0,amount) if key=='settpoint' else amount
+   except ValueError:return _send_chat(bid,'❌ Quantidade inválida.')
+   if key=='addpoint' and amount<=0:return _send_chat(bid,'❌ A quantidade precisa ser maior que 0.')
+   ensure_player(bid,target);c=get_conn()
+   try:
+    with c.cursor() as x:
+     x.execute('UPDATE players SET points='+('points+%s' if key=='addpoint' else '%s')+' WHERE broadcaster_user_id=%s AND username=%s RETURNING points',(amount,bid,target));row=x.fetchone()
+    c.commit()
+   finally:c.close()
+   new=int(row[0]) if row else amount;_send_chat(bid,_render_response(cfg['response'],{'target':target,'amount':amount,'new_points':new,'currency':currency,'emoji':emoji}));return
+  if key=='delcmd':
+   if not args:return _send_chat(bid,'Use !delcmd !comando')
+   target=find_command(bid,args[0].lower())
+   if not target or target['is_system']:return _send_chat(bid,'❌ Esse comando personalizado não existe.')
+   c=get_conn()
+   try:
+    with c.cursor() as x:x.execute('DELETE FROM command_configs WHERE broadcaster_user_id=%s AND command_key=%s AND is_system=FALSE',(bid,target['command_key']));deleted=x.rowcount>0
+    c.commit()
+   finally:c.close()
+   _send_chat(bid,_render_response(cfg['response'],{'command':args[0]}) if deleted else '❌ Comando não existe.');return
+  if not cfg['is_system']:_send_chat(bid,_render_response(cfg['response'],{'user':user}))
+ except Exception as exc:print(f'[KICK-CHAT] erro processando {content!r}: {exc}',flush=True)
 
 def _process_webhook(payload, event_type):
     print(f"[KICK-WEBHOOK] evento recebido para processamento: {event_type}", flush=True)

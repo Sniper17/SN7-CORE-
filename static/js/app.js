@@ -74,113 +74,16 @@ function injectCommandStyles() {
   document.head.appendChild(style);
 }
 
-function buildCommandCatalog() {
-  const section = $("commands");
-  if (!section || $("publicCommandsList")) return;
-
-  section.innerHTML = `
-    <div class="section-head">
-      <div>
-        <h2>Comandos</h2>
-        <p>Veja todos os comandos disponíveis nesta live e gerencie as respostas personalizadas.</p>
-      </div>
-    </div>
-
-    <div class="commands-summary">
-      <div class="command-summary-card"><strong id="systemPublicCount">0</strong><span>Públicos</span></div>
-      <div class="command-summary-card"><strong id="systemModCount">0</strong><span>ADM / MOD</span></div>
-      <div class="command-summary-card"><strong id="customCommandCount">0</strong><span>Personalizados</span></div>
-    </div>
-
-    <div class="panel command-catalog">
-      <div class="command-category">
-        <div class="command-category-head">
-          <div><h3>🌐 Públicos</h3><p>Qualquer pessoa no chat pode usar.</p></div>
-          <span class="category-count" id="publicCommandCount">0</span>
-        </div>
-        <div id="publicCommandsList" class="system-commands-list"></div>
-      </div>
-
-      <div class="command-category">
-        <div class="command-category-head">
-          <div><h3>🛡️ ADM / MOD</h3><p>Apenas streamer ou moderador pode usar.</p></div>
-          <span class="category-count" id="modCommandCount">0</span>
-        </div>
-        <div id="modCommandsList" class="system-commands-list"></div>
-      </div>
-
-      <div class="command-category">
-        <div class="command-category-head">
-          <div><h3>✨ Personalizados</h3><p>Comandos criados para esta live. O uso é público.</p></div>
-          <span class="category-count" id="customCategoryCount">0</span>
-        </div>
-        <div id="commandsList" class="commands-list"></div>
-      </div>
-    </div>
-
-    <div class="panel form-panel command-manager">
-      <div class="panel-title">
-        <div>
-          <h3>Adicionar comando personalizado</h3>
-          <p>O comando ficará disponível somente nesta live.</p>
-        </div>
-      </div>
-
-      <div class="command-form">
-        <input id="cmd" placeholder="!discord" autocomplete="off" autocapitalize="none" spellcheck="false">
-        <input id="response" placeholder="Resposta que o bot vai enviar" autocomplete="off">
-        <button type="button" class="btn" onclick="saveCommand()">Adicionar</button>
-      </div>
-    </div>
-  `;
-
-  injectCommandStyles();
-}
-
-function renderSystemCommands(settings) {
-  const publicList = $("publicCommandsList");
-  const modList = $("modCommandsList");
-  if (!publicList || !modList) return;
-
-  const currency = String(settings?.currency_command || "!placos").toLowerCase();
-
-  const publicCommands = [
-    [currency, "Consulta seu saldo de pontos."],
-    ["!saldo", "Consulta seu saldo de pontos."],
-    ["!balance", "Alias de !saldo."],
-    ["!ranking", "Mostra o ranking do canal."],
-    ["!rank", "Alias de !ranking."],
-    ["!top", "Alias de !ranking."],
-    ["!duelo @usuário", "Inicia um duelo contra outro usuário."],
-    ["!duel @usuário", "Alias de !duelo."],
-    ["!cmds", "Lista os comandos personalizados da live."],
-    ["!comandos", "Alias de !cmds."]
-  ];
-
-  const modCommands = [
-    ["!addplacos @usuário quantidade", "Adiciona pontos a um usuário."],
-    ["!addpontos @usuário quantidade", "Alias de !addplacos."],
-    ["!setplacos @usuário quantidade", "Define o saldo de um usuário."],
-    ["!setpontos @usuário quantidade", "Alias de !setplacos."],
-    ["!addcmd !comando resposta", "Cria ou atualiza um comando personalizado."],
-    ["!addcomando !comando resposta", "Alias de !addcmd."],
-    ["!delcmd !comando", "Remove um comando personalizado."],
-    ["!delcomando !comando", "Alias de !delcmd."]
-  ];
-
-  const render = rows => rows.map(([cmd, desc]) =>
-    `<div class="system-command"><code>${esc(cmd)}</code><span>${esc(desc)}</span></div>`
-  ).join("");
-
-  publicList.innerHTML = render(publicCommands);
-  modList.innerHTML = render(modCommands);
-
-  if ($("systemPublicCount")) $("systemPublicCount").textContent = publicCommands.length;
-  if ($("systemModCount")) $("systemModCount").textContent = modCommands.length;
-  if ($("publicCommandCount")) $("publicCommandCount").textContent = publicCommands.length;
-  if ($("modCommandCount")) $("modCommandCount").textContent = modCommands.length;
-}
-
+function buildCommandCatalog(){const section=$('commands');if(!section)return;section.innerHTML=`<div class="section-head"><div><h2>Comandos</h2><p>Um comando por função. Aliases ficam dentro do comando.</p></div></div><div class="panel command-catalog"><div class="command-category"><h3>🌐 Públicos</h3><div id="publicCommandsList"></div></div><div class="command-category"><h3>🛡️ ADM / MOD</h3><div id="modCommandsList"></div></div><div class="command-category"><div class="command-category-head"><h3>✨ Personalizados</h3><button class="btn" onclick="newCommand()">＋ Novo comando</button></div><div id="customCommandsList"></div></div></div>`;injectV2Styles()}
+function injectV2Styles(){if($('sn7v2styles'))return;const s=document.createElement('style');s.id='sn7v2styles';s.textContent='.command-category{padding:18px 20px;border-bottom:1px solid var(--border)}.command-category h3{margin:0 0 10px}.system-command{display:flex;justify-content:space-between;gap:10px;padding:12px 8px;border-top:1px solid var(--border);cursor:pointer}.system-command.disabled{opacity:.4}.system-command small{display:block;color:var(--muted);margin-top:4px}.aliases{font-size:11px;color:var(--muted);margin-top:4px}.cmd-modal{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;padding:16px;z-index:9999}.cmd-box{width:min(620px,100%);max-height:90vh;overflow:auto;background:#11151d;border:1px solid var(--border);border-radius:16px;padding:20px}.cmd-box label{display:block;margin-top:14px;font-size:12px}.cmd-box input,.cmd-box textarea{width:100%;margin-top:7px}.cmd-box textarea{min-height:110px}.alias-row{display:flex;gap:8px;margin-top:7px}.alias-row input{margin:0}.danger{border:1px solid #63383b;background:transparent;color:#ff9c9c;border-radius:8px;padding:7px 10px}.cmd-actions{display:flex;justify-content:space-between;margin-top:18px}.cmd-actions div{display:flex;gap:8px}';document.head.appendChild(s)}
+function renderCommands(){['public','mod','custom'].forEach(cat=>{const id=cat==='public'?'publicCommandsList':cat==='mod'?'modCommandsList':'customCommandsList',el=$(id);if(!el)return;const rows=commandCache.filter(c=>c.category===cat);el.innerHTML=rows.length?rows.map(c=>`<div class="system-command ${c.enabled?'':'disabled'}" onclick="openCommand('${encodeURIComponent(c.command_key)}')"><div><code>${esc(c.command)}</code><small>${esc(c.description)}</small>${c.aliases?.length?`<div class="aliases">Atalhos: ${c.aliases.map(esc).join(', ')}</div>`:''}</div><small>${c.enabled?'🟢 Ativo':'⚪ Desativado'}</small></div>`).join(''):'<div class="empty-panel"><p>Nenhum comando.</p></div>'})}
+function openCommand(k){const c=commandCache.find(x=>x.command_key===decodeURIComponent(k));if(c)showCommand(c)}
+function newCommand(){showCommand({command_key:'',command:'',description:'Comando personalizado desta live.',response:'',enabled:true,aliases:[],is_system:false,category:'custom'},true)}
+function showCommand(c,isNew=false){document.querySelector('.cmd-modal')?.remove();const m=document.createElement('div');m.className='cmd-modal';m.innerHTML=`<div class="cmd-box"><h3>${isNew?'✨ Novo comando':esc(c.command)}</h3><label>Comando principal<input id="v2cmd" value="${esc(c.command)}"></label><label>Descrição<input id="v2desc" value="${esc(c.description)}"></label><label>Mensagem/resposta<textarea id="v2resp">${esc(c.response)}</textarea></label>${!isNew?`<label>Palavras de ativação${(c.aliases||[]).map(a=>`<div class="alias-row"><input value="${esc(a)}" readonly><button class="danger" onclick="removeAlias('${encodeURIComponent(c.command_key)}','${encodeURIComponent(a)}')">🗑</button></div>`).join('')}<div class="alias-row"><input id="v2alias" placeholder="!rank"><button class="btn" onclick="addAlias('${encodeURIComponent(c.command_key)}')">Adicionar</button></div></label>`:''}<div class="cmd-actions"><button class="danger" onclick="deleteCommandV2('${encodeURIComponent(c.command_key)}')">${c.is_system?'Desativar':'Excluir'}</button><div><button class="btn" onclick="saveCommandV2('${encodeURIComponent(c.command_key)}',${isNew})">Salvar</button><button class="btn" onclick="this.closest('.cmd-modal').remove()">Fechar</button></div></div></div>`;document.body.appendChild(m)}
+async function saveCommandV2(key,isNew){const body={command:$('v2cmd').value.trim(),description:$('v2desc').value.trim(),response:$('v2resp').value};const r=await fetch(isNew?`/api/commands/${BROADCASTER_ID}`:`/api/commands/${BROADCASTER_ID}/${key}`,{method:isNew?'POST':'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!d.ok)return alert(d.error||'Falha ao salvar');document.querySelector('.cmd-modal')?.remove();loadCommands()}
+async function addAlias(key){const alias=$('v2alias')?.value.trim();if(!alias)return;const r=await fetch(`/api/commands/${BROADCASTER_ID}/${key}/aliases`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({alias})});const d=await r.json();if(!d.ok)return alert(d.error||'Falha');document.querySelector('.cmd-modal')?.remove();await loadCommands();openCommand(key)}
+async function removeAlias(key,alias){const r=await fetch(`/api/commands/${BROADCASTER_ID}/${key}/aliases`,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({alias:decodeURIComponent(alias)})});const d=await r.json();if(!d.ok)return alert(d.error||'Falha');document.querySelector('.cmd-modal')?.remove();await loadCommands();openCommand(key)}
+async function deleteCommandV2(key){const r=await fetch(`/api/commands/${BROADCASTER_ID}/${key}`,{method:'DELETE'});const d=await r.json();if(!d.ok)return alert(d.error||'Falha');document.querySelector('.cmd-modal')?.remove();loadCommands()}
 async function loadSettings() {
   buildCommandCatalog();
 
@@ -260,7 +163,8 @@ async function loadCommands() {
     const d = await r.json();
     const list = d.commands || [];
 
-    if ($("commandCount")) $("commandCount").textContent = list.length;
+    if ($("commandCount")) $("commandCount").textContent = list.filter(c => c.category === "custom").length;
+    renderCommands();
     if ($("customCommandCount")) $("customCommandCount").textContent = list.length;
     if ($("customCategoryCount")) $("customCategoryCount").textContent = list.length;
 

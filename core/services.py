@@ -1,4 +1,5 @@
 from core.database import get_conn
+from core.command_system import ensure_command_defaults
 
 def ensure_channel(broadcaster_id, username=""):
     conn = get_conn()
@@ -17,6 +18,7 @@ def ensure_channel(broadcaster_id, username=""):
         conn.commit()
     finally:
         conn.close()
+    ensure_command_defaults(broadcaster_id)
 
 def get_channel(broadcaster_id):
     ensure_channel(broadcaster_id)

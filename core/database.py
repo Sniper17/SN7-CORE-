@@ -71,6 +71,21 @@ CREATE TABLE IF NOT EXISTS kick_webhook_events (
     event_type TEXT NOT NULL DEFAULT '',
     received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS command_configs (
+ id BIGSERIAL PRIMARY KEY, broadcaster_user_id BIGINT NOT NULL, command_key TEXT NOT NULL,
+ command TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', response TEXT NOT NULL DEFAULT '',
+ enabled BOOLEAN NOT NULL DEFAULT TRUE, category TEXT NOT NULL DEFAULT 'public', is_system BOOLEAN NOT NULL DEFAULT FALSE,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ UNIQUE(broadcaster_user_id,command_key), UNIQUE(broadcaster_user_id,command)
+);
+CREATE TABLE IF NOT EXISTS command_aliases (
+ id BIGSERIAL PRIMARY KEY, broadcaster_user_id BIGINT NOT NULL,
+ command_id BIGINT NOT NULL REFERENCES command_configs(id) ON DELETE CASCADE, alias TEXT NOT NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(broadcaster_user_id,alias)
+);
+CREATE INDEX IF NOT EXISTS idx_command_configs_channel ON command_configs(broadcaster_user_id,category,enabled);
+CREATE INDEX IF NOT EXISTS idx_command_aliases_channel ON command_aliases(broadcaster_user_id,alias);
 '''
 
 def get_conn():
