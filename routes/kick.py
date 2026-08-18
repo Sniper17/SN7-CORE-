@@ -289,9 +289,16 @@ def _subscribe_chat(access_token, broadcaster_id=None):
     # 3) Cria uma nova assinatura.
     # Com user access token, a Kick identifica o broadcaster pelo token.
     payload = {
+        "broadcaster_user_id": int(broadcaster_id) if broadcaster_id is not None else None,
         "events": [{"name": "chat.message.sent", "version": 1}],
         "method": "webhook",
     }
+    payload = {k: v for k, v in payload.items() if v is not None}
+    print(
+        f"[KICK-EVENTS] criando assinatura para broadcaster={broadcaster_id} "
+        f"webhook={_webhook_url()}",
+        flush=True,
+    )
 
     response = requests.post(
         f"{KICK_API}/events/subscriptions",
@@ -538,7 +545,8 @@ def _process_chat(payload):
         print(f"[KICK-CHAT] erro processando {content!r}: {exc}", flush=True)
 
 
-def _process_webhook(payload):
+def _process_webhook(payload, event_type):
+    print(f"[KICK-WEBHOOK] evento recebido para processamento: {event_type}", flush=True)
     if event_type == "chat.message.sent":
         print("[KICK-WEBHOOK] processando chat.message.sent", flush=True)
         _process_chat(payload)
@@ -648,7 +656,7 @@ def webhook():
         import threading
         threading.Thread(
             target=_process_webhook,
-            args=(payload,),
+            args=(payload, event_type),
             daemon=True,
             name="kick-event",
         ).start()
