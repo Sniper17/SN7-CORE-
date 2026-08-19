@@ -929,6 +929,7 @@ def logout():
     session.pop("kick_broadcaster_id", None)
     session.pop("kick_oauth_state", None)
     session.pop("kick_code_verifier", None)
+    session.pop("kick_oauth_next", None)
     return jsonify({"ok": True})
 
 
@@ -936,10 +937,19 @@ def logout():
 def login():
     if not _client_id() or not _client_secret():
         return jsonify({"ok": False, "error": "KICK_CLIENT_ID/KICK_CLIENT_SECRET não configurados no Render."}), 503
+
+    # Aceitamos somente um destino interno conhecido. Nunca redirecionamos
+    # para uma URL fornecida livremente pelo navegador.
+    next_page = request.args.get("next", "profile")
+    if next_page != "profile":
+        next_page = "profile"
+
     verifier, challenge = _pkce_pair()
     state = secrets.token_urlsafe(32)
     session["kick_oauth_state"] = state
     session["kick_code_verifier"] = verifier
+    session["kick_oauth_next"] = next_page
+
     params = {
         "response_type": "code",
         "client_id": _client_id(),
@@ -948,6 +958,8 @@ def login():
         "code_challenge": challenge,
         "code_challenge_method": "S256",
         "state": state,
+        # Ajuda a evitar a interceptação do OAuth pelo app Kick em mobile.
+        "browser": "true",
     }
     return redirect(f"{KICK_ID}/oauth/authorize?{urlencode(params)}")
 
@@ -966,11 +978,11 @@ def callback():
         token_data = _exchange_code(request.args.get("code", ""), verifier)
         user = _kick_user(token_data["access_token"])
         broadcaster_id = _save_connection(user, token_data)
-        subscription = _subscribe_chat(token_data["access_token"], broadcaster_id)
 
-        # Mantém o streamer autenticado na sessão do navegador.
+        # Login e ativação do bot são ações separadas.
         session["kick_broadcaster_id"] = broadcaster_id
         session.permanent = True
+        session.pop("kick_oauth_next", None)
 
         return redirect("/?profile=1&connected=1")
     except Exception as exc:
