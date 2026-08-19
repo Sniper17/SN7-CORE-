@@ -20,12 +20,29 @@ def ensure_command_defaults(bid):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT currency_command, points_response FROM channels WHERE broadcaster_user_id=%s",
+                "SELECT currency_name, currency_command, points_response FROM channels WHERE broadcaster_user_id=%s",
                 (bid,),
             )
             row = cur.fetchone()
-            points_command = str((row[0] if row else None) or "!pontos").strip().lower()
-            points_response = str((row[1] if row else None) or DEFAULT_POINTS_RESPONSE)
+            currency_name = str((row[0] if row else None) or "Pontos").strip()
+            points_command = str((row[1] if row else None) or "!pontos").strip().lower()
+            points_response = str((row[2] if row else None) or DEFAULT_POINTS_RESPONSE)
+
+            # Migra somente os defaults antigos.
+            if currency_name == "Points":
+                currency_name = "Pontos"
+                cur.execute(
+                    "UPDATE channels SET currency_name=%s WHERE broadcaster_user_id=%s",
+                    ("Pontos", bid),
+                )
+
+            if points_command == "!points":
+                points_command = "!pontos"
+                cur.execute(
+                    "UPDATE channels SET currency_command=%s WHERE broadcaster_user_id=%s",
+                    ("!pontos", bid),
+                )
+
             # Migra apenas a resposta padrão antiga; não sobrescreve personalizações.
             old_default = "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank)."
             if points_response.strip() == old_default:

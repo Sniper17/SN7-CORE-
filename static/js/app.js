@@ -669,3 +669,69 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.target.classList?.contains('sn7-config-modal')) sn7HideModal(event.target.id);
   }, true);
 })();
+
+/* SN7 MODAL CLEAN FIX V6 */
+(function () {
+  "use strict";
+  function sn7Modal(id, open) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    if (open) {
+      if (modal.parentElement !== document.body) document.body.appendChild(modal);
+      modal.hidden = false;
+      document.body.classList.add("sn7-modal-open");
+      const card = modal.querySelector(".sn7-config-modal-card");
+      const close = modal.querySelector(".sn7-config-close");
+      if (card) {
+        card.style.position = "relative";
+        card.style.width = "min(680px, calc(100vw - 16px))";
+        card.style.maxWidth = "calc(100vw - 16px)";
+        card.style.maxHeight = "calc(100dvh - 16px)";
+        card.style.margin = "auto";
+        card.style.overflowY = "auto";
+      }
+      if (close) {
+        close.style.position = "absolute";
+        close.style.top = "10px";
+        close.style.right = "10px";
+        close.style.left = "auto";
+        close.style.bottom = "auto";
+        close.style.float = "none";
+        close.style.margin = "0";
+        close.style.width = "38px";
+        close.style.height = "38px";
+        close.style.minWidth = "38px";
+        close.style.minHeight = "38px";
+        close.style.zIndex = "99999";
+      }
+    } else {
+      modal.hidden = true;
+      const anyOpen = Array.from(document.querySelectorAll(".sn7-config-modal"))
+        .some((x) => !x.hidden);
+      if (!anyOpen) document.body.classList.remove("sn7-modal-open");
+    }
+  }
+
+  window.openPointsEditor = () => sn7Modal("sn7PointsEditor", true);
+  window.closePointsEditor = () => sn7Modal("sn7PointsEditor", false);
+  window.openRewardsEditor = () => sn7Modal("sn7RewardsEditor", true);
+  window.closeRewardsEditor = () => sn7Modal("sn7RewardsEditor", false);
+  window.openApostaEditor = function () {
+    sn7Modal("sn7ApostaEditor", true);
+    if (typeof sn7LoadAposta === "function") sn7LoadAposta();
+  };
+  window.closeApostaEditor = () => sn7Modal("sn7ApostaEditor", false);
+
+  document.addEventListener("click", function (event) {
+    const close = event.target.closest(".sn7-config-close");
+    if (close) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const modal = close.closest(".sn7-config-modal");
+      if (modal) sn7Modal(modal.id, false);
+      return;
+    }
+    const modal = event.target.closest(".sn7-config-modal");
+    if (modal && event.target === modal) sn7Modal(modal.id, false);
+  }, true);
+})();

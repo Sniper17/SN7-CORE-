@@ -188,3 +188,60 @@ body.sn7-modal-open { overflow: hidden !important; }
     max-height: calc(100dvh - 16px) !important; padding: 54px 16px 18px !important; border-radius: 16px !important; }
   .sn7-config-close { top: 8px !important; right: 8px !important; }
 }
+
+/* SN7 MODAL CLEAN CSS V6 */
+.sn7-config-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  margin: 0 !important;
+  padding: 8px !important;
+  box-sizing: border-box !important;
+  z-index: 99998 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: auto !important;
+  background: rgba(3,5,9,.78) !important;
+}
+.sn7-config-modal[hidden] { display: none !important; }
+.sn7-config-modal-card {
+  position: relative !important;
+  width: min(680px, calc(100vw - 16px)) !important;
+  max-width: calc(100vw - 16px) !important;
+  max-height: calc(100dvh - 16px) !important;
+  margin: auto !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+.sn7-config-close {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  left: auto !important;
+  bottom: auto !important;
+  float: none !important;
+  margin: 0 !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  max-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  line-height: 1 !important;
+  z-index: 99999 !important;
+}
+@media (max-width:600px) {
+  .sn7-config-modal { padding: 8px !important; }
+  .sn7-config-modal-card {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+    padding: 52px 14px 18px !important;
+  }
+}
