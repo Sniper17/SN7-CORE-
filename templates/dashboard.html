@@ -23,17 +23,17 @@ body.sn7-modal-open{overflow:hidden}
 .sn7-quick-card strong{font-size:17px;overflow-wrap:anywhere}
 .sn7-quick-card button{float:right;margin-top:-3px;background:transparent;border:0;color:#a9b2c2;cursor:pointer;font-size:12px}
 .sn7-quick-card button:hover{color:#fff}
-.sn7-modal{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(3,5,9,.72);backdrop-filter:blur(7px);opacity:0;visibility:hidden;transition:opacity .22s ease,visibility .22s ease}
-.sn7-modal.open{opacity:1;visibility:visible}
-.sn7-modal-card{position:relative;width:min(430px,100%);padding:28px 24px 22px;background:#11151d;border:1px solid #2a303c;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.45);transform:translateY(12px) scale(.98);transition:transform .22s ease}
-.sn7-modal.open .sn7-modal-card{transform:translateY(0) scale(1)}
-.sn7-modal-close{position:absolute;top:10px;right:11px;width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:#8f98a8;font-size:25px;line-height:1;cursor:pointer;transition:background .18s ease,color .18s ease,transform .18s ease}
-.sn7-modal-close:hover{background:#1b202a;color:#fff;transform:rotate(4deg)}
-.sn7-modal-icon{width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:#1b202a;color:#b7abff;font-size:22px;margin-bottom:16px}
-.sn7-modal-card h3{font-size:21px;margin-bottom:8px}
-.sn7-modal-card p{font-size:13px;line-height:1.6}
-.sn7-modal-status{margin-top:16px;padding:11px 12px;border-radius:10px;background:#0d1016;border:1px solid var(--border);color:#aeb6c5;font-size:12px}
-.sn7-modal-card .btn{width:100%;margin-top:18px}
+.sn7-connect-modal{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(3,5,9,.72);backdrop-filter:blur(7px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s ease,visibility .22s ease}
+.sn7-connect-modal.open{opacity:1;visibility:visible;pointer-events:auto}
+.sn7-connect-modal-card{position:relative;width:min(430px,100%);padding:28px 24px 22px;background:#11151d;border:1px solid #2a303c;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.45);transform:translateY(12px) scale(.98);transition:transform .22s ease}
+.sn7-connect-modal.open .sn7-connect-modal-card{transform:translateY(0) scale(1)}
+.sn7-connect-modal-close{position:absolute;top:10px;right:11px;width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:#8f98a8;font-size:25px;line-height:1;cursor:pointer;transition:background .18s ease,color .18s ease,transform .18s ease}
+.sn7-connect-modal-close:hover{background:#1b202a;color:#fff;transform:rotate(4deg)}
+.sn7-connect-modal-icon{width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:#1b202a;color:#b7abff;font-size:22px;margin-bottom:16px}
+.sn7-connect-modal-card h3{font-size:21px;margin-bottom:8px}
+.sn7-connect-modal-card p{font-size:13px;line-height:1.6}
+.sn7-connect-modal-status{margin-top:16px;padding:11px 12px;border-radius:10px;background:#0d1016;border:1px solid var(--border);color:#aeb6c5;font-size:12px}
+.sn7-connect-modal-card .btn{width:100%;margin-top:18px}
 @media(max-width:700px){.sn7-welcome{padding:24px 20px}.sn7-welcome h2{font-size:24px}.sn7-quick-grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -143,35 +143,54 @@ body.sn7-modal-open{overflow:hidden}
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }};</script>
 <script src="/static/js/app.js"></script>
-<div id="sn7ConnectModal" class="sn7-modal" hidden role="dialog" aria-modal="true" aria-labelledby="sn7ConnectTitle" onclick="closeConnectModal(event)">
-  <div class="sn7-modal-card" onclick="event.stopPropagation()">
-    <button type="button" class="sn7-modal-close" aria-label="Fechar" onclick="closeConnectModal()">×</button>
-    <div class="sn7-modal-icon">✦</div>
+<div id="sn7ConnectModal" class="sn7-connect-modal" hidden role="dialog" aria-modal="true" aria-labelledby="sn7ConnectTitle" onclick="closeConnectModal(event)">
+  <div class="sn7-connect-modal-card" onclick="event.stopPropagation()">
+    <button type="button" class="sn7-connect-modal-close" aria-label="Fechar" onclick="closeConnectModal()">×</button>
+    <div class="sn7-connect-modal-icon">✦</div>
     <h3 id="sn7ConnectTitle">Conexão em preparação</h3>
     <p>A função para ligar o SN7 Core diretamente à sua live ainda está sendo preparada.</p>
-    <div class="sn7-modal-status">🚀 Ela chegará em uma atualização futura, sem precisar alterar as configurações que você já fez.</div>
+    <div class="sn7-connect-modal-status">🚀 Ela chegará em uma atualização futura, sem precisar alterar as configurações que você já fez.</div>
     <button type="button" class="btn" onclick="closeConnectModal()">Fechar</button>
   </div>
 </div>
 <script id="sn7-v27-modal">
 function openConnectModal(){
-  const modal=document.getElementById("sn7ConnectModal");
-  if(!modal)return;
-  modal.hidden=false;
-  document.body.classList.add("sn7-modal-open");
-  requestAnimationFrame(()=>modal.classList.add("open"));
+    const modal = document.getElementById("sn7ConnectModal");
+    if(!modal) return;
+
+    clearTimeout(window.sn7ConnectModalTimer);
+
+    modal.removeAttribute("hidden");
+    modal.style.display = "flex";
+    modal.style.pointerEvents = "auto";
+    modal.style.visibility = "visible";
+    modal.style.opacity = "1";
+    modal.classList.add("open");
 }
+
 function closeConnectModal(event){
-  if(event && event.target !== event.currentTarget)return;
-  const modal=document.getElementById("sn7ConnectModal");
-  if(!modal)return;
-  modal.classList.remove("open");
-  document.body.classList.remove("sn7-modal-open");
-  setTimeout(()=>{modal.hidden=true;},220);
+    if(event && event.target !== event.currentTarget) return;
+
+    const modal = document.getElementById("sn7ConnectModal");
+    if(!modal) return;
+
+    modal.classList.remove("open");
+    modal.style.pointerEvents = "none";
+    modal.style.visibility = "hidden";
+    modal.style.opacity = "0";
+
+    clearTimeout(window.sn7ConnectModalTimer);
+
+    window.sn7ConnectModalTimer = setTimeout(() => {
+        modal.setAttribute("hidden", "");
+        modal.style.display = "";
+    }, 220);
 }
-document.addEventListener("keydown",(event)=>{
-  if(event.key==="Escape")closeConnectModal();
+
+document.addEventListener("keydown", (event) => {
+    if(event.key === "Escape") closeConnectModal();
 });
 </script>
+<script src="/static/js/sn7-ui-fix.js"></script>
 </body>
 </html>

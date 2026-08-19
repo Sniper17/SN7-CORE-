@@ -256,6 +256,13 @@ async function loadCommands() {
   }
 }
 
+function closeCommandModal() {
+  const modal = document.querySelector(".sn7-command-modal");
+  if (!modal) return;
+  modal.classList.remove("open");
+  setTimeout(() => modal.remove(), 220);
+}
+
 function openCommand(encodedKey) {
   const key = decodeURIComponent(encodedKey);
   const command = commandCache.find((item) => item.command_key === key);
@@ -323,11 +330,11 @@ function removeAllDraftAliases() {
 }
 
 function showCommand(command, isNew = false) {
-  document.querySelector(".sn7-modal")?.remove();
+  document.querySelector(".sn7-command-modal")?.remove();
   if (!isNew) draftAliases = [...(command.aliases || [])];
 
   const modal = document.createElement("div");
-  modal.className = "sn7-modal open";
+  modal.className = "sn7-modal sn7-command-modal";
 
   const aliases = (command.aliases || []).map((alias) => `
     <div class="sn7-alias-row">
@@ -370,11 +377,12 @@ function showCommand(command, isNew = false) {
         </button>
         <div>
           <button class="btn" type="button" onclick="saveCommandV2('${encodeURIComponent(command.command_key)}',${isNew})">Salvar</button>
-          <button class="sn7-subtle" type="button" onclick="this.closest('.sn7-modal').remove()">Fechar</button>
+          <button class="sn7-subtle" type="button" onclick="closeCommandModal()">Fechar</button>
         </div>
       </div>
     </div>`;
-  document.body.appendChild(modal);
+  document.body.appendChild(modal); requestAnimationFrame(() => modal.classList.add("open"));
+  requestAnimationFrame(() => modal.classList.add("open"));
   if (isNew) renderDraftAliases();
 }
 
@@ -398,7 +406,7 @@ async function saveCommandV2(encodedKey, isNew) {
       }
     );
     commandCache = data.commands || [];
-    document.querySelector(".sn7-modal")?.remove();
+    document.querySelector(".sn7-command-modal")?.remove();
     draftAliases = [];
     renderCommands();
   } catch (error) {
@@ -415,7 +423,7 @@ async function addAlias(encodedKey) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ alias }),
     });
-    document.querySelector(".sn7-modal")?.remove();
+    document.querySelector(".sn7-command-modal")?.remove();
     await loadCommands();
     openCommand(encodedKey);
   } catch (error) {
@@ -430,7 +438,7 @@ async function removeAlias(encodedKey, encodedAlias) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ alias: decodeURIComponent(encodedAlias) }),
     });
-    document.querySelector(".sn7-modal")?.remove();
+    document.querySelector(".sn7-command-modal")?.remove();
     await loadCommands();
     openCommand(encodedKey);
   } catch (error) {
@@ -464,7 +472,7 @@ async function deleteCommandV2(encodedKey, isSystem, button) {
       return;
     }
 
-    document.querySelector(".sn7-modal")?.remove();
+    document.querySelector(".sn7-command-modal")?.remove();
   } catch (error) {
     if (button) {
       button.disabled = false;
