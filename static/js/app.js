@@ -124,6 +124,10 @@ function injectCommandStyles() {
     .sn7-command-status{font-size:12px;color:var(--muted);margin:0 0 10px}
     .sn7-command-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 8px;border-top:1px solid var(--border);cursor:pointer}
     .sn7-command-row:hover{background:rgba(255,255,255,.025)}
+    .sn7-command-row>div:first-child{min-width:0;flex:1}
+    .sn7-command-row>.sn7-command-status-badge{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;color:var(--muted);font-size:12px}
+    .sn7-command-status-badge .sn7-status-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:0 0 10px;background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.35)}
+    .sn7-command-status-badge.offline .sn7-status-dot{background:#ef4444;box-shadow:0 0 8px rgba(239,68,68,.25)}
     .sn7-command-row.disabled{opacity:.48}
     .sn7-command-row code{color:#fff;font-size:12px}
     .sn7-command-row small{display:block;color:var(--muted);margin-top:4px;font-size:11px}
@@ -225,7 +229,7 @@ function renderCommands() {
           <span class="sn7-command-preview">${esc(renderCommandListPreview(command))}</span>
           ${command.aliases?.length ? `<div class="sn7-aliases">Variantes: ${command.aliases.map(esc).join(", ")}</div>` : ""}
         </div>
-        <small>${command.enabled ? "🟢 Ativo" : "🔴 Desativado"}</small>
+        <span class="sn7-command-status-badge ${command.enabled ? "" : "offline"}"><i class="sn7-status-dot"></i>${command.enabled ? "Ativo" : "Desativado"}</span>
       </div>`).join("");
   }
 
