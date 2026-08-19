@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS channels (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT UNIQUE NOT NULL,
     username TEXT NOT NULL DEFAULT '',
-    currency_name TEXT NOT NULL DEFAULT 'Points',
-    currency_command TEXT NOT NULL DEFAULT '!points',
+    currency_name TEXT NOT NULL DEFAULT 'Pontos',
+    currency_command TEXT NOT NULL DEFAULT '!pontos',
     currency_emoji TEXT NOT NULL DEFAULT '',
     points_response TEXT NOT NULL DEFAULT '$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)',
     rank_title TEXT NOT NULL DEFAULT 'Ranking',
@@ -144,28 +144,40 @@ def init_db():
             """, (DEFAULT_POINTS_RESPONSE,))
 
 
-            # SN7_POINTS_DEFAULT_MIGRATION_V2
+            # SN7_POINTS_DEFAULT_MIGRATION_V3
+            # Corrige registros antigos sem sobrescrever uma personalização válida.
             cur.execute("""
                 UPDATE channels
                    SET currency_name = 'Pontos',
                        updated_at = NOW()
-                 WHERE currency_name = 'Points'
+                 WHERE currency_name IS NULL
+                    OR BTRIM(currency_name) = ''
+                    OR currency_name = 'Points'
             """)
 
             cur.execute("""
                 UPDATE channels
                    SET currency_command = '!pontos',
                        updated_at = NOW()
-                 WHERE currency_command = '!points'
+                 WHERE currency_command IS NULL
+                    OR BTRIM(currency_command) = ''
+                    OR currency_command = '!points'
+                    OR currency_command = '!tabaco'
             """)
 
             cur.execute("""
                 UPDATE command_configs
                    SET command = '!pontos',
+                       response = %s,
                        updated_at = NOW()
                  WHERE command_key = 'points'
-                   AND command = '!points'
-            """)
+                   AND (
+                       command IS NULL
+                       OR BTRIM(command) = ''
+                       OR command = '!points'
+                       OR command = '!tabaco'
+                   )
+            """, (DEFAULT_POINTS_RESPONSE,))
 
             cur.execute("""
                 ALTER TABLE channels
@@ -187,10 +199,20 @@ CREATE TABLE IF NOT EXISTS point_rewards (
 );
 """
 
-def ensure_point_rewards_table(conn):
-    with conn.cursor() as cur:
-        cur.execute(POINTS_REWARD_SCHEMA)
-        cur.execute("""
-            ALTER TABLE players
-            ADD COLUMN IF NOT EXISTS last_view_reward_at TIMESTAMPTZ
-        """)
+def ensure_point_rewards_table(conn=None):
+    own_connection = conn is None
+    if own_connection:
+        conn = get_conn()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(POINTS_REWARD_SCHEMA)
+            cur.execute("""
+                ALTER TABLE players
+                ADD COLUMN IF NOT EXISTS last_view_reward_at TIMESTAMPTZ
+            """)
+        if own_connection:
+            conn.commit()
+    finally:
+        if own_connection:
+            conn.close()

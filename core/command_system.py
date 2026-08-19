@@ -52,7 +52,7 @@ def ensure_command_defaults(bid):
                     (DEFAULT_POINTS_RESPONSE, bid),
                 )
             if not points_command.startswith("!"):
-                points_command = "!placos"
+                points_command = "!pontos"
 
             for key, (command, description, category, response) in SYSTEM.items():
                 if key == "points":

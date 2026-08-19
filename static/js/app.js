@@ -605,133 +605,144 @@ document.addEventListener("DOMContentLoaded", () => {
   loadSettings();
 });
 
-// SN7_POINTS_REWARDS_V1
-function sn7SetModal(id, open) { const el=document.getElementById(id); if(!el)return; el.hidden=!open; document.body.classList.toggle("sn7-modal-open",open); }
-function openPointsEditor(){sn7SetModal("sn7PointsEditor",true)} function closePointsEditor(){sn7SetModal("sn7PointsEditor",false)}
-function openRewardsEditor(){sn7SetModal("sn7RewardsEditor",true)} function closeRewardsEditor(){sn7SetModal("sn7RewardsEditor",false)}
-function openApostaEditor(){sn7SetModal("sn7ApostaEditor",true);sn7LoadAposta()} function closeApostaEditor(){sn7SetModal("sn7ApostaEditor",false)}
-async function sn7LoadAposta(){try{const data=await apiJson(`/api/commands/${BROADCASTER_ID}`);const cmd=(data.commands||[]).find(x=>x.command_key==="duel");if(!cmd)return;if($("aposta_command"))$("aposta_command").value=cmd.command||"!aposta";if($("aposta_response"))$("aposta_response").value=cmd.response||"$(duel_result)";if($("apostaCardCommand"))$("apostaCardCommand").textContent=cmd.command||"!aposta"}catch(e){if($("apostaMsg"))$("apostaMsg").textContent=e.message}}
-async function saveApostaSettings(){const msg=$("apostaMsg");try{const command=$("aposta_command")?.value||"!aposta";const response=$("aposta_response")?.value||"$(duel_result)";await apiJson(`/api/commands/${BROADCASTER_ID}/duel`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({command,response})});if($("apostaCardCommand"))$("apostaCardCommand").textContent=command;if(msg)msg.textContent="Salvo."}catch(e){if(msg)msg.textContent="⚠ "+e.message}}
-document.addEventListener("DOMContentLoaded",()=>{document.querySelectorAll(".sn7-config-modal").forEach(m=>m.addEventListener("click",e=>{if(e.target===m){m.hidden=true;document.body.classList.remove("sn7-modal-open")}}));const refresh=()=>{if($("pointsCardName"))$("pointsCardName").textContent=$("currency_name")?.value||"Points";if($("pointsCardCommand"))$("pointsCardCommand").textContent=$("currency_command")?.value||"!points";if($("rewardsCardSummary")){const w=$("watch_points")?.value??1,s=$("sub_bonus")?.value??500,k=$("kicks_bonus_per_kick")?.value??1;$("rewardsCardSummary").textContent=`${w} ponto${Number(w)===1?"":"s"} • sub +${s} • KICK +${k}/cada`}};["currency_name","currency_command","watch_points","sub_bonus","kicks_bonus_per_kick"].forEach(id=>$(id)?.addEventListener("input",refresh));setTimeout(()=>{refresh();sn7LoadAposta()},250)});
+// SN7 MODAL + POINTS CLEAN IMPLEMENTATION
+(function () {
+  "use strict";
 
-/* SN7 MOBILE MODAL CLOSE FIX V2 */
-document.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll(".sn7-config-close").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
+  function $(id) { return document.getElementById(id); }
 
-      const modal = button.closest(".sn7-config-modal");
-      if (!modal) return;
+  function syncBodyLock() {
+    const open = Array.from(document.querySelectorAll(".sn7-config-modal"))
+      .some((item) => !item.hidden);
+    document.body.classList.toggle("sn7-modal-open", open);
+  }
 
-      modal.hidden = true;
-      document.body.classList.remove("sn7-modal-open");
+  function openModal(id) {
+    const el = $(id);
+    if (!el) return false;
+    if (el.parentElement !== document.body) document.body.appendChild(el);
+    el.hidden = false;
+    syncBodyLock();
+    const card = el.querySelector(".sn7-config-modal-card");
+    if (card) card.scrollTop = 0;
+    return true;
+  }
+
+  function closeModal(id) {
+    const el = $(id);
+    if (!el) return false;
+    el.hidden = true;
+    syncBodyLock();
+    return true;
+  }
+
+  window.openPointsEditor = () => openModal("sn7PointsEditor");
+  window.closePointsEditor = () => closeModal("sn7PointsEditor");
+  window.openRewardsEditor = () => openModal("sn7RewardsEditor");
+  window.closeRewardsEditor = () => closeModal("sn7RewardsEditor");
+
+  window.openApostaEditor = function () {
+    openModal("sn7ApostaEditor");
+    loadApostaSettings();
+    return true;
+  };
+  window.closeApostaEditor = () => closeModal("sn7ApostaEditor");
+
+  function applyDefaults() {
+    const name = $("currency_name");
+    const command = $("currency_command");
+    const emoji = $("currency_emoji");
+    const response = $("points_response");
+
+    if (name && !name.value.trim()) name.value = "Pontos";
+    if (command && !command.value.trim()) command.value = "!pontos";
+    if (emoji && !emoji.value) emoji.value = "";
+    if (response && !response.value.trim()) {
+      response.value = "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)";
+    }
+
+    const rewardDefaults = {
+      watch_points: "1",
+      watch_interval_minutes: "10",
+      sub_bonus: "500",
+      kicks_bonus_per_kick: "1"
+    };
+    Object.entries(rewardDefaults).forEach(([id, value]) => {
+      const el = $(id);
+      if (el && !String(el.value || "").trim()) el.value = value;
     });
-  });
-});
 
-/* SN7 MODAL PORTAL FIX V4 */
-(function () {
-  "use strict";
-  function sn7PortalModal(id) {
-    const modal = document.getElementById(id);
-    if (!modal) return null;
-    if (modal.parentElement !== document.body) document.body.appendChild(modal);
-    modal.hidden = false;
-    document.body.classList.add("sn7-modal-open");
-    return modal;
-  }
-  function sn7HideModal(id) {
-    const modal = document.getElementById(id);
-    if (!modal) return;
-    modal.hidden = true;
-    const anyOpen = Array.from(document.querySelectorAll('.sn7-config-modal')).some(x => !x.hidden);
-    if (!anyOpen) document.body.classList.remove('sn7-modal-open');
-  }
-  window.openPointsEditor = function () { sn7PortalModal('sn7PointsEditor'); };
-  window.closePointsEditor = function () { sn7HideModal('sn7PointsEditor'); };
-  window.openRewardsEditor = function () { sn7PortalModal('sn7RewardsEditor'); };
-  window.closeRewardsEditor = function () { sn7HideModal('sn7RewardsEditor'); };
-  window.openApostaEditor = function () {
-    sn7PortalModal('sn7ApostaEditor');
-    if (typeof sn7LoadAposta === 'function') sn7LoadAposta();
-  };
-  window.closeApostaEditor = function () { sn7HideModal('sn7ApostaEditor'); };
-  document.addEventListener('click', function (event) {
-    const close = event.target.closest('.sn7-config-close');
-    if (close) {
-      event.preventDefault();
-      event.stopPropagation();
-      const modal = close.closest('.sn7-config-modal');
-      if (modal) sn7HideModal(modal.id);
-      return;
-    }
-    if (event.target.classList?.contains('sn7-config-modal')) sn7HideModal(event.target.id);
-  }, true);
-})();
+    if ($("pointsCardName")) $("pointsCardName").textContent = name?.value || "Pontos";
+    if ($("pointsCardCommand")) $("pointsCardCommand").textContent = command?.value || "!pontos";
 
-/* SN7 MODAL CLEAN FIX V6 */
-(function () {
-  "use strict";
-  function sn7Modal(id, open) {
-    const modal = document.getElementById(id);
-    if (!modal) return;
-    if (open) {
-      if (modal.parentElement !== document.body) document.body.appendChild(modal);
-      modal.hidden = false;
-      document.body.classList.add("sn7-modal-open");
-      const card = modal.querySelector(".sn7-config-modal-card");
-      const close = modal.querySelector(".sn7-config-close");
-      if (card) {
-        card.style.position = "relative";
-        card.style.width = "min(680px, calc(100vw - 16px))";
-        card.style.maxWidth = "calc(100vw - 16px)";
-        card.style.maxHeight = "calc(100dvh - 16px)";
-        card.style.margin = "auto";
-        card.style.overflowY = "auto";
-      }
-      if (close) {
-        close.style.position = "absolute";
-        close.style.top = "10px";
-        close.style.right = "10px";
-        close.style.left = "auto";
-        close.style.bottom = "auto";
-        close.style.float = "none";
-        close.style.margin = "0";
-        close.style.width = "38px";
-        close.style.height = "38px";
-        close.style.minWidth = "38px";
-        close.style.minHeight = "38px";
-        close.style.zIndex = "99999";
-      }
-    } else {
-      modal.hidden = true;
-      const anyOpen = Array.from(document.querySelectorAll(".sn7-config-modal"))
-        .some((x) => !x.hidden);
-      if (!anyOpen) document.body.classList.remove("sn7-modal-open");
+    if ($("rewardsCardSummary")) {
+      const w = $("watch_points")?.value || "1";
+      const sub = $("sub_bonus")?.value || "500";
+      const kicks = $("kicks_bonus_per_kick")?.value || "1";
+      $("rewardsCardSummary").textContent =
+        `${w} ponto${Number(w) === 1 ? "" : "s"} • sub +${sub} • KICK +${kicks}/cada`;
     }
   }
 
-  window.openPointsEditor = () => sn7Modal("sn7PointsEditor", true);
-  window.closePointsEditor = () => sn7Modal("sn7PointsEditor", false);
-  window.openRewardsEditor = () => sn7Modal("sn7RewardsEditor", true);
-  window.closeRewardsEditor = () => sn7Modal("sn7RewardsEditor", false);
-  window.openApostaEditor = function () {
-    sn7Modal("sn7ApostaEditor", true);
-    if (typeof sn7LoadAposta === "function") sn7LoadAposta();
-  };
-  window.closeApostaEditor = () => sn7Modal("sn7ApostaEditor", false);
+  async function loadApostaSettings() {
+    try {
+      if (typeof apiJson !== "function" || typeof BROADCASTER_ID === "undefined") return;
+      const data = await apiJson(`/api/commands/${BROADCASTER_ID}`);
+      const cmd = (data.commands || []).find((x) => x.command_key === "duel");
 
+      if ($("aposta_command")) $("aposta_command").value = cmd?.command || "!aposta";
+      if ($("aposta_response")) $("aposta_response").value = cmd?.response || "$(duel_result)";
+      if ($("apostaCardCommand")) $("apostaCardCommand").textContent = cmd?.command || "!aposta";
+    } catch (e) {
+      if ($("apostaMsg")) $("apostaMsg").textContent = "⚠ " + e.message;
+    }
+  }
+
+  window.sn7LoadAposta = loadApostaSettings;
+
+  async function saveApostaSettings() {
+    const msg = $("apostaMsg");
+    try {
+      const command = $("aposta_command")?.value.trim() || "!aposta";
+      const response = $("aposta_response")?.value.trim() || "$(duel_result)";
+      await apiJson(`/api/commands/${BROADCASTER_ID}/duel`, {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({command, response})
+      });
+      if ($("apostaCardCommand")) $("apostaCardCommand").textContent = command;
+      if (msg) msg.textContent = "Salvo.";
+      closeModal("sn7ApostaEditor");
+    } catch (e) {
+      if (msg) msg.textContent = "⚠ " + e.message;
+    }
+  }
+
+  window.saveApostaSettings = saveApostaSettings;
+
+  // ÚNICO listener de fechamento.
   document.addEventListener("click", function (event) {
     const close = event.target.closest(".sn7-config-close");
     if (close) {
       event.preventDefault();
-      event.stopImmediatePropagation();
-      const modal = close.closest(".sn7-config-modal");
-      if (modal) sn7Modal(modal.id, false);
+      event.stopPropagation();
+      const owner = close.closest(".sn7-config-modal");
+      if (owner) closeModal(owner.id);
       return;
     }
-    const modal = event.target.closest(".sn7-config-modal");
-    if (modal && event.target === modal) sn7Modal(modal.id, false);
+    const owner = event.target.closest(".sn7-config-modal");
+    if (owner && event.target === owner) closeModal(owner.id);
   }, true);
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    document.querySelectorAll(".sn7-config-modal").forEach((item) => {
+      if (!item.hidden) closeModal(item.id);
+    });
+  });
+
+  window.addEventListener("load", function () {
+    setTimeout(applyDefaults, 100);
+    setTimeout(loadApostaSettings, 150);
+  });
 })();

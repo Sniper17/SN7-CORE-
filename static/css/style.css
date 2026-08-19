@@ -104,102 +104,19 @@ input:focus,textarea:focus{border-color:#58647a;box-shadow:0 0 0 2px rgba(124,92
 .sn7-command-preview{display:block;color:#9ea7b7;font-size:12px;line-height:1.45;margin-top:5px;overflow-wrap:anywhere}
 .sn7-command-row.loading{opacity:.72;pointer-events:none}
 
-/* SN7 MOBILE MODAL FIX V2 */
-.sn7-config-modal {
-  position: fixed !important;
-  inset: 0 !important;
-  z-index: 20000 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 12px !important;
-  overflow-y: auto !important;
-}
-.sn7-config-modal[hidden] { display: none !important; }
-.sn7-config-modal-card {
-  position: relative !important;
-  width: min(680px, calc(100vw - 24px)) !important;
-  max-height: calc(100dvh - 24px) !important;
-  margin: auto !important;
-  overflow-y: auto !important;
-  flex: 0 1 auto !important;
-}
-.sn7-config-close {
-  position: absolute !important;
-  top: 10px !important;
-  right: 10px !important;
-  z-index: 20 !important;
-  float: none !important;
-  margin: 0 !important;
-  width: 38px !important;
-  height: 38px !important;
-  min-width: 38px !important;
-  padding: 0 !important;
-  display: grid !important;
-  place-items: center !important;
-  line-height: 1 !important;
-}
-@media (max-width: 600px) {
-  .sn7-config-modal {
-    padding: 8px !important;
-  }
-  .sn7-config-modal-card {
-    width: calc(100vw - 16px) !important;
-    max-height: calc(100dvh - 16px) !important;
-    border-radius: 16px !important;
-    padding: 20px 14px !important;
-  }
-  .sn7-config-close {
-    top: 8px !important;
-    right: 8px !important;
-  }
-}
-
-/* SN7 MODAL PORTAL CSS V4 */
+/* SN7 MODAL - SINGLE IMPLEMENTATION */
 body.sn7-modal-open { overflow: hidden !important; }
-.sn7-config-modal {
-  position: fixed !important; inset: 0 !important; z-index: 50000 !important;
-  width: 100vw !important; height: 100dvh !important; min-height: 100dvh !important;
-  margin: 0 !important; padding: 12px !important; display: flex !important;
-  align-items: center !important; justify-content: center !important;
-  box-sizing: border-box !important; background: rgba(3,5,9,.78) !important;
-  overflow: auto !important;
-}
-.sn7-config-modal[hidden] { display: none !important; }
-.sn7-config-modal-card {
-  position: relative !important; display: block !important; box-sizing: border-box !important;
-  width: min(680px, calc(100vw - 24px)) !important; max-width: calc(100vw - 24px) !important;
-  max-height: calc(100dvh - 24px) !important; margin: auto !important;
-  padding: 24px !important; overflow-x: hidden !important; overflow-y: auto !important;
-  flex: 0 1 auto !important;
-}
-.sn7-config-close {
-  position: absolute !important; top: 10px !important; right: 10px !important;
-  left: auto !important; bottom: auto !important; float: none !important;
-  z-index: 50001 !important; width: 38px !important; min-width: 38px !important;
-  max-width: 38px !important; height: 38px !important; min-height: 38px !important;
-  margin: 0 !important; padding: 0 !important; display: grid !important;
-  place-items: center !important; border: 0 !important; line-height: 1 !important;
-  font-size: 28px !important; cursor: pointer !important;
-}
-@media (max-width:700px) {
-  .sn7-config-modal { padding: 8px !important; }
-  .sn7-config-modal-card { width: calc(100vw - 16px) !important; max-width: calc(100vw - 16px) !important;
-    max-height: calc(100dvh - 16px) !important; padding: 54px 16px 18px !important; border-radius: 16px !important; }
-  .sn7-config-close { top: 8px !important; right: 8px !important; }
-}
 
-/* SN7 MODAL CLEAN CSS V6 */
 .sn7-config-modal {
   position: fixed !important;
   inset: 0 !important;
+  z-index: 99998 !important;
   width: 100vw !important;
   height: 100dvh !important;
   min-height: 100dvh !important;
   margin: 0 !important;
   padding: 8px !important;
   box-sizing: border-box !important;
-  z-index: 99998 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -207,22 +124,29 @@ body.sn7-modal-open { overflow: hidden !important; }
   background: rgba(3,5,9,.78) !important;
 }
 .sn7-config-modal[hidden] { display: none !important; }
+
 .sn7-config-modal-card {
   position: relative !important;
+  display: block !important;
+  box-sizing: border-box !important;
   width: min(680px, calc(100vw - 16px)) !important;
   max-width: calc(100vw - 16px) !important;
   max-height: calc(100dvh - 16px) !important;
   margin: auto !important;
-  box-sizing: border-box !important;
+  padding: 54px 16px 18px !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
+  flex: 0 1 auto !important;
+  border-radius: 16px !important;
 }
+
 .sn7-config-close {
   position: absolute !important;
   top: 10px !important;
   right: 10px !important;
   left: auto !important;
   bottom: auto !important;
+  z-index: 99999 !important;
   float: none !important;
   margin: 0 !important;
   width: 38px !important;
@@ -233,15 +157,19 @@ body.sn7-modal-open { overflow: hidden !important; }
   padding: 0 !important;
   display: grid !important;
   place-items: center !important;
+  box-sizing: border-box !important;
+  border: 0 !important;
   line-height: 1 !important;
-  z-index: 99999 !important;
+  font-size: 28px !important;
+  cursor: pointer !important;
 }
+
 @media (max-width:600px) {
-  .sn7-config-modal { padding: 8px !important; }
   .sn7-config-modal-card {
     width: calc(100vw - 16px) !important;
     max-width: calc(100vw - 16px) !important;
     max-height: calc(100dvh - 16px) !important;
-    padding: 52px 14px 18px !important;
+    padding: 54px 14px 18px !important;
   }
+  .sn7-config-close { top: 8px !important; right: 8px !important; }
 }
