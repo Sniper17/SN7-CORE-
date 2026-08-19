@@ -25,21 +25,83 @@ async function apiJson(url, options = {}) {
   return data;
 }
 
-function openTab(tab) {
-  const button = document.querySelector(`nav button[data-tab="${tab}"]`);
-  if (button) button.click();
+
+const SN7_ACTIVE_TAB_KEY = "sn7-core-active-tab";
+let sn7NavigationReady = false;
+
+function getSavedTab() {
+  try {
+    const tab = localStorage.getItem(SN7_ACTIVE_TAB_KEY);
+    if (!tab) return null;
+    const button = document.querySelector(
+      'nav button[data-tab="' + CSS.escape(tab) + '"]'
+    );
+    return button ? tab : null;
+  } catch (_) {
+    return null;
+  }
 }
 
-document.querySelectorAll("nav button").forEach((button) => {
-  button.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
-    document.querySelectorAll("nav button").forEach((x) => x.classList.remove("active"));
-    $(button.dataset.tab)?.classList.add("active");
-    button.classList.add("active");
-    if ($("title")) $("title").textContent = button.textContent.trim();
+function saveActiveTab(tab) {
+  if (!tab) return;
+  try {
+    localStorage.setItem(SN7_ACTIVE_TAB_KEY, tab);
+  } catch (_) {}
+}
+
+function activateTab(tab, options = {}) {
+  if (!tab) return false;
+
+  const button = document.querySelector(
+    'nav button[data-tab="' + CSS.escape(tab) + '"]'
+  );
+  if (!button) return false;
+
+  document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
+  document.querySelectorAll("nav button").forEach((x) => x.classList.remove("active"));
+
+  const section = $(button.dataset.tab);
+  if (section) section.classList.add("active");
+
+  button.classList.add("active");
+
+  const title = $("title");
+  if (title) title.textContent = button.textContent.trim();
+
+  if (options.persist !== false) saveActiveTab(button.dataset.tab);
+
+  if (options.scroll !== false) {
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  return true;
+}
+
+function openTab(tab) {
+  return activateTab(tab, { persist: true, scroll: true });
+}
+
+function setupTabPersistence() {
+  if (sn7NavigationReady) return;
+  sn7NavigationReady = true;
+
+  document.querySelectorAll("nav button[data-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      activateTab(button.dataset.tab, { persist: true, scroll: true });
+    });
   });
-});
+}
+
+function restoreSavedTab() {
+  // OAuth/login tem prioridade sobre a aba salva.
+  if (window.SN7_OPEN_PROFILE || window.SN7_NAV_FROM_URL) return false;
+
+  const saved = getSavedTab();
+  if (!saved) return false;
+
+  return activateTab(saved, { persist: true, scroll: false });
+}
+
 
 function setMessage(text, ok = false) {
   const msg = $("settingsMsg");
@@ -525,11 +587,18 @@ async function saveSettings() {
 
 document.addEventListener("DOMContentLoaded", () => {
   injectCommandStyles();
+
+  // Registra a navegação antes de restaurar a aba.
+  // Assim, F5 no Android mantém a última tela aberta.
+  setupTabPersistence();
+  restoreSavedTab();
+
   ["currency_name", "currency_emoji", "currency_command", "points_response"].forEach((id) => {
     $(id)?.addEventListener("input", () => {
       updatePointsResponsePreview();
       renderCommands();
     });
   });
+
   loadSettings();
 });

@@ -188,7 +188,8 @@ body.sn7-modal-open{overflow:hidden}
     </section>
   </main>
 </div>
-<script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
+<script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
+const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
 <script src="/static/js/app.js"></script><script>
 (function(){
   try{
