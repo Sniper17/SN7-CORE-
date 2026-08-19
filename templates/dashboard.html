@@ -164,7 +164,7 @@ body.sn7-modal-open{overflow:hidden}
           <div class="sn7-profile-avatar" style="margin:0 auto 16px">✦</div>
           <h3>Usuário desconectado</h3>
           <p>Você pode navegar pelo painel sem login. Entre com a Kick para configurar sua live e controlar o bot.</p>
-          <a class="btn" href="/kick/login">Entrar com a Kick</a>
+          <a class="btn" href="/kick/login?next=profile">Entrar com a Kick</a>
         </div>
         <div id="sn7ProfileLoggedIn" hidden>
           <div class="sn7-profile-user">
@@ -192,6 +192,30 @@ body.sn7-modal-open{overflow:hidden}
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
 <script src="/static/js/app.js"></script><script>
+(function(){
+  try{
+    const params = new URLSearchParams(window.location.search);
+    const shouldOpenProfile =
+      params.get("profile") === "1" ||
+      params.get("next") === "profile" ||
+      params.get("connected") === "1";
+
+    if (shouldOpenProfile) {
+      const open = function(){
+        const btn = document.querySelector('nav button[data-tab="profile"]');
+        if (btn) btn.click();
+      };
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", open, {once:true});
+      } else {
+        open();
+      }
+      window.setTimeout(open, 50);
+      window.setTimeout(open, 250);
+    }
+  }catch(_){}
+})();
+
 (function(){
   const q=id=>document.getElementById(id);
   function msg(t,e){const x=q("sn7ProfileMessage");if(!x)return;x.textContent=t||"";x.classList.toggle("error",!!e);x.hidden=!t}

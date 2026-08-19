@@ -964,18 +964,19 @@ def login():
     return redirect(f"{KICK_ID}/oauth/authorize?{urlencode(params)}")
 
 
-@kick_bp.get("/callback")
+@kick_bp.route("/callback", methods=["GET", "POST"])
 def callback():
-    error = request.args.get("error")
+    params = request.args if request.method == "GET" else request.form
+    error = params.get("error")
     if error:
-        return jsonify({"ok": False, "error": error, "description": request.args.get("error_description", "")}), 400
-    state = request.args.get("state", "")
+        return jsonify({"ok": False, "error": error, "description": params.get("error_description", "")}), 400
+    state = params.get("state", "")
     expected = session.pop("kick_oauth_state", "")
     verifier = session.pop("kick_code_verifier", "")
     if not state or state != expected or not verifier:
         return jsonify({"ok": False, "error": "OAuth state inválido ou expirado."}), 400
     try:
-        token_data = _exchange_code(request.args.get("code", ""), verifier)
+        token_data = _exchange_code(params.get("code", ""), verifier)
         user = _kick_user(token_data["access_token"])
         broadcaster_id = _save_connection(user, token_data)
 
@@ -984,7 +985,7 @@ def callback():
         session.permanent = True
         session.pop("kick_oauth_next", None)
 
-        return redirect("/?profile=1&connected=1")
+        return redirect("/dashboard?profile=1&connected=1")
     except Exception as exc:
         print(f"[KICK-OAUTH] callback falhou: {exc}", flush=True)
         return jsonify({"ok": False, "error": str(exc)}), 500
