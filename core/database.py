@@ -104,7 +104,7 @@ def init_db():
     try:
         with conn.cursor() as cur:
             cur.execute(SCHEMA)
-            ensure_point_rewards_table()
+            ensure_point_rewards_table(conn)
             cur.execute("""
                 ALTER TABLE channels
                 ADD COLUMN IF NOT EXISTS points_response TEXT
@@ -163,15 +163,10 @@ CREATE TABLE IF NOT EXISTS point_rewards (
 );
 """
 
-def ensure_point_rewards_table():
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(POINTS_REWARD_SCHEMA)
-            cur.execute("""
-                ALTER TABLE players
-                ADD COLUMN IF NOT EXISTS last_view_reward_at TIMESTAMPTZ
-            """)
-        conn.commit()
-    finally:
-        conn.close()
+def ensure_point_rewards_table(conn):
+    with conn.cursor() as cur:
+        cur.execute(POINTS_REWARD_SCHEMA)
+        cur.execute("""
+            ALTER TABLE players
+            ADD COLUMN IF NOT EXISTS last_view_reward_at TIMESTAMPTZ
+        """)
