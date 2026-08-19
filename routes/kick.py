@@ -72,7 +72,7 @@ def _save_connection(user, token_data):
     expires_in = int(token_data.get("expires_in") or 0)
     expires_at = now + expires_in if expires_in else 0
     scope = str(token_data.get("scope") or "")
-    username = str(user.get("username") or "")
+    username = str(user.get("username") or user.get("slug") or user.get("channel_slug") or user.get("name") or user.get("display_name") or "").strip()
 
     conn = get_conn()
     try:
@@ -858,6 +858,19 @@ def _bot_active(access_token):
     return bool(_chat_subscription_ids(access_token))
 
 
+def _save_username(broadcaster_id, username):
+    username=str(username or "").strip()
+    if not username:
+        return
+    conn=get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE kick_connections SET username=%s, updated_at=NOW() WHERE broadcaster_user_id=%s",(username,int(broadcaster_id)))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 @kick_bp.get("/me")
 def me():
     bid = _session_broadcaster_id()
@@ -866,15 +879,24 @@ def me():
     conn = _valid_connection(bid)
     if not conn:
         return jsonify({"ok": True, "authenticated": False, "user": None, "bot": {"active": False}})
+    username=str(conn.get("username") or "").strip()
+    if not username:
+        try:
+            ku=_kick_user(conn["access_token"])
+            username=str(ku.get("username") or ku.get("slug") or ku.get("channel_slug") or ku.get("name") or ku.get("display_name") or "").strip()
+            _save_username(bid,username)
+        except Exception as exc:
+            print(f"[KICK-BOT] não foi possível atualizar nome: {exc}",flush=True)
+
     try:
-        active = _bot_active(conn["access_token"])
+        active=_bot_active(conn["access_token"])
     except Exception as exc:
-        print(f"[KICK-BOT] status falhou: {exc}", flush=True)
-        active = False
+        print(f"[KICK-BOT] status falhou: {exc}",flush=True)
+        active=False
     return jsonify({
         "ok": True,
         "authenticated": True,
-        "user": {"id": int(bid), "username": str(conn.get("username") or "")},
+        "user": {"id": int(bid), "username": username},
         "bot": {"active": active},
     })
 
@@ -950,7 +972,7 @@ def callback():
         session["kick_broadcaster_id"] = broadcaster_id
         session.permanent = True
 
-        return redirect("/perfil?connected=1")
+        return redirect("/?profile=1&connected=1")
     except Exception as exc:
         print(f"[KICK-OAUTH] callback falhou: {exc}", flush=True)
         return jsonify({"ok": False, "error": str(exc)}), 500

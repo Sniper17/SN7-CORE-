@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, redirect
 from core.database import init_db, get_conn
 from core.auth import get_session_broadcaster_id, require_session_broadcaster
 from routes.economy import economy_bp
@@ -65,10 +65,7 @@ def dashboard():
 
 @app.get("/perfil")
 def profile():
-    return render_template(
-        "profile.html",
-        broadcaster_id=_dashboard_broadcaster_id(),
-    )
+    return redirect("/?profile=1")
 
 
 @app.get("/health")

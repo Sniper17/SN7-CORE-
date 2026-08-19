@@ -55,6 +55,7 @@ body.sn7-modal-open{overflow:hidden}
       <button type="button" data-tab="bank"><span>▣</span> Banco</button>
       <button type="button" data-tab="commands"><span>⌘</span> Comandos</button>
       <button type="button" data-tab="appearance"><span>✦</span> Aparência</button>
+      <button type="button" data-tab="profile"><span>◉</span> Perfil</button>
     </nav>
     <div class="sidebar-footer">SN7 CORE <span>v1.2</span></div>
   </aside>
@@ -73,7 +74,7 @@ body.sn7-modal-open{overflow:hidden}
         <span class="sn7-welcome-badge">SN7 CORE</span>
         <h2>Bem-vindo ao projeto SN7 Core</h2>
         <p>Um painel simples para preencher sua live, organizar a economia e preparar as ferramentas do seu canal.</p>
-        <a class="btn sn7-connect-btn" href="/kick/logout">Trocar / reconectar canal</a>
+        <a class="btn sn7-connect-btn" href="/kick/login">Conectar / reconectar canal</a>
         <div class="sn7-future-note">Canal autenticado com isolamento por streamer.</div>
       </div>
       <div class="sn7-quick-grid">
@@ -135,6 +136,59 @@ body.sn7-modal-open{overflow:hidden}
 
     <section id="commands" class="tab"></section>
 
+    <section id="profile" class="tab">
+      <div class="panel sn7-profile-panel">
+        <style>
+          .sn7-profile-user{display:flex;align-items:center;gap:14px;padding:4px 0 22px;border-bottom:1px solid var(--border)}
+          .sn7-profile-avatar{width:54px;height:54px;border-radius:15px;display:grid;place-items:center;background:#1b202a;color:#b7abff;font-size:22px;font-weight:800;flex:0 0 54px}
+          .sn7-profile-user h3{margin:0;font-size:20px;overflow-wrap:anywhere}
+          .sn7-profile-user small{display:block;color:var(--muted);margin-top:4px}
+          .sn7-profile-status{margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:#151a22;border:1px solid var(--border);font-size:11px;font-weight:700;color:var(--muted)}
+          .sn7-profile-dot{width:8px;height:8px;border-radius:50%;background:#777}
+          .sn7-profile-dot.on{background:#55d98b;box-shadow:0 0 10px rgba(85,217,139,.45)}
+          .sn7-profile-section{padding-top:22px}
+          .sn7-profile-section h3{margin:0 0 6px}
+          .sn7-profile-section p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
+          .sn7-profile-bot{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 0}
+          .sn7-profile-bot strong{display:block;font-size:15px}
+          .sn7-profile-bot span{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+          .sn7-profile-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+          .sn7-profile-message{margin-top:16px;padding:11px 12px;border-radius:11px;background:#0d1016;border:1px solid var(--border);font-size:12px;color:#aeb6c5}
+          .sn7-profile-message.error{border-color:#63343b;color:#ffb5bd}
+          .sn7-profile-login{text-align:center;padding:26px 8px 8px}
+          .sn7-profile-login h3{margin:0 0 7px;font-size:21px}
+          .sn7-profile-login p{max-width:500px;margin:0 auto;color:var(--muted);font-size:13px;line-height:1.6}
+          .sn7-profile-login .btn{margin-top:20px;min-width:220px}
+          @media(max-width:700px){.sn7-profile-user{align-items:flex-start}.sn7-profile-status{font-size:10px}.sn7-profile-bot{align-items:flex-start;flex-direction:column}.sn7-profile-actions .btn{width:100%}}
+        </style>
+        <div id="sn7ProfileLoggedOut" class="sn7-profile-login" hidden>
+          <div class="sn7-profile-avatar" style="margin:0 auto 16px">✦</div>
+          <h3>Usuário desconectado</h3>
+          <p>Você pode navegar pelo painel sem login. Entre com a Kick para configurar sua live e controlar o bot.</p>
+          <a class="btn" href="/kick/login">Entrar com a Kick</a>
+        </div>
+        <div id="sn7ProfileLoggedIn" hidden>
+          <div class="sn7-profile-user">
+            <div class="sn7-profile-avatar">●</div>
+            <div><h3 id="sn7ProfileUsername">—</h3><small id="sn7ProfileChannel">Canal conectado</small></div>
+            <div class="sn7-profile-status"><i id="sn7ProfileDot" class="sn7-profile-dot"></i><span id="sn7ProfileStatus">Verificando</span></div>
+          </div>
+          <div class="sn7-profile-section">
+            <h3>Bot do canal</h3>
+            <p>Ative ou desative a leitura dos comandos da sua live pela integração da Kick.</p>
+            <div class="sn7-profile-bot">
+              <div><strong id="sn7ProfileBotTitle">Verificando...</strong><span id="sn7ProfileBotDescription">Consultando o status atual.</span></div>
+              <button id="sn7ProfileBotToggle" class="btn" type="button" disabled>Verificando...</button>
+            </div>
+          </div>
+          <div class="sn7-profile-actions">
+            <button id="sn7ProfileRefresh" class="btn" type="button">Atualizar status</button>
+            <button id="sn7ProfileLogout" class="btn" type="button">Sair da conta</button>
+          </div>
+          <div id="sn7ProfileMessage" class="sn7-profile-message" hidden></div>
+        </div>
+      </div>
+    </section>
     <section id="appearance" class="tab">
       <div class="appearance-grid">
         <div class="panel"><span class="coming">EM BREVE</span><h3>Estilo do ranking</h3><p>Escolha futuramente entre formatos compactos, completos e personalizados.</p></div>
@@ -143,8 +197,22 @@ body.sn7-modal-open{overflow:hidden}
     </section>
   </main>
 </div>
-<script>const BROADCASTER_ID={{ broadcaster_id|tojson }};</script>
-<script src="/static/js/app.js"></script>
+<script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") else "false" }};</script>
+<script src="/static/js/app.js"></script><script>
+(function(){
+  const q=id=>document.getElementById(id);
+  function msg(t,e){const x=q("sn7ProfileMessage");if(!x)return;x.textContent=t||"";x.classList.toggle("error",!!e);x.hidden=!t}
+  function out(){q("sn7ProfileLoggedIn").hidden=true;q("sn7ProfileLoggedOut").hidden=false}
+  function user(u){q("sn7ProfileLoggedOut").hidden=true;q("sn7ProfileLoggedIn").hidden=false;q("sn7ProfileUsername").textContent="@"+(u.username||"Kick");q("sn7ProfileChannel").textContent="ID do canal: "+(u.id??"—")}
+  function bot(a){const on=!!a;q("sn7ProfileDot").classList.toggle("on",on);q("sn7ProfileStatus").textContent=on?"Bot ativo":"Bot desligado";q("sn7ProfileBotTitle").textContent=on?"🟢 Bot ligado":"⚪ Bot desligado";q("sn7ProfileBotDescription").textContent=on?"O SN7 Core está ouvindo os comandos da live.":"O bot não está ouvindo os comandos da live.";q("sn7ProfileBotToggle").textContent=on?"Desligar bot":"Ligar bot";q("sn7ProfileBotToggle").dataset.active=String(on);q("sn7ProfileBotToggle").disabled=false}
+  async function load(){const b=q("sn7ProfileBotToggle");if(!b)return;b.disabled=true;b.textContent="Verificando...";msg("");try{const r=await fetch("/kick/me",{credentials:"same-origin",cache:"no-store"}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível consultar o perfil.");if(!d.authenticated||!d.user){out();return}user(d.user);bot(!!(d.bot&&d.bot.active))}catch(e){out();msg(e.message||"Erro ao consultar o perfil.",true)}}
+  q("sn7ProfileBotToggle")?.addEventListener("click",async()=>{const b=q("sn7ProfileBotToggle"),cur=b.dataset.active==="true";b.disabled=true;b.textContent="Alterando...";msg("");try{const r=await fetch("/kick/bot/toggle",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({active:!cur})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível alterar o bot.");bot(!!d.active);msg(d.active?"Bot ligado com sucesso.":"Bot desligado com sucesso.")}catch(e){msg(e.message||"Erro ao alterar o bot.",true);load()}});
+  q("sn7ProfileRefresh")?.addEventListener("click",load);
+  q("sn7ProfileLogout")?.addEventListener("click",async()=>{q("sn7ProfileLogout").disabled=true;try{await fetch("/kick/logout",{method:"POST",credentials:"same-origin"})}finally{window.location.href="/?profile=1"}});
+  document.addEventListener("DOMContentLoaded",()=>{if(window.SN7_OPEN_PROFILE){document.querySelector('nav button[data-tab="profile"]')?.click();history.replaceState({},document.title,"/")}load()});
+})();
+</script>
+
 <div id="sn7ConnectModal" class="sn7-connect-modal" hidden role="dialog" aria-modal="true" aria-labelledby="sn7ConnectTitle" onclick="closeConnectModal(event)">
   <div class="sn7-connect-modal-card" onclick="event.stopPropagation()">
     <button type="button" class="sn7-connect-modal-close" aria-label="Fechar" onclick="closeConnectModal()">×</button>
