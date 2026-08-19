@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request, redirect
+from flask import Flask, jsonify, render_template, request
 from core.database import init_db, get_conn
 from core.auth import get_session_broadcaster_id, require_session_broadcaster
 from routes.economy import economy_bp
@@ -31,6 +31,8 @@ def enforce_session_channel():
     except PermissionError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 403
     return None
+
+
 @app.before_request
 def database_bootstrap():
     if os.environ.get("DATABASE_URL"):
@@ -44,16 +46,29 @@ def _dashboard_broadcaster_id():
 
 @app.get("/")
 def home():
-    if get_session_broadcaster_id() is None:
-        return redirect("/kick/login")
-    return render_template("dashboard.html", broadcaster_id=_dashboard_broadcaster_id())
+    # O painel é público. O login fica somente no perfil.
+    return render_template(
+        "dashboard.html",
+        broadcaster_id=_dashboard_broadcaster_id(),
+        public_mode=_dashboard_broadcaster_id() is None,
+    )
 
 
 @app.get("/dashboard")
 def dashboard():
-    if get_session_broadcaster_id() is None:
-        return redirect("/kick/login")
-    return render_template("dashboard.html", broadcaster_id=_dashboard_broadcaster_id())
+    return render_template(
+        "dashboard.html",
+        broadcaster_id=_dashboard_broadcaster_id(),
+        public_mode=_dashboard_broadcaster_id() is None,
+    )
+
+
+@app.get("/perfil")
+def profile():
+    return render_template(
+        "profile.html",
+        broadcaster_id=_dashboard_broadcaster_id(),
+    )
 
 
 @app.get("/health")
