@@ -327,7 +327,7 @@ function showCommand(command, isNew = false) {
   if (!isNew) draftAliases = [...(command.aliases || [])];
 
   const modal = document.createElement("div");
-  modal.className = "sn7-modal";
+  modal.className = "sn7-modal open";
 
   const aliases = (command.aliases || []).map((alias) => `
     <div class="sn7-alias-row">
