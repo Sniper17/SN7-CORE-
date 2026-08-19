@@ -103,3 +103,54 @@ input:focus,textarea:focus{border-color:#58647a;box-shadow:0 0 0 2px rgba(124,92
 .sn7-response-editor[hidden],#points_response_help[hidden]{display:none!important}
 .sn7-command-preview{display:block;color:#9ea7b7;font-size:12px;line-height:1.45;margin-top:5px;overflow-wrap:anywhere}
 .sn7-command-row.loading{opacity:.72;pointer-events:none}
+
+/* SN7 MOBILE MODAL FIX V2 */
+.sn7-config-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 20000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 12px !important;
+  overflow-y: auto !important;
+}
+.sn7-config-modal[hidden] { display: none !important; }
+.sn7-config-modal-card {
+  position: relative !important;
+  width: min(680px, calc(100vw - 24px)) !important;
+  max-height: calc(100dvh - 24px) !important;
+  margin: auto !important;
+  overflow-y: auto !important;
+  flex: 0 1 auto !important;
+}
+.sn7-config-close {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 20 !important;
+  float: none !important;
+  margin: 0 !important;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  line-height: 1 !important;
+}
+@media (max-width: 600px) {
+  .sn7-config-modal {
+    padding: 8px !important;
+  }
+  .sn7-config-modal-card {
+    width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 16px) !important;
+    border-radius: 16px !important;
+    padding: 20px 14px !important;
+  }
+  .sn7-config-close {
+    top: 8px !important;
+    right: 8px !important;
+  }
+}

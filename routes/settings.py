@@ -8,8 +8,8 @@ settings_bp = Blueprint("settings", __name__)
 DEFAULT_SETTINGS = {
     "broadcaster_user_id": 1,
     "username": "",
-    "currency_name": "Points",
-    "currency_command": "!points",
+    "currency_name": "Pontos",
+    "currency_command": "!pontos",
     "currency_emoji": "",
     "points_response": "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)",
     "rank_title": "Ranking",

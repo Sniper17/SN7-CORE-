@@ -143,6 +143,30 @@ def init_db():
                    AND command = '!tabaco'
             """, (DEFAULT_POINTS_RESPONSE,))
 
+
+            # SN7_POINTS_DEFAULT_MIGRATION_V2
+            cur.execute("""
+                UPDATE channels
+                   SET currency_name = 'Pontos',
+                       updated_at = NOW()
+                 WHERE currency_name = 'Points'
+            """)
+
+            cur.execute("""
+                UPDATE channels
+                   SET currency_command = '!pontos',
+                       updated_at = NOW()
+                 WHERE currency_command = '!points'
+            """)
+
+            cur.execute("""
+                UPDATE command_configs
+                   SET command = '!pontos',
+                       updated_at = NOW()
+                 WHERE command_key = 'points'
+                   AND command = '!points'
+            """)
+
             cur.execute("""
                 ALTER TABLE channels
                 ALTER COLUMN points_response SET NOT NULL

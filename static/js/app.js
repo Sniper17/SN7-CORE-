@@ -613,3 +613,19 @@ function openApostaEditor(){sn7SetModal("sn7ApostaEditor",true);sn7LoadAposta()}
 async function sn7LoadAposta(){try{const data=await apiJson(`/api/commands/${BROADCASTER_ID}`);const cmd=(data.commands||[]).find(x=>x.command_key==="duel");if(!cmd)return;if($("aposta_command"))$("aposta_command").value=cmd.command||"!aposta";if($("aposta_response"))$("aposta_response").value=cmd.response||"$(duel_result)";if($("apostaCardCommand"))$("apostaCardCommand").textContent=cmd.command||"!aposta"}catch(e){if($("apostaMsg"))$("apostaMsg").textContent=e.message}}
 async function saveApostaSettings(){const msg=$("apostaMsg");try{const command=$("aposta_command")?.value||"!aposta";const response=$("aposta_response")?.value||"$(duel_result)";await apiJson(`/api/commands/${BROADCASTER_ID}/duel`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({command,response})});if($("apostaCardCommand"))$("apostaCardCommand").textContent=command;if(msg)msg.textContent="Salvo."}catch(e){if(msg)msg.textContent="⚠ "+e.message}}
 document.addEventListener("DOMContentLoaded",()=>{document.querySelectorAll(".sn7-config-modal").forEach(m=>m.addEventListener("click",e=>{if(e.target===m){m.hidden=true;document.body.classList.remove("sn7-modal-open")}}));const refresh=()=>{if($("pointsCardName"))$("pointsCardName").textContent=$("currency_name")?.value||"Points";if($("pointsCardCommand"))$("pointsCardCommand").textContent=$("currency_command")?.value||"!points";if($("rewardsCardSummary")){const w=$("watch_points")?.value??1,s=$("sub_bonus")?.value??500,k=$("kicks_bonus_per_kick")?.value??1;$("rewardsCardSummary").textContent=`${w} ponto${Number(w)===1?"":"s"} • sub +${s} • KICK +${k}/cada`}};["currency_name","currency_command","watch_points","sub_bonus","kicks_bonus_per_kick"].forEach(id=>$(id)?.addEventListener("input",refresh));setTimeout(()=>{refresh();sn7LoadAposta()},250)});
+
+/* SN7 MOBILE MODAL CLOSE FIX V2 */
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".sn7-config-close").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const modal = button.closest(".sn7-config-modal");
+      if (!modal) return;
+
+      modal.hidden = true;
+      document.body.classList.remove("sn7-modal-open");
+    });
+  });
+});

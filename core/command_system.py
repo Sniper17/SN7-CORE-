@@ -3,7 +3,7 @@ from core.database import get_conn
 DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)"
 
 SYSTEM = {
-    "points": ("!points", "Consulta seu saldo de pontos.", "public", DEFAULT_POINTS_RESPONSE),
+    "points": ("!pontos", "Consulta seu saldo de pontos.", "public", DEFAULT_POINTS_RESPONSE),
     "ranking": ("!ranking", "Mostra o ranking do canal.", "public", "$(ranking)"),
     "duel": ("!aposta", "Inicia uma aposta contra outro usuário.", "public", "$(duel_result)"),
     "cmds": ("!cmds", "Lista os comandos personalizados da live.", "public", "$(commands)"),
@@ -24,7 +24,7 @@ def ensure_command_defaults(bid):
                 (bid,),
             )
             row = cur.fetchone()
-            points_command = str((row[0] if row else None) or "!points").strip().lower()
+            points_command = str((row[0] if row else None) or "!pontos").strip().lower()
             points_response = str((row[1] if row else None) or DEFAULT_POINTS_RESPONSE)
             # Migra apenas a resposta padrão antiga; não sobrescreve personalizações.
             old_default = "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank)."

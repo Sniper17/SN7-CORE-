@@ -1,4 +1,4 @@
-from core.database import get_conn
+from core.database import get_conn, ensure_point_rewards_table
 from core.command_system import ensure_command_defaults
 
 
