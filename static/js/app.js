@@ -629,3 +629,43 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
+/* SN7 MODAL PORTAL FIX V4 */
+(function () {
+  "use strict";
+  function sn7PortalModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return null;
+    if (modal.parentElement !== document.body) document.body.appendChild(modal);
+    modal.hidden = false;
+    document.body.classList.add("sn7-modal-open");
+    return modal;
+  }
+  function sn7HideModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.hidden = true;
+    const anyOpen = Array.from(document.querySelectorAll('.sn7-config-modal')).some(x => !x.hidden);
+    if (!anyOpen) document.body.classList.remove('sn7-modal-open');
+  }
+  window.openPointsEditor = function () { sn7PortalModal('sn7PointsEditor'); };
+  window.closePointsEditor = function () { sn7HideModal('sn7PointsEditor'); };
+  window.openRewardsEditor = function () { sn7PortalModal('sn7RewardsEditor'); };
+  window.closeRewardsEditor = function () { sn7HideModal('sn7RewardsEditor'); };
+  window.openApostaEditor = function () {
+    sn7PortalModal('sn7ApostaEditor');
+    if (typeof sn7LoadAposta === 'function') sn7LoadAposta();
+  };
+  window.closeApostaEditor = function () { sn7HideModal('sn7ApostaEditor'); };
+  document.addEventListener('click', function (event) {
+    const close = event.target.closest('.sn7-config-close');
+    if (close) {
+      event.preventDefault();
+      event.stopPropagation();
+      const modal = close.closest('.sn7-config-modal');
+      if (modal) sn7HideModal(modal.id);
+      return;
+    }
+    if (event.target.classList?.contains('sn7-config-modal')) sn7HideModal(event.target.id);
+  }, true);
+})();
