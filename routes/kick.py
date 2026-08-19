@@ -12,6 +12,7 @@ from flask import Blueprint, jsonify, redirect, request, session
 from core.database import get_conn
 from core.services import ensure_channel, ensure_player, get_channel, get_player, get_rank
 from core.command_system import find_command, list_commands
+from core.auth import get_session_broadcaster_id
 
 
 kick_bp = Blueprint("kick", __name__)
@@ -809,6 +810,106 @@ def _process_webhook(payload, event_type):
         _process_chat(payload)
 
 
+def _session_broadcaster_id():
+    try:
+        value = get_session_broadcaster_id()
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _chat_subscription_ids(access_token):
+    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
+    response = requests.get(
+        f"{KICK_API}/events/subscriptions",
+        headers=headers,
+        timeout=20,
+    )
+    try:
+        data = response.json()
+    except Exception:
+        data = {}
+    if response.status_code >= 400:
+        raise RuntimeError(f"Falha ao consultar assinaturas Kick: HTTP {response.status_code}")
+    return [
+        str(item.get("id"))
+        for item in (data.get("data") or [])
+        if item.get("id") and str(item.get("event") or "") == "chat.message.sent"
+    ]
+
+
+def _unsubscribe_chat(access_token):
+    headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/json"}
+    ids = _chat_subscription_ids(access_token)
+    if not ids:
+        return {"ok": True, "active": False, "deleted_subscription_ids": []}
+    response = requests.delete(
+        f"{KICK_API}/events/subscriptions",
+        headers=headers,
+        params=[("id", x) for x in ids],
+        timeout=20,
+    )
+    if response.status_code not in (200, 204):
+        raise RuntimeError(f"Falha ao desativar o bot: HTTP {response.status_code}")
+    return {"ok": True, "active": False, "deleted_subscription_ids": ids}
+
+
+def _bot_active(access_token):
+    return bool(_chat_subscription_ids(access_token))
+
+
+@kick_bp.get("/me")
+def me():
+    bid = _session_broadcaster_id()
+    if bid is None:
+        return jsonify({"ok": True, "authenticated": False, "user": None, "bot": {"active": False}})
+    conn = _valid_connection(bid)
+    if not conn:
+        return jsonify({"ok": True, "authenticated": False, "user": None, "bot": {"active": False}})
+    try:
+        active = _bot_active(conn["access_token"])
+    except Exception as exc:
+        print(f"[KICK-BOT] status falhou: {exc}", flush=True)
+        active = False
+    return jsonify({
+        "ok": True,
+        "authenticated": True,
+        "user": {"id": int(bid), "username": str(conn.get("username") or "")},
+        "bot": {"active": active},
+    })
+
+
+@kick_bp.post("/bot/toggle")
+def bot_toggle():
+    bid = _session_broadcaster_id()
+    if bid is None:
+        return jsonify({"ok": False, "error": "Faça login com a Kick primeiro."}), 401
+    conn = _valid_connection(bid)
+    if not conn:
+        return jsonify({"ok": False, "error": "Conta Kick não conectada ao SN7 Core."}), 403
+    payload = request.get_json(silent=True) or {}
+    desired = payload.get("active")
+    if not isinstance(desired, bool):
+        return jsonify({"ok": False, "error": "active precisa ser true ou false."}), 400
+    try:
+        if desired:
+            result = _subscribe_chat(conn["access_token"], bid)
+        else:
+            result = _unsubscribe_chat(conn["access_token"])
+        return jsonify({"ok": True, "active": desired, "result": result})
+    except Exception as exc:
+        print(f"[KICK-BOT] toggle falhou broadcaster={bid}: {exc}", flush=True)
+        return jsonify({"ok": False, "error": "Não foi possível alterar o status do bot."}), 502
+
+
+@kick_bp.post("/logout")
+def logout():
+    session.pop("kick_broadcaster_id", None)
+    session.pop("kick_oauth_state", None)
+    session.pop("kick_code_verifier", None)
+    return jsonify({"ok": True})
+
+
 @kick_bp.get("/login")
 def login():
     if not _client_id() or not _client_secret():
@@ -849,7 +950,7 @@ def callback():
         session["kick_broadcaster_id"] = broadcaster_id
         session.permanent = True
 
-        return redirect("/dashboard?connected=1")
+        return redirect("/perfil?connected=1")
     except Exception as exc:
         print(f"[KICK-OAUTH] callback falhou: {exc}", flush=True)
         return jsonify({"ok": False, "error": str(exc)}), 500
