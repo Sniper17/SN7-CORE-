@@ -844,14 +844,12 @@ def callback():
         user = _kick_user(token_data["access_token"])
         broadcaster_id = _save_connection(user, token_data)
         subscription = _subscribe_chat(token_data["access_token"], broadcaster_id)
-        return jsonify({
-            "ok": True,
-            "message": "Kick conectado ao SN7 Core.",
-            "broadcaster_user_id": broadcaster_id,
-            "username": user.get("username"),
-            "chat_subscription": subscription,
-            "webhook": _webhook_url(),
-        })
+
+        # Mantém o streamer autenticado na sessão do navegador.
+        session["kick_broadcaster_id"] = broadcaster_id
+        session.permanent = True
+
+        return redirect("/dashboard?connected=1")
     except Exception as exc:
         print(f"[KICK-OAUTH] callback falhou: {exc}", flush=True)
         return jsonify({"ok": False, "error": str(exc)}), 500
