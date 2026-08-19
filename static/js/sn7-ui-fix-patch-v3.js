@@ -38,6 +38,55 @@
     (document.head || document.documentElement).appendChild(style);
   }
 
+
+  /* SN7_BUTTON_FEEDBACK_V1 */
+  function installButtonFeedback() {
+    var id = "sn7-button-feedback-v1-style";
+
+    if (!document.getElementById(id)) {
+      var style = document.createElement("style");
+      style.id = id;
+      style.textContent =
+        ".sn7-click-feedback{position:relative!important;overflow:hidden!important;-webkit-tap-highlight-color:transparent!important;isolation:isolate;}" +
+        ".sn7-click-feedback::after{content:\"\";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:10;opacity:0;background:radial-gradient(circle at var(--sn7-fx-x,50%) var(--sn7-fx-y,50%),rgba(255,255,255,.15),rgba(255,255,255,0) 58%);transform:scale(.96);transition:opacity .16s ease,transform .16s ease;}" +
+        ".sn7-click-feedback.sn7-clicking::after{opacity:1;transform:scale(1);}" +
+        "@media(prefers-reduced-motion:reduce){.sn7-click-feedback::after{transition:none;}}";
+      (document.head || document.documentElement).appendChild(style);
+    }
+
+    if (window.__SN7_BUTTON_FEEDBACK_V1) return;
+    window.__SN7_BUTTON_FEEDBACK_V1 = true;
+
+    function getTarget(el) {
+      if (!el || !el.closest) return null;
+      var target = el.closest("button,a.btn,.btn,.link-btn,.sn7-subtle,.sn7-danger,.sn7-edit-response,.sn7-command-row");
+      if (!target || target.disabled) return null;
+      return target;
+    }
+
+    document.addEventListener("pointerdown", function(event) {
+      var target = getTarget(event.target);
+      if (!target) return;
+
+      var rect = target.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      var x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+      var y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
+
+      target.style.setProperty("--sn7-fx-x", x + "%");
+      target.style.setProperty("--sn7-fx-y", y + "%");
+      target.classList.add("sn7-click-feedback");
+      target.classList.remove("sn7-clicking");
+      void target.offsetWidth;
+      target.classList.add("sn7-clicking");
+
+      setTimeout(function() {
+        target.classList.remove("sn7-clicking");
+      }, 180);
+    }, {passive:true});
+  }
+
   function readTab() {
     try {
       var value = localStorage.getItem(TAB_KEY);
@@ -167,6 +216,7 @@
 
   function init() {
     installStyles();
+    installButtonFeedback();
     removeWelcomeConnect();
     bindTabPersistence();
 
