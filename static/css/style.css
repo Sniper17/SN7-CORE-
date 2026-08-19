@@ -60,7 +60,7 @@ input:focus,textarea:focus{border-color:#58647a;box-shadow:0 0 0 2px rgba(124,92
     background:rgba(15,18,24,.97);backdrop-filter:blur(12px);
   }
   .brand,.channel-card,.sidebar-footer{display:none}
-  nav{height:100%;display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+  nav{height:100%;display:grid;grid-template-columns:repeat(6,1fr);gap:2px}
   nav button{font-size:9px;text-align:center;padding:5px 2px;min-width:0;white-space:nowrap}
   nav button span{display:block;width:auto;margin:0 0 2px;font-size:17px;line-height:20px}
   nav button.active{background:#1b202a}

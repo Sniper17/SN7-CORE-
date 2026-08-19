@@ -605,7 +605,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadSettings();
 });
 
-# SN7_POINTS_REWARDS_V1
+// SN7_POINTS_REWARDS_V1
 function sn7SetModal(id, open) { const el=document.getElementById(id); if(!el)return; el.hidden=!open; document.body.classList.toggle("sn7-modal-open",open); }
 function openPointsEditor(){sn7SetModal("sn7PointsEditor",true)} function closePointsEditor(){sn7SetModal("sn7PointsEditor",false)}
 function openRewardsEditor(){sn7SetModal("sn7RewardsEditor",true)} function closeRewardsEditor(){sn7SetModal("sn7RewardsEditor",false)}
