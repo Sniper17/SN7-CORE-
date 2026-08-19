@@ -1,6 +1,6 @@
 from core.database import get_conn
 
-DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank)."
+DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)"
 
 SYSTEM = {
     "points": ("!points", "Consulta seu saldo de pontos.", "public", DEFAULT_POINTS_RESPONSE),
@@ -26,6 +26,14 @@ def ensure_command_defaults(bid):
             row = cur.fetchone()
             points_command = str((row[0] if row else None) or "!placos").strip().lower()
             points_response = str((row[1] if row else None) or DEFAULT_POINTS_RESPONSE)
+            # Migra apenas a resposta padrão antiga; não sobrescreve personalizações.
+            old_default = "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank)."
+            if points_response.strip() == old_default:
+                points_response = DEFAULT_POINTS_RESPONSE
+                cur.execute(
+                    "UPDATE channels SET points_response=%s WHERE broadcaster_user_id=%s",
+                    (DEFAULT_POINTS_RESPONSE, bid),
+                )
             if not points_command.startswith("!"):
                 points_command = "!placos"
 

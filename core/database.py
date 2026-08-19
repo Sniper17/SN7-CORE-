@@ -1,7 +1,7 @@
 import os
 import psycopg
 
-DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank)."
+DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS channels (
@@ -10,8 +10,8 @@ CREATE TABLE IF NOT EXISTS channels (
     username TEXT NOT NULL DEFAULT '',
     currency_name TEXT NOT NULL DEFAULT 'Placos',
     currency_command TEXT NOT NULL DEFAULT '!points',
-    currency_emoji TEXT NOT NULL DEFAULT '🪙',
-    points_response TEXT NOT NULL DEFAULT '$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank).',
+    currency_emoji TEXT NOT NULL DEFAULT '',
+    points_response TEXT NOT NULL DEFAULT '$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)',
     rank_title TEXT NOT NULL DEFAULT 'Ranking',
     rank_limit INTEGER NOT NULL DEFAULT 5,
     duel_win_points INTEGER NOT NULL DEFAULT 10,
@@ -114,6 +114,9 @@ def init_db():
                 SET points_response = %s
                 WHERE points_response IS NULL OR BTRIM(points_response) = ''
             """, (DEFAULT_POINTS_RESPONSE,))
+            cur.execute("""
+                UPDATE channels SET currency_emoji = '' WHERE currency_emoji = '🪙'
+            """)
 
             default_sql = DEFAULT_POINTS_RESPONSE.replace("'", "''")
             cur.execute(f"""

@@ -500,10 +500,24 @@ def _send_chat(broadcaster_id, content):
 
 def _render_response(template,values):
  text=str(template or '')
- for key,value in values.items():text=text.replace('$('+key+')',str(value))
- return text
+ for key,value in values.items():
+  text=text.replace('$('+key+')',str(value))
+ if values.get('rank') is None:
+  text=text.replace('#None','')
+  text=text.replace('$(rank)','')
+ return ' '.join(text.split())
 def _format_balance(bid,user):
- ch=get_channel(bid);p=get_player(bid,user);return {'user':user,'points':int(p['points']),'currency':ch['currency_name'],'emoji':ch['currency_emoji'],'rank':get_rank(bid,user)}
+ ch=get_channel(bid);p=get_player(bid,user);rank=get_rank(bid,user)
+ emoji=str(ch['currency_emoji'] or '').strip()
+ return {
+  'user':user,
+  'points':int(p['points']),
+  'currency':ch['currency_name'],
+  'emoji':emoji,
+  'emoji_text':f' {emoji}' if emoji else '',
+  'rank':rank if rank is not None else '',
+  'rank_text':f' Sua posição no ranking é #{rank}.' if rank is not None else '',
+ }
 def _format_ranking(bid):
  ch=get_channel(bid);limit=max(1,min(int(ch['rank_limit']),10));c=get_conn()
  try:

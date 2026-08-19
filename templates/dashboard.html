@@ -67,7 +67,10 @@
           <label>Emoji<input id="currency_emoji" placeholder="🪙" autocomplete="off"></label>
         </div>
         <label>Mensagem do saldo
-          <textarea id="points_response" class="sn7-points-response" maxlength="500" placeholder="Mensagem que o bot enviará ao consultar o saldo"></textarea>
+          <div id="points_response_preview" class="sn7-response-preview" aria-live="polite"></div>
+          <button id="points_response_edit" type="button" class="sn7-edit-response" onclick="togglePointsResponseEditor()">Editar mensagem</button>
+          <textarea id="points_response" class="sn7-points-response sn7-response-editor" maxlength="500" placeholder="Mensagem que o bot enviará ao consultar o saldo" hidden></textarea>
+          <div id="points_response_help" class="sn7-help" hidden>Agora você está editando o texto que será enviado ao chat.</div>
         </label>
         <div class="save-row"><p id="settingsMsg"></p><button type="button" class="btn" onclick="saveSettings()">Salvar alterações</button></div>
       </div>

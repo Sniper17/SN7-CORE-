@@ -49,6 +49,58 @@ function setMessage(text, ok = false) {
   msg.classList.toggle("error", !ok);
 }
 
+function renderChatPreview(template, settings, sample = {}) {
+  let text = String(template || "");
+  const values = {
+    user: sample.user || "Usuário",
+    points: sample.points ?? 183,
+    currency: settings?.currency_name || "pontos",
+    emoji: settings?.currency_emoji || "",
+    emoji_text: settings?.currency_emoji ? ` ${settings.currency_emoji}` : "",
+    rank: sample.rank ?? 4,
+    rank_text: sample.rank != null ? ` Sua posição no ranking é #${sample.rank}.` : "",
+    command: settings?.currency_command || "!points",
+    target: "Usuário",
+    amount: 10,
+    new_points: 193,
+    commands: "!cmds !ranking",
+    duel_result: "⚔️ Exemplo de duelo",
+    ranking: "🏆 1. Usuário 500 • 2. Player 350",
+  };
+  Object.entries(values).forEach(([key, value]) => {
+    text = text.replaceAll(`$(${key})`, String(value ?? ""));
+  });
+  text = text.replace(/#None/g, "");
+  return text.replace(/\s{2,}/g, " ").trim();
+}
+
+function updatePointsResponsePreview() {
+  const preview = $("points_response_preview");
+  const input = $("points_response");
+  if (!preview || !input) return;
+  const settings = {
+    currency_name: $("currency_name")?.value || "pontos",
+    currency_emoji: $("currency_emoji")?.value || "",
+    currency_command: $("currency_command")?.value || "!points",
+  };
+  preview.textContent = renderChatPreview(input.value, settings);
+}
+
+function togglePointsResponseEditor(force) {
+  const input = $("points_response");
+  const preview = $("points_response_preview");
+  const button = $("points_response_edit");
+  const help = $("points_response_help");
+  if (!input || !preview || !button) return;
+  const editing = force === undefined ? input.hidden : force;
+  input.hidden = !editing;
+  preview.hidden = editing;
+  if (help) help.hidden = !editing;
+  button.textContent = editing ? "Visualizar mensagem" : "Editar mensagem";
+  if (editing) input.focus();
+  else updatePointsResponsePreview();
+}
+
 function updatePreview(settings) {
   if ($("statCurrency")) $("statCurrency").textContent = settings.currency_name ?? "";
   if ($("statCommand")) $("statCommand").textContent = settings.currency_command ?? "";
@@ -56,6 +108,7 @@ function updatePreview(settings) {
   if ($("previewCurrency")) $("previewCurrency").textContent = settings.currency_name ?? "";
   if ($("previewCommand")) $("previewCommand").textContent = settings.currency_command ?? "";
   if ($("previewEmoji")) $("previewEmoji").textContent = settings.currency_emoji ?? "";
+  updatePointsResponsePreview();
 }
 
 function injectCommandStyles() {
@@ -138,6 +191,18 @@ function buildCommandCatalog() {
   injectCommandStyles();
 }
 
+function renderCommandListPreview(command) {
+  const settings = {
+    currency_name: $("currency_name")?.value || "pontos",
+    currency_emoji: $("currency_emoji")?.value || "",
+    currency_command: $("currency_command")?.value || "!points",
+  };
+  if (command.command_key === "points") {
+    return renderChatPreview(command.response, settings, { user: "Usuário", points: 183, rank: 4 });
+  }
+  return renderChatPreview(command.response, settings);
+}
+
 function renderCommands() {
   const groups = {
     public: $("publicCommandsList"),
@@ -157,6 +222,7 @@ function renderCommands() {
         <div>
           <code>${esc(command.command)}</code>
           <small>${esc(command.description)}</small>
+          <span class="sn7-command-preview">${esc(renderCommandListPreview(command))}</span>
           ${command.aliases?.length ? `<div class="sn7-aliases">Variantes: ${command.aliases.map(esc).join(", ")}</div>` : ""}
         </div>
         <small>${command.enabled ? "🟢 Ativo" : "🔴 Desativado"}</small>
@@ -173,6 +239,8 @@ function renderCommands() {
 
 async function loadCommands() {
   buildCommandCatalog();
+  const status = $("commandPanelStatus");
+  if (status) status.innerHTML = `<span class="sn7-spinner"></span>Carregando comandos...`;
   try {
     const data = await apiJson(`/api/commands/${BROADCASTER_ID}`);
     commandCache = Array.isArray(data.commands) ? data.commands : [];
@@ -376,6 +444,8 @@ async function deleteCommandV2(encodedKey, isSystem, button) {
   }
 
   try {
+    const row = button?.closest(".sn7-command-row");
+    if (row) row.classList.add("loading");
     const data = await apiJson(`/api/commands/${BROADCASTER_ID}/${encodedKey}`, { method: "DELETE" });
     commandCache = Array.isArray(data.commands) ? data.commands : commandCache;
     renderCommands();
@@ -443,5 +513,11 @@ async function saveSettings() {
 
 document.addEventListener("DOMContentLoaded", () => {
   injectCommandStyles();
+  ["currency_name", "currency_emoji", "currency_command", "points_response"].forEach((id) => {
+    $(id)?.addEventListener("input", () => {
+      updatePointsResponsePreview();
+      renderCommands();
+    });
+  });
   loadSettings();
 });
