@@ -42,14 +42,14 @@
       <div class="grid stats-grid">
         <div class="stat"><span class="stat-icon">◉</span><div><small>Moeda do canal</small><strong id="statCurrency">Placos</strong></div></div>
         <div class="stat"><span class="stat-icon">!</span><div><small>Comando da moeda</small><strong id="statCommand">!points</strong></div></div>
-        <div class="stat"><span class="stat-icon">☺</span><div><small>Emoji</small><strong id="statEmoji">🪙</strong></div></div>
+        <div class="stat"><span class="stat-icon"></span><div><small>Emoji</small><strong id="statEmoji"></strong></div></div>
         <div class="stat"><span class="stat-icon">V/D</span><div><small>Sistema de V/D</small><strong>Desativado</strong></div></div>
       </div>
 
       <div class="overview-grid">
         <div class="panel">
           <div class="panel-title"><div><h3>Points Stats</h3><p>Nome, comando e símbolo usados no chat.</p></div><button type="button" class="link-btn" onclick="openTab('economy')">Editar →</button></div>
-          <div class="preview-line"><span id="previewEmoji">🪙</span><strong id="previewCurrency">Placos</strong><code id="previewCommand">!points</code></div>
+          <div class="preview-line"><span id="previewEmoji"></span><strong id="previewCurrency">Placos</strong><code id="previewCommand">!points</code></div>
         </div>
         <div class="panel">
           <div class="panel-title"><div><h3>Comandos</h3><p>Respostas personalizadas da live.</p></div><button type="button" class="link-btn" onclick="openTab('commands')">Gerenciar →</button></div>
@@ -64,7 +64,7 @@
         <div class="form-grid">
           <label>Nome dos pontos<input id="currency_name" placeholder="Placos" autocomplete="off"></label>
           <label>Comando principal<input id="currency_command" placeholder="!points" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
-          <label>Emoji<input id="currency_emoji" placeholder="🪙" autocomplete="off"></label>
+          <label>Emoji<input id="currency_emoji" placeholder="" autocomplete="off"></label>
         </div>
         <label>Mensagem do saldo
           <div id="points_response_preview" class="sn7-response-preview" aria-live="polite"></div>
