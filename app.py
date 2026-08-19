@@ -1,5 +1,6 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, redirect
 from core.database import init_db, get_conn
+from core.auth import get_session_broadcaster_id, require_session_broadcaster
 from routes.economy import economy_bp
 from routes.ranking import ranking_bp
 from routes.duel import duel_bp
@@ -7,6 +8,7 @@ from routes.commands import commands_bp
 from routes.settings import settings_bp
 from routes.kick import kick_bp
 import os
+import re
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "change-me")
@@ -20,49 +22,37 @@ app.register_blueprint(kick_bp, url_prefix="/kick")
 
 
 @app.before_request
+def enforce_session_channel():
+    match = re.match(r"^/api/(economy|ranking|duel|commands|settings)/(\d+)(?:/|$)", request.path)
+    if not match:
+        return None
+    try:
+        require_session_broadcaster(int(match.group(2)))
+    except PermissionError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 403
+    return None
+@app.before_request
 def database_bootstrap():
     if os.environ.get("DATABASE_URL"):
         init_db()
 
 
 def _dashboard_broadcaster_id():
-    requested = str(request.args.get("broadcaster_id") or "").strip()
-    if requested.isdigit():
-        return requested
-
-    # Sem broadcaster_id na URL, usa o canal Kick conectado mais recentemente.
-    # Isso evita o painel operar no ID fictício "1" enquanto o webhook usa o ID real.
-    if os.environ.get("DATABASE_URL"):
-        try:
-            conn = get_conn()
-            try:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        SELECT broadcaster_user_id
-                          FROM kick_connections
-                         ORDER BY updated_at DESC
-                         LIMIT 1
-                        """
-                    )
-                    row = cur.fetchone()
-                    if row:
-                        return str(row[0])
-            finally:
-                conn.close()
-        except Exception as exc:
-            print(f"[DASHBOARD] não foi possível resolver canal conectado: {exc}", flush=True)
-
-    return "1"
+    current = get_session_broadcaster_id()
+    return str(current) if current is not None else None
 
 
 @app.get("/")
 def home():
+    if get_session_broadcaster_id() is None:
+        return redirect("/kick/login")
     return render_template("dashboard.html", broadcaster_id=_dashboard_broadcaster_id())
 
 
 @app.get("/dashboard")
 def dashboard():
+    if get_session_broadcaster_id() is None:
+        return redirect("/kick/login")
     return render_template("dashboard.html", broadcaster_id=_dashboard_broadcaster_id())
 
 
