@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS channels (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT UNIQUE NOT NULL,
     username TEXT NOT NULL DEFAULT '',
-    currency_name TEXT NOT NULL DEFAULT 'Placos',
+    currency_name TEXT NOT NULL DEFAULT 'Points',
     currency_command TEXT NOT NULL DEFAULT '!points',
     currency_emoji TEXT NOT NULL DEFAULT '',
     points_response TEXT NOT NULL DEFAULT '$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)',
@@ -104,6 +104,7 @@ def init_db():
     try:
         with conn.cursor() as cur:
             cur.execute(SCHEMA)
+            ensure_point_rewards_table()
             cur.execute("""
                 ALTER TABLE channels
                 ADD COLUMN IF NOT EXISTS points_response TEXT
@@ -145,6 +146,31 @@ def init_db():
             cur.execute("""
                 ALTER TABLE channels
                 ALTER COLUMN points_response SET NOT NULL
+            """)
+        conn.commit()
+    finally:
+        conn.close()
+
+# SN7_POINTS_REWARDS_V1
+POINTS_REWARD_SCHEMA = """
+CREATE TABLE IF NOT EXISTS point_rewards (
+    broadcaster_user_id BIGINT PRIMARY KEY,
+    watch_points INTEGER NOT NULL DEFAULT 1,
+    watch_interval_minutes INTEGER NOT NULL DEFAULT 10,
+    sub_bonus INTEGER NOT NULL DEFAULT 500,
+    kicks_bonus_per_kick INTEGER NOT NULL DEFAULT 1,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+def ensure_point_rewards_table():
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(POINTS_REWARD_SCHEMA)
+            cur.execute("""
+                ALTER TABLE players
+                ADD COLUMN IF NOT EXISTS last_view_reward_at TIMESTAMPTZ
             """)
         conn.commit()
     finally:

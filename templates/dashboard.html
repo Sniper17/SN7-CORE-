@@ -38,6 +38,9 @@ body.sn7-modal-open{overflow:hidden}
 .sn7-connect-modal-card .btn{width:100%;margin-top:18px}
 @media(max-width:700px){.sn7-welcome{padding:24px 20px}.sn7-welcome h2{font-size:24px}.sn7-quick-grid{grid-template-columns:1fr}}
 </style>
+<style id="sn7-points-v1-style">
+.sn7-points-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:980px}.sn7-points-card{appearance:none;text-align:left;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px;min-height:118px;color:inherit;cursor:pointer;display:flex;align-items:center;gap:13px;transition:transform .16s ease,border-color .16s ease,background .16s ease}.sn7-points-card:hover{transform:translateY(-1px);border-color:#394253;background:#141923}.sn7-points-card:active{transform:scale(.985)}.sn7-points-card-icon{width:42px;height:42px;border-radius:12px;background:#1b202a;display:grid;place-items:center;color:#b7abff;flex:0 0 42px;font-size:20px}.sn7-points-card-body{min-width:0;flex:1}.sn7-points-card-body small{display:block;color:var(--muted);font-size:11px;margin-bottom:7px}.sn7-points-card-body strong{display:block;font-size:17px;overflow-wrap:anywhere}.sn7-points-card-body em{display:block;color:var(--muted);font-size:12px;font-style:normal;margin-top:5px;overflow-wrap:anywhere}.sn7-points-card-arrow{color:#a9b2c2;font-size:12px;white-space:nowrap}.sn7-config-modal{position:fixed;inset:0;z-index:10001;background:rgba(3,5,9,.72);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:16px}.sn7-config-modal[hidden]{display:none!important}.sn7-config-modal-card{position:relative;width:min(680px,100%);max-height:90vh;overflow:auto;background:#11151d;border:1px solid #2a303c;border-radius:18px;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.45)}.sn7-config-close{position:absolute;right:10px;top:9px;width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:#8f98a8;font-size:25px;cursor:pointer}.sn7-config-close:hover{background:#1b202a;color:#fff}.sn7-config-modal-card h3{margin:0 0 7px;font-size:21px}.sn7-config-modal-card>p{font-size:12px;line-height:1.6;color:var(--muted);margin-bottom:18px}.sn7-config-modal-card label{display:block;margin-top:14px}@media(max-width:900px){.sn7-points-cards{grid-template-columns:1fr 1fr}}@media(max-width:600px){.sn7-points-cards{grid-template-columns:1fr}.sn7-config-modal-card{padding:20px 16px}.sn7-points-card{min-height:96px}}
+</style>
 </head>
 <body>
 <div class="layout">
@@ -49,9 +52,8 @@ body.sn7-modal-open{overflow:hidden}
     </div>
     <nav>
       <button type="button" data-tab="overview" class="active"><span>⌂</span> Visão geral</button>
-      <button type="button" data-tab="economy"><span>◉</span> Points Stats</button>
+      <button type="button" data-tab="economy"><span>◉</span> Sistema de pontos</button>
       <button type="button" data-tab="ranking"><span>♛</span> Ranking</button>
-      <button type="button" data-tab="duel"><span>⚔</span> Duelo</button>
       <button type="button" data-tab="bank"><span>▣</span> Banco</button>
       <button type="button" data-tab="commands"><span>⌘</span> Comandos</button>
       <button type="button" data-tab="profile"><span>◉</span> Perfil</button>
@@ -74,35 +76,20 @@ body.sn7-modal-open{overflow:hidden}
         <h2>Bem-vindo ao projeto SN7 Core</h2>
         <p>Um painel simples para preencher sua live, organizar a economia e preparar as ferramentas do seu canal.</p>
       </div>
-      <div class="sn7-quick-grid">
-        <div class="sn7-quick-card">
-          <small>Moeda do canal</small>
-          <strong id="statCurrency">Placos</strong>
-          <button type="button" onclick="openTab('economy')">Editar →</button>
-        </div>
-        <div class="sn7-quick-card">
-          <small>Comando da moeda</small>
-          <strong id="statCommand">!points</strong>
-          <button type="button" onclick="openTab('economy')">Editar →</button>
-        </div>
-      </div>
     </section>
 
     <section id="economy" class="tab">
-      <div class="panel form-panel">
-        <div class="form-grid">
-          <label>Nome dos pontos<input id="currency_name" placeholder="Placos" autocomplete="off"></label>
-          <label>Comando principal<input id="currency_command" placeholder="!points" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
-          <label>Emoji<input id="currency_emoji" placeholder="" autocomplete="off"></label>
-        </div>
-        <label>Mensagem do saldo
-          <div id="points_response_preview" class="sn7-response-preview" aria-live="polite"></div>
-          <button id="points_response_edit" type="button" class="sn7-edit-response" onclick="togglePointsResponseEditor()">Editar mensagem</button>
-          <textarea id="points_response" class="sn7-points-response sn7-response-editor" maxlength="500" placeholder="Mensagem que o bot enviará ao consultar o saldo" hidden></textarea>
-          <div id="points_response_help" class="sn7-help" hidden>Agora você está editando o texto que será enviado ao chat.</div>
-        </label>
-        <div class="save-row"><p id="settingsMsg"></p><button type="button" class="btn" onclick="saveSettings()">Salvar alterações</button></div>
+      <div class="sn7-points-cards">
+        <button type="button" class="sn7-points-card" onclick="openPointsEditor()"><span class="sn7-points-card-icon">◉</span><span class="sn7-points-card-body"><small>Sistema de pontos</small><strong id="pointsCardName">Points</strong><em id="pointsCardCommand">!points</em></span><span class="sn7-points-card-arrow">Editar →</span></button>
+        <button type="button" class="sn7-points-card" onclick="openRewardsEditor()"><span class="sn7-points-card-icon">◷</span><span class="sn7-points-card-body"><small>Recompensas por assistir</small><strong>Presença, subs e KICKs</strong><em id="rewardsCardSummary">Configure os bônus</em></span><span class="sn7-points-card-arrow">Editar →</span></button>
+        <button type="button" class="sn7-points-card" onclick="openApostaEditor()"><span class="sn7-points-card-icon">⚔</span><span class="sn7-points-card-body"><small>Aposta</small><strong id="apostaCardCommand">!aposta</strong><em>Comando e mensagem do chat</em></span><span class="sn7-points-card-arrow">Editar →</span></button>
       </div>
+
+      <div id="sn7PointsEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" onclick="closePointsEditor()">×</button><h3>Sistema de pontos</h3><p>Configure como o sistema aparece e responde no chat.</p><div class="form-grid"><label>Nome dos pontos<input id="currency_name" placeholder="Points" autocomplete="off"></label><label>Comando principal<input id="currency_command" placeholder="!points" autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>Emoji<input id="currency_emoji" placeholder="" autocomplete="off"></label></div><label>Mensagem do saldo<div id="points_response_preview" class="sn7-response-preview"></div><button id="points_response_edit" type="button" class="sn7-edit-response" onclick="togglePointsResponseEditor()">Editar mensagem</button><textarea id="points_response" class="sn7-points-response sn7-response-editor" maxlength="500" placeholder="Mensagem que o bot enviará ao consultar o saldo" hidden></textarea><div id="points_response_help" class="sn7-help" hidden>Use $(user), $(points), $(currency), $(emoji_text) e $(rank_text).</div></label><div class="save-row"><p id="settingsMsg"></p><button type="button" class="btn" onclick="saveSettings();closePointsEditor()">Salvar alterações</button></div></div></div>
+
+      <div id="sn7RewardsEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" onclick="closeRewardsEditor()">×</button><h3>Recompensas por assistir</h3><p>O Kick não oferece presença/watchtime individual pela API pública. O Core usa interação no chat como sinal de presença e aplica o intervalo configurado.</p><div class="form-grid"><label>Pontos por assistir<input id="watch_points" type="number" min="0" inputmode="numeric"></label><label>Intervalo da presença (minutos)<input id="watch_interval_minutes" type="number" min="1" max="240" inputmode="numeric"></label><label>Bônus ao assinar/renovar<input id="sub_bonus" type="number" min="0" inputmode="numeric"></label><label>Bônus por KICK enviado<input id="kicks_bonus_per_kick" type="number" min="0" inputmode="numeric"></label></div><div class="save-row"><p id="rewardsMsg"></p><button type="button" class="btn" onclick="saveSettings();closeRewardsEditor()">Salvar alterações</button></div></div></div>
+
+      <div id="sn7ApostaEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" onclick="closeApostaEditor()">×</button><h3>Aposta</h3><p>Configure o comando e a mensagem enviada quando alguém usa a aposta.</p><label>Comando<input id="aposta_command" placeholder="!aposta" autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>Mensagem da aposta<textarea id="aposta_response" maxlength="500" placeholder="Ex.: ⚔️ $(user) apostou contra $(target) e $(winner) venceu!"></textarea></label><div class="save-row"><p id="apostaMsg"></p><button type="button" class="btn" onclick="saveApostaSettings()">Salvar alterações</button></div></div></div>
     </section>
 
     <section id="ranking" class="tab">
@@ -112,17 +99,6 @@ body.sn7-modal-open{overflow:hidden}
           <label>Quantidade de posições<input id="rank_limit" type="number" inputmode="numeric" min="1" max="50"></label>
         </div>
         <div class="info-box">O ranking considera somente usuários com mais de 0 pontos e ordena sempre do maior para o menor.</div>
-        <div class="save-row"><button type="button" class="btn" onclick="saveSettings()">Salvar alterações</button></div>
-      </div>
-    </section>
-
-    <section id="duel" class="tab">
-      <div class="panel form-panel">
-        <div class="form-grid">
-          <label>Recompensa da vitória<input id="duel_win_points" type="number" inputmode="numeric" min="0"></label>
-          <label>Perda de pontos<input id="duel_loss_points" type="number" inputmode="numeric" min="0"></label>
-        </div>
-        <div class="info-box">O duelo altera os pontos dos participantes. O Core não mantém um V/D separado.</div>
         <div class="save-row"><button type="button" class="btn" onclick="saveSettings()">Salvar alterações</button></div>
       </div>
     </section>

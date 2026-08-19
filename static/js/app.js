@@ -548,9 +548,11 @@ async function loadSettings() {
   try {
     const data = await apiJson(`/api/settings/${BROADCASTER_ID}`);
     const settings = data.settings;
+    Object.assign(settings, settings.point_rewards || {});
     [
       "currency_name", "currency_command", "currency_emoji", "points_response",
       "rank_title", "rank_limit", "duel_win_points", "duel_loss_points",
+      "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick",
     ].forEach((key) => {
       if ($(key)) $(key).value = settings[key] ?? "";
     });
@@ -602,3 +604,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loadSettings();
 });
+
+# SN7_POINTS_REWARDS_V1
+function sn7SetModal(id, open) { const el=document.getElementById(id); if(!el)return; el.hidden=!open; document.body.classList.toggle("sn7-modal-open",open); }
+function openPointsEditor(){sn7SetModal("sn7PointsEditor",true)} function closePointsEditor(){sn7SetModal("sn7PointsEditor",false)}
+function openRewardsEditor(){sn7SetModal("sn7RewardsEditor",true)} function closeRewardsEditor(){sn7SetModal("sn7RewardsEditor",false)}
+function openApostaEditor(){sn7SetModal("sn7ApostaEditor",true);sn7LoadAposta()} function closeApostaEditor(){sn7SetModal("sn7ApostaEditor",false)}
+async function sn7LoadAposta(){try{const data=await apiJson(`/api/commands/${BROADCASTER_ID}`);const cmd=(data.commands||[]).find(x=>x.command_key==="duel");if(!cmd)return;if($("aposta_command"))$("aposta_command").value=cmd.command||"!aposta";if($("aposta_response"))$("aposta_response").value=cmd.response||"$(duel_result)";if($("apostaCardCommand"))$("apostaCardCommand").textContent=cmd.command||"!aposta"}catch(e){if($("apostaMsg"))$("apostaMsg").textContent=e.message}}
+async function saveApostaSettings(){const msg=$("apostaMsg");try{const command=$("aposta_command")?.value||"!aposta";const response=$("aposta_response")?.value||"$(duel_result)";await apiJson(`/api/commands/${BROADCASTER_ID}/duel`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({command,response})});if($("apostaCardCommand"))$("apostaCardCommand").textContent=command;if(msg)msg.textContent="Salvo."}catch(e){if(msg)msg.textContent="⚠ "+e.message}}
+document.addEventListener("DOMContentLoaded",()=>{document.querySelectorAll(".sn7-config-modal").forEach(m=>m.addEventListener("click",e=>{if(e.target===m){m.hidden=true;document.body.classList.remove("sn7-modal-open")}}));const refresh=()=>{if($("pointsCardName"))$("pointsCardName").textContent=$("currency_name")?.value||"Points";if($("pointsCardCommand"))$("pointsCardCommand").textContent=$("currency_command")?.value||"!points";if($("rewardsCardSummary")){const w=$("watch_points")?.value??1,s=$("sub_bonus")?.value??500,k=$("kicks_bonus_per_kick")?.value??1;$("rewardsCardSummary").textContent=`${w} ponto${Number(w)===1?"":"s"} • sub +${s} • KICK +${k}/cada`}};["currency_name","currency_command","watch_points","sub_bonus","kicks_bonus_per_kick"].forEach(id=>$(id)?.addEventListener("input",refresh));setTimeout(()=>{refresh();sn7LoadAposta()},250)});

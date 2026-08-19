@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa, ed25519
 from flask import Blueprint, jsonify, redirect, request, session
 
 from core.database import get_conn
-from core.services import ensure_channel, ensure_player, get_channel, get_player, get_rank
+from core.services import ensure_channel, ensure_player, get_channel, get_player, get_rank, award_watch_presence, add_points, get_point_rewards
 from core.command_system import find_command, list_commands
 from core.auth import get_session_broadcaster_id
 
@@ -248,7 +248,7 @@ def _subscribe_chat(access_token, broadcaster_id=None):
     chat_ids = [
         str(item.get("id"))
         for item in existing
-        if item.get("id") and str(item.get("event") or "") == "chat.message.sent"
+        if item.get("id") and str(item.get("event") or "") in {"chat.message.sent", "channel.subscription.new", "channel.subscription.renewal", "kicks.gifted"}
     ]
 
     if chat_ids:
@@ -277,7 +277,12 @@ def _subscribe_chat(access_token, broadcaster_id=None):
     # Com user access token a Kick ignora broadcaster_user_id e usa o canal
     # autorizado. Omitimos o campo para seguir exatamente a API atual.
     payload = {
-        "events": [{"name": "chat.message.sent", "version": 1}],
+        "events": [
+            {"name": "chat.message.sent", "version": 1},
+            {"name": "channel.subscription.new", "version": 1},
+            {"name": "channel.subscription.renewal", "version": 1},
+            {"name": "kicks.gifted", "version": 1},
+        ],
         "method": "webhook",
     }
     print(
@@ -553,7 +558,19 @@ def _process_chat(payload):
 
     user = str(sender.get("username") or sender.get("slug") or "").strip()
     content = str(payload.get("content") or "").strip()
-    if not bid or not user or not content.startswith("!"):
+    if not bid or not user:
+        return
+
+    # A API pública da Kick não fornece presença/watchtime individual.
+    # O Core usa interação no chat como sinal de presença e aplica cooldown.
+    try:
+        presence_bonus = award_watch_presence(bid, user, uid)
+        if presence_bonus:
+            print(f"[SN7-REWARDS] {user} +{presence_bonus} por presença", flush=True)
+    except Exception as exc:
+        print(f"[SN7-REWARDS] erro presença: {exc}", flush=True)
+
+    if not content.startswith("!"):
         return
 
     ensure_channel(
@@ -808,6 +825,35 @@ def _process_webhook(payload, event_type):
     if event_type == "chat.message.sent":
         print("[KICK-WEBHOOK] processando chat.message.sent", flush=True)
         _process_chat(payload)
+        return
+
+    broadcaster = payload.get("broadcaster") or {}
+    try:
+        bid = int(broadcaster.get("user_id"))
+    except (TypeError, ValueError):
+        return
+    rewards = get_point_rewards(bid)
+
+    if event_type in {"channel.subscription.new", "channel.subscription.renewal"}:
+        subscriber = payload.get("subscriber") or {}
+        username = str(subscriber.get("username") or subscriber.get("slug") or "").strip()
+        uid = subscriber.get("user_id")
+        if username and rewards["sub_bonus"] > 0:
+            add_points(bid, username, rewards["sub_bonus"], uid)
+            print(f"[SN7-REWARDS] {username} +{rewards['sub_bonus']} por assinatura ({event_type})", flush=True)
+        return
+
+    if event_type == "kicks.gifted":
+        sender = payload.get("sender") or {}
+        gift = payload.get("gift") or {}
+        username = str(sender.get("username") or sender.get("slug") or "").strip()
+        uid = sender.get("user_id")
+        try: amount = max(0, int(gift.get("amount") or 0))
+        except (TypeError, ValueError): amount = 0
+        bonus = amount * rewards["kicks_bonus_per_kick"]
+        if username and bonus > 0:
+            add_points(bid, username, bonus, uid)
+            print(f"[SN7-REWARDS] {username} +{bonus} por {amount} KICK(s)", flush=True)
 
 
 def _session_broadcaster_id():
@@ -834,7 +880,7 @@ def _chat_subscription_ids(access_token):
     return [
         str(item.get("id"))
         for item in (data.get("data") or [])
-        if item.get("id") and str(item.get("event") or "") == "chat.message.sent"
+        if item.get("id") and str(item.get("event") or "") in {"chat.message.sent", "channel.subscription.new", "channel.subscription.renewal", "kicks.gifted"}
     ]
 
 

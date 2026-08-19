@@ -5,7 +5,7 @@ DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency).$(emoji_text
 SYSTEM = {
     "points": ("!points", "Consulta seu saldo de pontos.", "public", DEFAULT_POINTS_RESPONSE),
     "ranking": ("!ranking", "Mostra o ranking do canal.", "public", "$(ranking)"),
-    "duel": ("!duelo", "Inicia um duelo contra outro usuário.", "public", "$(duel_result)"),
+    "duel": ("!aposta", "Inicia uma aposta contra outro usuário.", "public", "$(duel_result)"),
     "cmds": ("!cmds", "Lista os comandos personalizados da live.", "public", "$(commands)"),
     "addcmd": ("!addcmd", "Cria ou atualiza um comando personalizado.", "mod", "✅ $(command) configurado."),
     "addpoint": ("!addpoint", "Adiciona pontos a um usuário.", "mod", "🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency)."),
@@ -24,7 +24,7 @@ def ensure_command_defaults(bid):
                 (bid,),
             )
             row = cur.fetchone()
-            points_command = str((row[0] if row else None) or "!placos").strip().lower()
+            points_command = str((row[0] if row else None) or "!points").strip().lower()
             points_response = str((row[1] if row else None) or DEFAULT_POINTS_RESPONSE)
             # Migra apenas a resposta padrão antiga; não sobrescreve personalizações.
             old_default = "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank)."
