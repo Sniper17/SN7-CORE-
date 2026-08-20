@@ -406,4 +406,93 @@ nav button.active::after{content:""!important;position:absolute!important;inset:
     margin-left:auto;
     white-space:nowrap;
   }
+}/* SN7 DESKTOP — sistema de pontos em lista, igual aos comandos */
+.sn7-desktop-extra-card{display:none!important}
+
+@media (min-width:901px){
+  .sn7-points-cards{
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    max-width:none;
+    gap:10px;
+  }
+
+  .sn7-points-card{
+    position:relative;
+    width:100%;
+    min-width:0;
+    min-height:88px;
+    margin:0;
+    padding:16px 14px;
+    box-sizing:border-box;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    border:1px solid var(--border);
+    border-radius:16px;
+    background:#11151d;
+    overflow:hidden;
+  }
+
+  .sn7-points-card:hover{
+    background:#141923;
+    border-color:#2b3342;
+  }
+
+  .sn7-points-card:active{
+    transform:scale(.998);
+  }
+
+  .sn7-points-card-icon{
+    flex:0 0 42px;
+    width:42px;
+    height:42px;
+  }
+
+  .sn7-points-card-body{
+    min-width:0;
+    flex:1 1 auto;
+    width:auto;
+  }
+
+  .sn7-points-card-body small,
+  .sn7-points-card-body strong,
+  .sn7-points-card-body em{
+    display:block;
+    max-width:100%;
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+    word-break:normal;
+    overflow-wrap:break-word;
+    hyphens:none;
+  }
+
+  .sn7-points-card-body small{
+    margin-bottom:6px;
+    line-height:1.4;
+    font-size:13px;
+  }
+
+  .sn7-points-card-body strong{
+    font-size:16px;
+    line-height:1.35;
+  }
+
+  .sn7-points-card-body em{
+    margin-top:5px;
+    font-size:13px;
+    line-height:1.45;
+  }
+
+  .sn7-points-card-arrow{
+    flex:0 0 auto;
+    align-self:center;
+    margin-left:auto;
+    white-space:nowrap;
+    color:#a9b2c2;
+    font-size:12px;
+  }
 }
