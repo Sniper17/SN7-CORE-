@@ -65,6 +65,10 @@ function activateTab(tab, options = {}) {
 
   button.classList.add("active");
 
+  if (button.dataset.tab === "ranking" && typeof loadRanking === "function") {
+    loadRanking();
+  }
+
   const title = $("title");
   if (title) title.textContent = button.textContent.trim();
 
@@ -564,11 +568,47 @@ async function loadSettings() {
   await loadCommands();
 }
 
+async function saveSettingsAndClose(modalId) {
+  const button = (typeof event !== "undefined" && event) ? event.currentTarget : null;
+  if (button) button.disabled = true;
+  try {
+    const ok = await saveSettings();
+    if (ok) closeModal(modalId);
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function loadRanking() {
+  const list = $("sn7RankingList");
+  if (!list || typeof BROADCASTER_ID === "undefined" || BROADCASTER_ID === null) return;
+  list.innerHTML = '<div class="sn7-ranking-loading">Carregando ranking...</div>';
+  try {
+    const data = await apiJson(`/api/ranking/${BROADCASTER_ID}?limit=50`);
+    const rows = Array.isArray(data.ranking) ? data.ranking : [];
+    if (!rows.length) {
+      list.innerHTML = '<div class="sn7-ranking-empty">Nenhum usuário com pontos ainda.</div>';
+      return;
+    }
+    const currency = data.currency || "Pontos";
+    list.innerHTML = rows.map((item) => `
+      <div class="sn7-ranking-row">
+        <div class="sn7-ranking-position">#${esc(item.position)}</div>
+        <div class="sn7-ranking-user">${esc(item.username)}</div>
+        <div class="sn7-ranking-points">${Number(item.points || 0).toLocaleString("pt-BR")} ${esc(currency)}</div>
+      </div>
+    `).join("");
+  } catch (error) {
+    list.innerHTML = `<div class="sn7-ranking-empty">⚠ ${esc(error.message)}</div>`;
+  }
+}
+
 async function saveSettings() {
   const data = {};
   [
     "currency_name", "currency_command", "currency_emoji", "points_response",
     "rank_title", "rank_limit", "duel_win_points", "duel_loss_points",
+    "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick",
   ].forEach((key) => {
     if ($(key)) data[key] = $(key).value;
   });
@@ -582,8 +622,10 @@ async function saveSettings() {
     updatePreview(result.settings);
     setMessage("✓ Alterações salvas.", true);
     await loadCommands();
+    return true;
   } catch (error) {
     setMessage(`⚠ ${error.message}`, false);
+    return false;
   }
 }
 
@@ -603,6 +645,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   loadSettings();
+  loadRanking();
 });
 
 // SN7 MODAL + POINTS CLEAN IMPLEMENTATION
@@ -690,14 +733,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await apiJson(`/api/commands/${BROADCASTER_ID}`);
       const cmd = (data.commands || []).find((x) => x.command_key === "duel");
 
-      const apostaCommand = "!aposta";
+      const savedCommand = String(cmd?.command || "").trim();
+      const savedResponse = String(cmd?.response || "").trim();
+      const apostaCommand = savedCommand || "!aposta";
       const oldDefault = "$(duel_result)";
       const newDefault = "$(user) está apostando $(amount) points contra $(target).";
-      const savedResponse = String(cmd?.response || "").trim();
       const apostaResponse = !savedResponse || savedResponse === oldDefault ? newDefault : savedResponse;
       if ($("aposta_command")) $("aposta_command").value = apostaCommand;
       if ($("aposta_response")) $("aposta_response").value = apostaResponse;
-      if ($("apostaCardCommand")) $("apostaCardCommand").textContent = "!aposta";
+      if ($("apostaCardCommand")) $("apostaCardCommand").textContent = apostaCommand;
     } catch (e) {
       if ($("apostaMsg")) $("apostaMsg").textContent = "⚠ " + e.message;
     }
