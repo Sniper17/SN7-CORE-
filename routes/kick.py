@@ -638,6 +638,30 @@ def _render_response(template, values):
     return " ".join(text.split())
 
 
+def _expire_pending_bets(bid):
+    """Cancela apostas pendentes que passaram dos 90 segundos sem remover pontos."""
+    expired = []
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE pending_bets
+                   SET status='cancelled'
+                 WHERE broadcaster_user_id=%s
+                   AND status='pending'
+                   AND expires_at < NOW()
+                RETURNING challenger, defender, amount
+                """,
+                (int(bid),),
+            )
+            expired = cur.fetchall()
+        conn.commit()
+    finally:
+        conn.close()
+    return expired
+
+
 def _format_balance(bid, user):
     ch = get_channel(bid)
     p = get_player(bid, user)
@@ -688,6 +712,17 @@ def _process_chat(payload):
     content = str(payload.get("content") or "").strip()
     if not bid or not user:
         return
+
+    # Expira apostas antigas na primeira interação seguinte. Nenhum ponto é removido.
+    try:
+        expired_bets = _expire_pending_bets(bid)
+        for challenger, defender, amount in expired_bets:
+            _send_chat(
+                bid,
+                f"⏰ A aposta entre {_mention(challenger)} e {_mention(defender)} expirou após 90 segundos. Nenhum ponto foi removido.",
+            )
+    except Exception as exc:
+        print(f"[KICK-BET] erro expirando apostas: {exc}", flush=True)
 
     # A presença individual é inferida por mensagens no chat.
     # Só concede o bônus se a Kick confirmar que a live está ao vivo.
@@ -843,15 +878,21 @@ def _process_chat(payload):
             finally:
                 conn.close()
 
+            accept_cfg = find_command(bid, "!aceitar")
+            decline_cfg = find_command(bid, "!recusar")
+            accept_command = accept_cfg["command"] if accept_cfg else "!aceitar"
+            decline_command = decline_cfg["command"] if decline_cfg else "!recusar"
+
             duel_values = {
                 "user": _mention(user),
                 "target": _mention(target_value),
                 "amount": amount_value,
                 "command": cfg["command"],
+                "accept_command": accept_command,
+                "decline_command": decline_command,
                 "duel_result": (
-                    f"⚔️ {_mention(user)} desafiou {_mention(target_value)} "
-                    f"por {amount_value} {currency}! "
-                    f"✅ {_mention(target_value)} pode usar !aceitar ou !correr."
+                    f"⚔️ {_mention(user)} está apostando {amount_value} {currency} contra {_mention(target_value)}. "
+                    f"Digite {accept_command} ou {decline_command}."
                 ),
                 "attacker": _mention(user),
                 "defender": _mention(target_value),
@@ -868,6 +909,9 @@ def _process_chat(payload):
 
         if key in {"bet_accept", "bet_decline"}:
             conn = get_conn()
+            first_message = None
+            result_message = None
+            response_template = cfg.get("response") or "$(bet_result)"
             try:
                 with conn.cursor() as cur:
                     cur.execute(
@@ -880,22 +924,21 @@ def _process_chat(payload):
                            AND expires_at>=NOW()
                          ORDER BY created_at DESC
                          LIMIT 1
-                        FOR UPDATE
+                         FOR UPDATE
                         """,
                         (bid, user),
                     )
                     bet = cur.fetchone()
 
                     if not bet:
-                        result = "⚔️ Você não possui uma aposta pendente para aceitar ou recusar."
+                        result_message = "⚔️ Você não possui uma aposta pendente para aceitar ou recusar."
                     elif key == "bet_decline":
                         cur.execute(
                             "UPDATE pending_bets SET status='declined' WHERE id=%s",
                             (bet[0],),
                         )
-                        result = (
-                            f"🏃 {_mention(user)} recusou a aposta de "
-                            f"{_mention(bet[1])}."
+                        result_message = (
+                            f"❌ {_mention(user)} recusou a aposta de {_mention(bet[1])}. Nenhum ponto foi removido."
                         )
                     else:
                         bet_id, challenger, defender, amount = bet
@@ -920,18 +963,18 @@ def _process_chat(payload):
                                 "UPDATE pending_bets SET status='cancelled' WHERE id=%s",
                                 (bet_id,),
                             )
-                            result = (
-                                f"❌ A aposta foi cancelada: {_mention(challenger)} "
-                                f"não possui mais {amount} {currency}."
+                            result_message = (
+                                f"❌ A aposta foi cancelada: {_mention(challenger)} não possui mais "
+                                f"{amount} {currency}. Nenhum ponto foi removido."
                             )
                         elif defender_points < amount:
                             cur.execute(
                                 "UPDATE pending_bets SET status='cancelled' WHERE id=%s",
                                 (bet_id,),
                             )
-                            result = (
-                                f"❌ {_mention(user)} não possui {amount} {currency} "
-                                f"para aceitar a aposta."
+                            result_message = (
+                                f"❌ {_mention(user)} não possui {amount} {currency} para aceitar a aposta. "
+                                "Nenhum ponto foi removido."
                             )
                         else:
                             import random
@@ -967,32 +1010,46 @@ def _process_chat(payload):
                                 """,
                                 (bid, challenger, defender, winner, amount, -amount),
                             )
-                            result = (
-                                f"🎲 {_mention(challenger)} x {_mention(defender)}! "
-                                f"🏆 {_mention(winner)} venceu e ganhou {amount} {currency}. "
-                                f"💀 {_mention(loser)} perdeu {amount} {currency}."
+                            first_message = (
+                                f"✅ {_mention(user)} aceitou a aposta de {_mention(challenger)}. 🎲 Rolando dados..."
+                            )
+                            result_message = (
+                                f"🏆 {_mention(winner)} foi o vencedor da aposta e levou {amount} {currency}."
                             )
 
                 conn.commit()
             finally:
                 conn.close()
 
-            _send_chat(
-                bid,
-                _render_response(
-                    cfg["response"],
-                    {
-                        "user": _mention(user),
-                        "target": _mention(bet[1]) if bet else "",
-                        "amount": int(bet[3]) if bet else "",
-                        "command": cfg["command"],
-                        "bet_result": result,
-                        "duel_result": result,
-                        "currency": currency,
-                        "emoji": emoji,
-                    },
-                ),
-            )
+            if first_message:
+                _send_chat(
+                    bid,
+                    _render_response(
+                        response_template,
+                        {
+                            "user": _mention(user),
+                            "target": _mention(challenger),
+                            "amount": amount,
+                            "currency": currency,
+                            "bet_result": first_message,
+                        },
+                    ),
+                )
+                _send_chat(bid, result_message)
+            else:
+                _send_chat(
+                    bid,
+                    _render_response(
+                        response_template,
+                        {
+                            "user": _mention(user),
+                            "target": _mention(bet[1]) if bet else "",
+                            "amount": int(bet[3]) if bet else "",
+                            "currency": currency,
+                            "bet_result": result_message or "⚔️ A aposta não pôde ser processada.",
+                        },
+                    ),
+                )
             return
 
         ismod = _is_moderator(sender, bid)

@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS pending_bets (
     amount BIGINT NOT NULL CHECK (amount > 0),
     status TEXT NOT NULL DEFAULT 'pending',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '5 minutes')
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '90 seconds')
 );
 
 CREATE INDEX IF NOT EXISTS idx_pending_bets_lookup
@@ -175,6 +175,19 @@ def init_db():
             cur.execute("""
                 ALTER TABLE channels
                 ALTER COLUMN points_response SET NOT NULL
+            """)
+
+            # Apostas pendentes expiram em 90 segundos. Atualiza também registros
+            # antigos ainda pendentes para respeitar a nova regra sem mexer em pontos.
+            cur.execute("""
+                ALTER TABLE pending_bets
+                ALTER COLUMN expires_at SET DEFAULT (NOW() + INTERVAL '90 seconds')
+            """)
+            cur.execute("""
+                UPDATE pending_bets
+                   SET expires_at = created_at + INTERVAL '90 seconds'
+                 WHERE status='pending'
+                   AND expires_at > created_at + INTERVAL '90 seconds'
             """)
         conn.commit()
     finally:

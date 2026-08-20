@@ -1,13 +1,14 @@
 from core.database import get_conn
 
 DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)"
+DEFAULT_APOSTA_RESPONSE = "$(user) está apostando $(amount) $(currency) contra $(target). Digite $(accept_command) ou $(decline_command)."
 
 SYSTEM = {
     "points": ("!pontos", "Consulta seu saldo de pontos.", "public", DEFAULT_POINTS_RESPONSE),
     "ranking": ("!ranking", "Mostra o ranking do canal.", "public", "$(ranking)"),
-    "duel": ("!aposta", "Inicia uma aposta contra outro usuário.", "public", "$(duel_result)"),
+    "duel": ("!aposta", "Inicia uma aposta contra outro usuário.", "public", DEFAULT_APOSTA_RESPONSE),
     "bet_accept": ("!aceitar", "Aceita uma aposta pendente.", "public", "$(bet_result)"),
-    "bet_decline": ("!correr", "Recusa uma aposta pendente.", "public", "$(bet_result)"),
+    "bet_decline": ("!recusar", "Recusa uma aposta pendente.", "public", "$(bet_result)"),
     "cmds": ("!cmds", "Lista os comandos personalizados da live.", "public", "$(commands)"),
     "addcmd": ("!addcmd", "Cria ou atualiza um comando personalizado.", "mod", "✅ $(command) configurado."),
     "addpoint": ("!addpoint", "Adiciona pontos a um usuário.", "mod", "🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency)."),
@@ -84,6 +85,41 @@ def ensure_command_defaults(bid):
                 """,
                 (points_command, points_response, bid, points_command, points_response),
             )
+
+            # Migra somente os defaults antigos da aposta, sem sobrescrever personalizações.
+            old_bet_defaults = {"$(duel_result)", "$(user) está apostando $(amount) points contra $(target)."}
+            cur.execute(
+                """
+                UPDATE command_configs
+                   SET response=%s, updated_at=NOW()
+                 WHERE broadcaster_user_id=%s
+                   AND command_key='duel'
+                   AND (response IS NULL OR BTRIM(response)='' OR response = ANY(%s))
+                """,
+                (DEFAULT_APOSTA_RESPONSE, bid, list(old_bet_defaults)),
+            )
+
+            # O comando antigo !correr continua aceito como variante, mas o principal
+            # exibido no painel passa a ser !recusar.
+            cur.execute(
+                "SELECT id,command FROM command_configs WHERE broadcaster_user_id=%s AND command_key='bet_decline'",
+                (bid,),
+            )
+            decline_row = cur.fetchone()
+            if decline_row and str(decline_row[1]).strip().lower() == '!correr':
+                cur.execute(
+                    "UPDATE command_configs SET command='!recusar',updated_at=NOW() WHERE id=%s",
+                    (decline_row[0],),
+                )
+                cur.execute(
+                    "SELECT 1 FROM command_aliases WHERE broadcaster_user_id=%s AND command_id=%s AND alias='!correr'",
+                    (bid, decline_row[0]),
+                )
+                if not cur.fetchone():
+                    cur.execute(
+                        "INSERT INTO command_aliases(broadcaster_user_id,command_id,alias) VALUES(%s,%s,'!correr')",
+                        (bid, decline_row[0]),
+                    )
 
             cur.execute(
                 "SELECT command,response FROM custom_commands WHERE broadcaster_user_id=%s",
