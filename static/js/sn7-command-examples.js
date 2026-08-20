@@ -1,11 +1,11 @@
 /* SN7 CORE - exemplos de comandos + modo demonstração deslogado
- * Patch manual. Não altera a lógica do backend de pontos.
+ * Patch manual V2. Não altera a lógica do backend de pontos.
  */
 (function () {
   "use strict";
 
-  const DEMO_KEY = "sn7-core-demo-commands-v1";
-  const DEMO_SETTINGS_KEY = "sn7-core-demo-settings-v1";
+  const DEMO_KEY = "sn7-core-demo-commands-v2";
+  const DEMO_SETTINGS_KEY = "sn7-core-demo-settings-v2";
   const originalFetch = window.fetch.bind(window);
 
   const DEFAULT_SETTINGS = {
@@ -19,12 +19,7 @@
     rank_limit: 5,
     duel_win_points: 10,
     duel_loss_points: 3,
-    point_rewards: {
-      watch_points: 1,
-      watch_interval_minutes: 10,
-      sub_bonus: 500,
-      kicks_bonus_per_kick: 1
-    }
+    point_rewards: { watch_points: 1, watch_interval_minutes: 10, sub_bonus: 500, kicks_bonus_per_kick: 1 }
   };
 
   const DEMO_COMMANDS = [
@@ -51,12 +46,7 @@
   };
 
   function esc(value) {
-    return String(value ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
   }
 
   function readJson(key, fallback) {
@@ -65,33 +55,29 @@
       if (!raw) return fallback;
       const value = JSON.parse(raw);
       return value ?? fallback;
-    } catch (_) {
-      return fallback;
-    }
+    } catch (_) { return fallback; }
   }
 
   function writeJson(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
   }
 
-  function demoSettings() {
-    return { ...DEFAULT_SETTINGS, ...readJson(DEMO_SETTINGS_KEY, {}) };
-  }
+  function demoSettings() { return { ...DEFAULT_SETTINGS, ...readJson(DEMO_SETTINGS_KEY, {}) }; }
 
   function demoCommands() {
     const saved = readJson(DEMO_KEY, null);
     return Array.isArray(saved) ? saved : DEMO_COMMANDS.map((x) => ({ ...x }));
   }
 
-  function response(payload, status = 200) {
-    return new Response(JSON.stringify(payload), {
-      status,
-      headers: { "Content-Type": "application/json" }
-    });
+  function jsonResponse(payload, status = 200) {
+    return new Response(JSON.stringify(payload), { status, headers: { "Content-Type": "application/json" } });
   }
 
+  // O template pode expor o ID como null, undefined, vazio ou a string "null".
+  // Todos esses estados significam que a página está em modo deslogado.
   function isLoggedOut() {
-    return typeof BROADCASTER_ID !== "undefined" && BROADCASTER_ID == null;
+    if (typeof BROADCASTER_ID === "undefined") return true;
+    return BROADCASTER_ID == null || BROADCASTER_ID === "" || String(BROADCASTER_ID).toLowerCase() === "null";
   }
 
   function installDemoFetch() {
@@ -101,90 +87,89 @@
     window.fetch = async function (input, options = {}) {
       const url = typeof input === "string" ? input : (input && input.url) || "";
       const method = String(options.method || (input && input.method) || "GET").toUpperCase();
+      const path = (() => {
+        try { return new URL(url, window.location.origin).pathname; }
+        catch (_) { return url; }
+      })();
 
-      if (url === "/api/settings/null" || url.startsWith("/api/settings/null?")) {
-        if (method === "GET") {
-          return response({ ok:true, settings:demoSettings(), demo:true });
-        }
+      if (path === "/api/settings/null") {
+        if (method === "GET") return jsonResponse({ ok:true, settings:demoSettings(), demo:true });
         if (method === "PUT") {
           try {
             const body = JSON.parse(options.body || "{}");
             const next = { ...demoSettings(), ...body };
             writeJson(DEMO_SETTINGS_KEY, next);
-            return response({ ok:true, settings:next, demo:true });
+            return jsonResponse({ ok:true, settings:next, demo:true });
           } catch (_) {
-            return response({ ok:false, error:"Dados inválidos." }, 400);
+            return jsonResponse({ ok:false, error:"Dados inválidos." }, 400);
           }
         }
       }
 
-      if (url === "/api/commands/null" || url.startsWith("/api/commands/null/")) {
+      if (path === "/api/commands/null") {
         let commands = demoCommands();
-
-        if (url === "/api/commands/null" && method === "GET") {
-          return response({ ok:true, commands, demo:true });
-        }
-
-        if (url === "/api/commands/null" && method === "POST") {
+        if (method === "GET") return jsonResponse({ ok:true, commands, demo:true });
+        if (method === "POST") {
           try {
             const body = JSON.parse(options.body || "{}");
             const command = String(body.command || "").trim().toLowerCase();
             const item = {
-              command_key: "custom:" + command,
+              command_key:"custom:" + command,
               command,
-              description: String(body.description || "Comando personalizado desta live."),
-              response: String(body.response || ""),
-              enabled: body.enabled !== false,
-              category: "custom",
-              is_system: false,
-              aliases: Array.isArray(body.aliases) ? body.aliases : []
+              description:String(body.description || "Comando personalizado desta live."),
+              response:String(body.response || ""),
+              enabled:body.enabled !== false,
+              category:"custom",
+              is_system:false,
+              aliases:Array.isArray(body.aliases) ? body.aliases : []
             };
             commands = commands.filter((x) => x.command_key !== item.command_key);
             commands.push(item);
             writeJson(DEMO_KEY, commands);
-            return response({ ok:true, commands, demo:true });
+            return jsonResponse({ ok:true, commands, demo:true });
           } catch (_) {
-            return response({ ok:false, error:"Dados inválidos." }, 400);
+            return jsonResponse({ ok:false, error:"Dados inválidos." }, 400);
           }
         }
+      }
 
-        const match = url.match(/^\/api\/commands\/null\/([^/]+)(?:\/aliases)?$/);
-        if (match) {
-          const key = decodeURIComponent(match[1]);
-          const item = commands.find((x) => x.command_key === key);
+      const commandMatch = path.match(/^\/api\/commands\/null\/([^/]+)(?:\/aliases)?$/);
+      if (commandMatch) {
+        let commands = demoCommands();
+        const key = decodeURIComponent(commandMatch[1]);
+        const item = commands.find((x) => x.command_key === key);
 
-          if (url.endsWith("/aliases") && method === "POST" && item) {
-            const body = JSON.parse(options.body || "{}");
-            const alias = String(body.alias || "").trim().toLowerCase();
-            item.aliases = [...new Set([...(item.aliases || []), alias])];
-            writeJson(DEMO_KEY, commands);
-            return response({ ok:true, commands, demo:true });
-          }
+        if (path.endsWith("/aliases") && method === "POST" && item) {
+          const body = JSON.parse(options.body || "{}");
+          const alias = String(body.alias || "").trim().toLowerCase();
+          item.aliases = [...new Set([...(item.aliases || []), alias])];
+          writeJson(DEMO_KEY, commands);
+          return jsonResponse({ ok:true, commands, demo:true });
+        }
 
-          if (url.endsWith("/aliases") && method === "DELETE" && item) {
-            const body = JSON.parse(options.body || "{}");
-            const alias = String(body.alias || "").trim().toLowerCase();
-            item.aliases = (item.aliases || []).filter((x) => x !== alias);
-            writeJson(DEMO_KEY, commands);
-            return response({ ok:true, commands, demo:true });
-          }
+        if (path.endsWith("/aliases") && method === "DELETE" && item) {
+          const body = JSON.parse(options.body || "{}");
+          const alias = String(body.alias || "").trim().toLowerCase();
+          item.aliases = (item.aliases || []).filter((x) => x !== alias);
+          writeJson(DEMO_KEY, commands);
+          return jsonResponse({ ok:true, commands, demo:true });
+        }
 
-          if (item && method === "PATCH") {
-            const body = JSON.parse(options.body || "{}");
-            if (body.command != null) item.command = body.command;
-            if (body.description != null) item.description = body.description;
-            if (body.response != null) item.response = body.response;
-            if (body.enabled != null) item.enabled = body.enabled;
-            writeJson(DEMO_KEY, commands);
-            return response({ ok:true, commands, demo:true });
-          }
+        if (item && method === "PATCH") {
+          const body = JSON.parse(options.body || "{}");
+          if (body.command != null) item.command = body.command;
+          if (body.description != null) item.description = body.description;
+          if (body.response != null) item.response = body.response;
+          if (body.enabled != null) item.enabled = body.enabled;
+          writeJson(DEMO_KEY, commands);
+          return jsonResponse({ ok:true, commands, demo:true });
+        }
 
-          if (item && method === "DELETE") {
-            if (item.is_system) item.enabled = !item.enabled;
-            else commands = commands.filter((x) => x.command_key !== key);
-            writeJson(DEMO_KEY, commands);
-            return response({ ok:true, commands, demo:true });
-          }
+        if (item && method === "DELETE") {
+          if (item.is_system) item.enabled = !item.enabled;
+          else commands = commands.filter((x) => x.command_key !== key);
+          writeJson(DEMO_KEY, commands);
+          return jsonResponse({ ok:true, commands, demo:true });
         }
       }
 
@@ -206,13 +191,8 @@
     document.head.appendChild(style);
   }
 
-  function findCommandInput() {
-    return document.getElementById("v2cmd") || document.querySelector('.sn7-command-modal input[name="command"], .sn7-command-modal input[placeholder*="comando" i]');
-  }
-
-  function findResponseBox() {
-    return document.getElementById("v2resp") || document.querySelector('.sn7-command-modal textarea[name="response"], .sn7-command-modal textarea');
-  }
+  function findCommandInput() { return document.getElementById("v2cmd"); }
+  function findResponseBox() { return document.getElementById("v2resp"); }
 
   function updateExample() {
     const commandInput = findCommandInput();
@@ -221,8 +201,8 @@
 
     const command = String(commandInput.value || "").trim().toLowerCase();
     const pair = EXAMPLES[command];
-
     let node = document.getElementById("sn7CommandExampleBox");
+
     if (!node) {
       node = document.createElement("div");
       node.id = "sn7CommandExampleBox";
@@ -231,7 +211,7 @@
     }
 
     if (!pair) {
-      node.innerHTML = '<strong>Exemplo:</strong><span class="sn7-example-result"> digite o comando acima para ver um exemplo.</span>';
+      node.innerHTML = "<strong>Exemplo:</strong><span class=\"sn7-example-result\"> digite o comando acima para ver um exemplo.</span>";
       return;
     }
 
@@ -241,27 +221,27 @@
   }
 
   function observeCommandModal() {
-    const observer = new MutationObserver(() => {
-      const commandInput = findCommandInput();
-      const responseBox = findResponseBox();
-      if (!commandInput || !responseBox) return;
-      if (!commandInput.dataset.sn7ExampleBound) {
-        commandInput.dataset.sn7ExampleBound = "1";
-        commandInput.addEventListener("input", updateExample);
-      }
-      updateExample();
+    const observer = new MutationObserver((mutations) => {
+      const opened = mutations.some((mutation) =>
+        Array.from(mutation.addedNodes || []).some((node) =>
+          node.nodeType === 1 &&
+          (node.matches?.(".sn7-command-modal") || node.querySelector?.(".sn7-command-modal"))
+        )
+      );
+      if (opened) setTimeout(updateExample, 0);
     });
+
     observer.observe(document.body, { childList:true, subtree:true });
-    setTimeout(updateExample, 100);
-    setTimeout(updateExample, 500);
+
+    document.addEventListener("input", (event) => {
+      if (event.target?.id === "v2cmd") updateExample();
+    });
   }
 
   function markDemo() {
     if (!isLoggedOut()) return;
     const msg = document.getElementById("settingsMsg");
-    if (msg) {
-      msg.textContent = "Modo demonstração: você pode editar e visualizar exemplos. Para salvar de verdade, entre com a Kick.";
-    }
+    if (msg) msg.textContent = "Modo demonstração: você pode editar e visualizar exemplos. Para salvar de verdade, entre com a Kick.";
   }
 
   function init() {
