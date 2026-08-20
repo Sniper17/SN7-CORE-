@@ -73,7 +73,7 @@ def health():
     return jsonify({
         "ok": True,
         "service": "SN7 Core API",
-        "version": "1.4.0",
+        "version": "1.5.0",
         "database_configured": bool(os.environ.get("DATABASE_URL")),
         "kick_webhook": True,
         "v_d": False
@@ -85,7 +85,7 @@ def api():
     return jsonify({
         "ok": True,
         "service": "SN7 Core API",
-        "version": "1.4.0",
+        "version": "1.5.0",
         "multi_streamer": True,
         "v_d": False,
         "database_configured": bool(os.environ.get("DATABASE_URL")),

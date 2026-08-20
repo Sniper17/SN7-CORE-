@@ -1,4 +1,9 @@
 from core.database import get_conn
+from core.cache import get_cached_commands, set_cached_commands, forget_commands, forget_channel
+from threading import RLock
+
+_initialized_channels = set()
+_initialized_lock = RLock()
 
 DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)"
 DEFAULT_APOSTA_RESPONSE = "$(user) está apostando $(amount) $(currency) contra $(target). Digite $(accept_command) ou $(decline_command)."
@@ -37,6 +42,9 @@ def get_system_command_default(bid, key):
 
 def ensure_command_defaults(bid):
     bid = int(bid)
+    with _initialized_lock:
+        if bid in _initialized_channels:
+            return
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -181,6 +189,11 @@ def ensure_command_defaults(bid):
         conn.close()
 
 
+    with _initialized_lock:
+        _initialized_channels.add(bid)
+    forget_commands(bid)
+
+
 def _dict_from_row(row):
     if not row:
         return None
@@ -193,7 +206,11 @@ def _dict_from_row(row):
 
 
 def list_commands(bid):
+    bid = int(bid)
     ensure_command_defaults(bid)
+    cached = get_cached_commands(bid)
+    if cached is not None:
+        return cached
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -215,34 +232,28 @@ def list_commands(bid):
                 )
                 item["aliases"] = [x[0] for x in cur.fetchall()]
                 result.append(item)
+            set_cached_commands(bid, result)
             return result
     finally:
         conn.close()
 
 
 def find_command(bid, typed):
+    bid = int(bid)
     ensure_command_defaults(bid)
     typed = str(typed or "").strip().lower()
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT c.id,c.broadcaster_user_id,c.command_key,c.command,c.description,
-                       c.response,c.enabled,c.category,c.is_system
-                  FROM command_configs c
-                  LEFT JOIN command_aliases a
-                    ON a.command_id=c.id AND a.broadcaster_user_id=c.broadcaster_user_id
-                 WHERE c.broadcaster_user_id=%s
-                   AND (LOWER(c.command)=%s OR LOWER(a.alias)=%s)
-                 ORDER BY c.id
-                 LIMIT 1
-                """,
-                (int(bid), typed, typed),
-            )
-            return _dict_from_row(cur.fetchone())
-    finally:
-        conn.close()
+
+    cached = get_cached_commands(bid)
+    if cached is None:
+        list_commands(bid)
+        cached = get_cached_commands(bid) or []
+
+    for item in cached:
+        if str(item.get("command") or "").lower() == typed:
+            return item
+        if typed in [str(alias).lower() for alias in item.get("aliases") or []]:
+            return item
+    return None
 
 
 def update_command(bid, key, command=None, response=None, enabled=None, description=None, reset_aliases=False):
@@ -319,6 +330,8 @@ def update_command(bid, key, command=None, response=None, enabled=None, descript
                     (int(bid), int(bid), key),
                 )
         conn.commit()
+        forget_commands(bid)
+        forget_channel(bid)
     finally:
         conn.close()
 
@@ -357,6 +370,7 @@ def add_alias(bid, key, alias):
                 (int(bid), row[0], alias),
             )
         conn.commit()
+        forget_commands(bid)
     finally:
         conn.close()
 
@@ -371,6 +385,7 @@ def delete_alias(bid, alias):
             )
             deleted = cur.rowcount > 0
         conn.commit()
+        forget_commands(bid)
         return deleted
     finally:
         conn.close()
@@ -399,6 +414,7 @@ def delete_custom(bid, key):
                 )
 
         conn.commit()
+        forget_commands(bid)
         return deleted
     finally:
         conn.close()

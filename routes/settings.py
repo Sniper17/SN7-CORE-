@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from core.services import get_channel, ensure_channel, get_point_rewards, update_point_rewards
 from core.database import get_conn
 from core.command_system import update_command
+from core.cache import forget_channel
 
 settings_bp = Blueprint("settings", __name__)
 
@@ -137,6 +138,7 @@ def update_settings(broadcaster_id):
             finally:
                 conn.close()
 
+        forget_channel(broadcaster_id)
         return jsonify({
             "ok": True,
             "settings": {**get_channel(broadcaster_id), "point_rewards": get_point_rewards(broadcaster_id)},

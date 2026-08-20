@@ -1,5 +1,9 @@
 import os
 import psycopg
+from threading import Lock
+
+_db_initialized = False
+_db_init_lock = Lock()
 
 DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)"
 
@@ -35,6 +39,10 @@ CREATE TABLE IF NOT EXISTS players (
 
 CREATE INDEX IF NOT EXISTS idx_players_channel_points
 ON players (broadcaster_user_id, points DESC);
+
+CREATE INDEX IF NOT EXISTS idx_players_channel_kick_user
+ON players (broadcaster_user_id, kick_user_id)
+WHERE kick_user_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS custom_commands (
     id BIGSERIAL PRIMARY KEY,
@@ -115,84 +123,91 @@ def get_conn():
     return psycopg.connect(url)
 
 def init_db():
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(SCHEMA)
-            cur.execute("ALTER TABLE kick_connections ADD COLUMN IF NOT EXISTS profile_picture_url TEXT NOT NULL DEFAULT ''")
-            ensure_point_rewards_table(conn)
-            cur.execute("""
-                ALTER TABLE channels
-                ADD COLUMN IF NOT EXISTS points_response TEXT
-            """)
-
-            cur.execute("""
-                UPDATE channels
-                SET points_response = %s
-                WHERE points_response IS NULL OR BTRIM(points_response) = ''
-            """, (DEFAULT_POINTS_RESPONSE,))
-            cur.execute("""
-                UPDATE channels SET currency_emoji = '' WHERE currency_emoji = '🪙'
-            """)
-
-            default_sql = DEFAULT_POINTS_RESPONSE.replace("'", "''")
-            cur.execute(f"""
-                ALTER TABLE channels
-                ALTER COLUMN points_response SET DEFAULT '{default_sql}'
-            """)
-
-
-
-            # SN7_POINTS_DEFAULT_MIGRATION_V3
-            # Corrige registros antigos sem sobrescrever uma personalização válida.
-            cur.execute("""
-                UPDATE channels
-                   SET currency_name = 'Pontos',
-                       updated_at = NOW()
-                 WHERE currency_name IS NULL
-                    OR BTRIM(currency_name) = ''
-                    OR currency_name = 'Points'
-            """)
-
-            # Nunca sobrescreva um comando personalizado salvo pelo streamer.
-            # Apenas valores realmente vazios recebem o padrão.
-            cur.execute("""
-                UPDATE channels
-                   SET currency_command = '!pontos',
-                       updated_at = NOW()
-                 WHERE currency_command IS NULL OR BTRIM(currency_command) = ''
-            """)
-
-            cur.execute("""
-                UPDATE command_configs
-                   SET command = '!pontos',
-                       response = %s,
-                       updated_at = NOW()
-                 WHERE command_key = 'points'
-                   AND (command IS NULL OR BTRIM(command) = '')
-            """, (DEFAULT_POINTS_RESPONSE,))
-
-            cur.execute("""
-                ALTER TABLE channels
-                ALTER COLUMN points_response SET NOT NULL
-            """)
-
-            # Apostas pendentes expiram em 90 segundos. Atualiza também registros
-            # antigos ainda pendentes para respeitar a nova regra sem mexer em pontos.
-            cur.execute("""
-                ALTER TABLE pending_bets
-                ALTER COLUMN expires_at SET DEFAULT (NOW() + INTERVAL '90 seconds')
-            """)
-            cur.execute("""
-                UPDATE pending_bets
-                   SET expires_at = created_at + INTERVAL '90 seconds'
-                 WHERE status='pending'
-                   AND expires_at > created_at + INTERVAL '90 seconds'
-            """)
-        conn.commit()
-    finally:
-        conn.close()
-
+    global _db_initialized
+    if _db_initialized:
+        return
+    with _db_init_lock:
+        if _db_initialized:
+            return
+        conn = get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(SCHEMA)
+                cur.execute("ALTER TABLE kick_connections ADD COLUMN IF NOT EXISTS profile_picture_url TEXT NOT NULL DEFAULT ''")
+                ensure_point_rewards_table(conn)
+                cur.execute("""
+                    ALTER TABLE channels
+                    ADD COLUMN IF NOT EXISTS points_response TEXT
+                """)
+    
+                cur.execute("""
+                    UPDATE channels
+                    SET points_response = %s
+                    WHERE points_response IS NULL OR BTRIM(points_response) = ''
+                """, (DEFAULT_POINTS_RESPONSE,))
+                cur.execute("""
+                    UPDATE channels SET currency_emoji = '' WHERE currency_emoji = '🪙'
+                """)
+    
+                default_sql = DEFAULT_POINTS_RESPONSE.replace("'", "''")
+                cur.execute(f"""
+                    ALTER TABLE channels
+                    ALTER COLUMN points_response SET DEFAULT '{default_sql}'
+                """)
+    
+    
+    
+                # SN7_POINTS_DEFAULT_MIGRATION_V3
+                # Corrige registros antigos sem sobrescrever uma personalização válida.
+                cur.execute("""
+                    UPDATE channels
+                       SET currency_name = 'Pontos',
+                           updated_at = NOW()
+                     WHERE currency_name IS NULL
+                        OR BTRIM(currency_name) = ''
+                        OR currency_name = 'Points'
+                """)
+    
+                # Nunca sobrescreva um comando personalizado salvo pelo streamer.
+                # Apenas valores realmente vazios recebem o padrão.
+                cur.execute("""
+                    UPDATE channels
+                       SET currency_command = '!pontos',
+                           updated_at = NOW()
+                     WHERE currency_command IS NULL OR BTRIM(currency_command) = ''
+                """)
+    
+                cur.execute("""
+                    UPDATE command_configs
+                       SET command = '!pontos',
+                           response = %s,
+                           updated_at = NOW()
+                     WHERE command_key = 'points'
+                       AND (command IS NULL OR BTRIM(command) = '')
+                """, (DEFAULT_POINTS_RESPONSE,))
+    
+                cur.execute("""
+                    ALTER TABLE channels
+                    ALTER COLUMN points_response SET NOT NULL
+                """)
+    
+                # Apostas pendentes expiram em 90 segundos. Atualiza também registros
+                # antigos ainda pendentes para respeitar a nova regra sem mexer em pontos.
+                cur.execute("""
+                    ALTER TABLE pending_bets
+                    ALTER COLUMN expires_at SET DEFAULT (NOW() + INTERVAL '90 seconds')
+                """)
+                cur.execute("""
+                    UPDATE pending_bets
+                       SET expires_at = created_at + INTERVAL '90 seconds'
+                     WHERE status='pending'
+                       AND expires_at > created_at + INTERVAL '90 seconds'
+                """)
+            conn.commit()
+        finally:
+            conn.close()
+    
+        _db_initialized = True
 # SN7_POINTS_REWARDS_V1
 POINTS_REWARD_SCHEMA = """
 CREATE TABLE IF NOT EXISTS point_rewards (
