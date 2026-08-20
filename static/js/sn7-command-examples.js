@@ -244,13 +244,22 @@
     if (msg) msg.textContent = "Modo demonstração: você pode editar e visualizar exemplos. Para salvar de verdade, entre com a Kick.";
   }
 
+  // IMPORTANTE: o app.js registra seu DOMContentLoaded antes deste arquivo.
+  // Se o fetch demo só for instalado no DOMContentLoaded, loadSettings/loadCommands
+  // do app.js executam primeiro e recebem HTTP 404 em /api/*/null.
+  // Por isso o interceptor deve ser instalado imediatamente.
+  installDemoFetch();
+  installStyles();
+
   function init() {
-    installDemoFetch();
-    installStyles();
     observeCommandModal();
     markDemo();
+    updateExample();
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once:true });
-  else init();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once:true });
+  } else {
+    init();
+  }
 })();
