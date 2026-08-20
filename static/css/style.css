@@ -348,18 +348,36 @@ nav button.active::after{content:""!important;position:absolute!important;inset:
   }
 }
 
-/* SN7 DESKTOP CARDS FIX */
-@media (min-width:901px) and (max-width:1100px){
-  .sn7-points-cards{grid-template-columns:repeat(2,minmax(0,1fr));max-width:980px}
-}
-@media (min-width:1101px){
-  .sn7-points-cards{grid-template-columns:repeat(3,minmax(0,1fr));max-width:980px}
-}
+/* SN7 DESKTOP CARDS — 2 fileiras / 3 colunas, conteúdo completo */
+.sn7-desktop-extra-card{display:none!important}
+
 @media (min-width:901px){
-  .sn7-points-card{min-width:0}
-  .sn7-points-card-body{min-width:0;width:0}
-  .sn7-points-card-body strong,.sn7-points-card-body em{
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+  .sn7-desktop-extra-card{display:flex!important}
+  .sn7-points-cards{
+    width:100%;
+    max-width:none;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:16px;
+    align-items:stretch;
   }
-  .sn7-points-card-arrow{flex:0 0 auto}
+  .sn7-points-card{
+    min-width:0;
+    min-height:158px;
+    padding:20px;
+    align-items:center;
+  }
+  .sn7-points-card-body{
+    min-width:0;
+    width:auto;
+    flex:1 1 auto;
+  }
+  .sn7-points-card-body strong,.sn7-points-card-body em{
+    overflow:visible;
+    text-overflow:clip;
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  .sn7-points-card-body strong{line-height:1.22}
+  .sn7-points-card-body em{line-height:1.4}
+  .sn7-points-card-arrow{flex:0 0 auto;align-self:center}
 }
