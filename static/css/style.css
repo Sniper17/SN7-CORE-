@@ -196,3 +196,154 @@ nav button.active{position:relative!important;overflow:hidden!important;isolatio
 nav button.active::after{content:""!important;position:absolute!important;inset:3px!important;border-radius:inherit!important;background:rgba(255,255,255,.018)!important;pointer-events:none!important;z-index:-1!important}
 .sn7-points-card:active,.sn7-command-row:active{box-shadow:none!important}
 @media(max-width:700px){.sn7-command-row{min-height:84px!important;margin:9px 0!important;padding:15px 14px!important;border-radius:16px!important}.sn7-command-row code{font-size:15px!important}.sn7-command-row small,.sn7-command-preview,.sn7-aliases{font-size:12px!important}}
+
+
+/* SN7 UI POLISH V2 - smoother touch, modal layers and loading */
+:root{
+  --sn7-ease:cubic-bezier(.22,.8,.24,1);
+}
+
+/* Confirmation must sit above every configuration/editor modal. */
+.sn7-confirm-modal{
+  z-index:100100 !important;
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity .16s var(--sn7-ease),visibility 0s linear .16s;
+}
+.sn7-confirm-modal.open{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  transition:opacity .16s var(--sn7-ease);
+}
+.sn7-confirm-modal.closing{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+.sn7-confirm-card{
+  transform:translateY(8px) scale(.985);
+  opacity:.98;
+  transition:transform .18s var(--sn7-ease),opacity .18s var(--sn7-ease);
+}
+.sn7-confirm-modal.open .sn7-confirm-card{
+  transform:translateY(0) scale(1);
+  opacity:1;
+}
+
+/* Command editor opens/closes smoothly. */
+.sn7-modal.sn7-command-modal{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity .18s var(--sn7-ease),visibility 0s linear .18s;
+}
+.sn7-modal.sn7-command-modal.open{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  transition:opacity .18s var(--sn7-ease);
+}
+.sn7-modal.sn7-command-modal .sn7-box{
+  transform:translateY(8px) scale(.985);
+  opacity:.98;
+  transition:transform .18s var(--sn7-ease),opacity .18s var(--sn7-ease);
+}
+.sn7-modal.sn7-command-modal.open .sn7-box{
+  transform:translateY(0) scale(1);
+  opacity:1;
+}
+
+/* Better mobile touch feedback: short, subtle and consistent. */
+.sn7-command-row{
+  -webkit-tap-highlight-color:transparent !important;
+  transition:
+    transform .12s var(--sn7-ease),
+    border-color .16s ease,
+    background-color .16s ease,
+    box-shadow .16s ease !important;
+}
+.sn7-command-row:active{
+  transform:translateY(1px) scale(.996) !important;
+  background:#151a22 !important;
+  border-color:#394253 !important;
+  box-shadow:0 2px 8px rgba(0,0,0,.14) !important;
+}
+.sn7-command-row.loading{
+  opacity:.58 !important;
+  transform:none !important;
+  pointer-events:none !important;
+}
+
+/* Command buttons and modal actions get the same tactile response. */
+.sn7-command-panel button,
+.sn7-command-modal button,
+.sn7-confirm-modal button,
+.sn7-config-modal button{
+  -webkit-tap-highlight-color:transparent !important;
+  transition:
+    transform .12s var(--sn7-ease),
+    background-color .16s ease,
+    border-color .16s ease,
+    opacity .16s ease,
+    box-shadow .16s ease !important;
+}
+.sn7-command-panel button:active,
+.sn7-command-modal button:active,
+.sn7-confirm-modal button:active,
+.sn7-config-modal button:active{
+  transform:translateY(1px) scale(.985);
+}
+.sn7-command-panel button:disabled,
+.sn7-command-modal button:disabled{
+  transform:none !important;
+}
+
+/* Softer command refresh/loading instead of an abrupt swap. */
+.sn7-command-panel.is-loading{
+  opacity:.72;
+  transition:opacity .18s ease;
+}
+.sn7-command-panel.is-loading .sn7-command-row{
+  pointer-events:none;
+}
+.sn7-command-panel.is-ready{
+  animation:sn7PanelReady .22s var(--sn7-ease);
+}
+.sn7-command-panel.is-ready .sn7-command-row{
+  animation:sn7CommandReady .22s var(--sn7-ease) both;
+}
+.sn7-command-panel.is-ready .sn7-command-row:nth-child(2){animation-delay:.018s}
+.sn7-command-panel.is-ready .sn7-command-row:nth-child(3){animation-delay:.036s}
+.sn7-command-panel.is-ready .sn7-command-row:nth-child(4){animation-delay:.054s}
+@keyframes sn7PanelReady{
+  from{opacity:.72}
+  to{opacity:1}
+}
+@keyframes sn7CommandReady{
+  from{opacity:.72;transform:translateY(3px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* Spinner is calmer on small screens. */
+.sn7-spinner{
+  animation:sn7spin .8s linear infinite !important;
+  will-change:transform;
+}
+
+/* Respect users who disable motion. */
+@media (prefers-reduced-motion:reduce){
+  .sn7-confirm-modal,
+  .sn7-confirm-card,
+  .sn7-modal.sn7-command-modal,
+  .sn7-modal.sn7-command-modal .sn7-box,
+  .sn7-command-row,
+  .sn7-command-panel button,
+  .sn7-command-modal button,
+  .sn7-confirm-modal button,
+  .sn7-config-modal button{
+    transition:none !important;
+    animation:none !important;
+  }
+}

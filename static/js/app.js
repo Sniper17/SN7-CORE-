@@ -336,6 +336,8 @@ function renderCommands() {
 
 async function loadCommands() {
   buildCommandCatalog();
+  const panel = document.querySelector(".sn7-command-panel");
+  if (panel) panel.classList.add("is-loading");
   const status = $("commandPanelStatus");
   if (status) status.innerHTML = `<span class="sn7-spinner"></span>Carregando comandos...`;
   try {
@@ -346,6 +348,15 @@ async function loadCommands() {
     commandCache = [];
     renderCommands();
     if ($("commandPanelStatus")) $("commandPanelStatus").textContent = `⚠ ${error.message}`;
+  } finally {
+    const currentPanel = document.querySelector(".sn7-command-panel");
+    if (currentPanel) {
+      requestAnimationFrame(() => {
+        currentPanel.classList.remove("is-loading");
+        currentPanel.classList.add("is-ready");
+        setTimeout(() => currentPanel.classList.remove("is-ready"), 260);
+      });
+    }
   }
 }
 
@@ -428,6 +439,7 @@ function sn7ConfirmAction(title, message, confirmText = "Continuar") {
 
     const modal = document.createElement("div");
     modal.className = "sn7-confirm-modal";
+    modal.setAttribute("data-sn7-layer", "confirm");
     modal.innerHTML = `
       <div class="sn7-confirm-card" role="dialog" aria-modal="true" aria-labelledby="sn7ConfirmTitle">
         <h3 id="sn7ConfirmTitle">${esc(title)}</h3>
@@ -439,9 +451,12 @@ function sn7ConfirmAction(title, message, confirmText = "Continuar") {
       </div>`;
 
     document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add("open"));
 
     const finish = (value) => {
-      modal.remove();
+      modal.classList.remove("open");
+      modal.classList.add("closing");
+      setTimeout(() => modal.remove(), 160);
       resolve(value);
     };
 
@@ -508,7 +523,7 @@ function showCommand(command, isNew = false) {
         </div>
       </div>
     </div>`;
-  document.body.appendChild(modal); requestAnimationFrame(() => modal.classList.add("open"));
+  document.body.appendChild(modal);
   requestAnimationFrame(() => modal.classList.add("open"));
   if (isNew) renderDraftAliases();
 }
