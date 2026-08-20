@@ -7,6 +7,7 @@ from core.command_system import (
     delete_custom,
     list_commands,
     update_command,
+    reset_system_command,
 )
 
 commands_bp = Blueprint("commands", __name__)
@@ -166,6 +167,18 @@ def delete_command(broadcaster_id, key):
         return jsonify({"ok": False, "error": str(exc)}), 400
     except Exception as exc:
         print(f"[COMMANDS] DELETE erro: {exc}", flush=True)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@commands_bp.post("/<int:broadcaster_id>/<path:key>/reset")
+def reset_command(broadcaster_id, key):
+    try:
+        reset_system_command(broadcaster_id, key)
+        return jsonify({"ok": True, "commands": list_commands(broadcaster_id)})
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        print(f"[COMMANDS] RESET erro: {exc}", flush=True)
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 

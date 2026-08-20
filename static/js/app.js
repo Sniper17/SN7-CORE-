@@ -422,6 +422,38 @@ function removeAllDraftAliases() {
   renderDraftAliases();
 }
 
+function sn7ConfirmAction(title, message, confirmText = "Continuar") {
+  return new Promise((resolve) => {
+    document.querySelector(".sn7-confirm-modal")?.remove();
+
+    const modal = document.createElement("div");
+    modal.className = "sn7-confirm-modal";
+    modal.innerHTML = `
+      <div class="sn7-confirm-card" role="dialog" aria-modal="true" aria-labelledby="sn7ConfirmTitle">
+        <h3 id="sn7ConfirmTitle">${esc(title)}</h3>
+        <p>${esc(message)}</p>
+        <div class="sn7-confirm-actions">
+          <button type="button" class="sn7-confirm-cancel">Cancelar</button>
+          <button type="button" class="sn7-confirm-ok danger">${esc(confirmText)}</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(modal);
+
+    const finish = (value) => {
+      modal.remove();
+      resolve(value);
+    };
+
+    modal.querySelector(".sn7-confirm-cancel")?.addEventListener("click", () => finish(false));
+    modal.querySelector(".sn7-confirm-ok")?.addEventListener("click", () => finish(true));
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) finish(false);
+    });
+  });
+}
+
+
 function showCommand(command, isNew = false) {
   document.querySelector(".sn7-command-modal")?.remove();
   if (!isNew) draftAliases = [...(command.aliases || [])];
@@ -465,6 +497,7 @@ function showCommand(command, isNew = false) {
       </label>
       <div class="sn7-actions">
         <p id="commandSaveMsg" class="sn7-save-message" aria-live="polite"></p>
+        ${command.is_system ? `<button class="sn7-subtle" type="button" onclick="resetSystemCommandV2('${encodeURIComponent(command.command_key)}')">Redefinir configuração</button>` : ""}
         <button class="${command.is_system ? "sn7-system-action" : "sn7-danger"} ${command.is_system && !command.enabled ? "off" : ""}" type="button"
           onclick="deleteCommandV2('${encodeURIComponent(command.command_key)}',${command.is_system},this)">
           ${command.is_system ? (command.enabled ? "Desativar comando" : "Ativar comando") : "Excluir"}
@@ -552,6 +585,29 @@ async function removeAlias(encodedKey, encodedAlias) {
     alert(error.message);
   }
 }
+
+async function resetSystemCommandV2(encodedKey) {
+  const key = decodeURIComponent(encodedKey);
+  const command = commandCache.find((item) => item.command_key === key);
+  if (!command || !command.is_system) return;
+
+  const ok = await sn7ConfirmAction(
+    "Redefinir configuração?",
+    `A configuração de ${command.command} será restaurada para o padrão original do sistema.`,
+    "Continuar"
+  );
+  if (!ok) return;
+
+  try {
+    await apiJson(`/api/commands/${BROADCASTER_ID}/${encodedKey}/reset`, { method: "POST" });
+    document.querySelector(".sn7-command-modal")?.remove();
+    await loadCommands();
+    openCommand(encodedKey);
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
 
 async function deleteCommandV2(encodedKey, isSystem, button) {
   button = button || document.querySelector(".sn7-system-action");
@@ -647,6 +703,23 @@ async function loadRanking() {
     list.innerHTML = `<div class="sn7-ranking-empty">⚠ ${esc(error.message)}</div>`;
   }
 }
+
+async function resetRankingPoints() {
+  const ok = await sn7ConfirmAction(
+    "Resetar ranking/pontos?",
+    "Tem certeza que deseja resetar os pontos do seu canal? Todos os pontos dos usuários serão zerados. Os usuários e as configurações do canal serão mantidos.",
+    "Continuar"
+  );
+  if (!ok) return;
+
+  try {
+    await apiJson(`/api/ranking/${BROADCASTER_ID}/reset`, { method: "POST" });
+    await loadRanking();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
 
 async function saveSettings() {
   const data = {};
@@ -796,6 +869,80 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.sn7LoadAposta = loadApostaSettings;
+
+  async function resetPointsSettings() {
+    const ok = await sn7ConfirmAction(
+      "Redefinir configuração de pontos?",
+      "A configuração atual será substituída pelo padrão original do sistema. Isso não apaga os pontos dos usuários.",
+      "Continuar"
+    );
+    if (!ok) return;
+
+    try {
+      const data = await apiJson(`/api/settings/${BROADCASTER_ID}/reset-points`, { method: "POST" });
+      const settings = data.settings || {};
+      Object.assign(settings, settings.point_rewards || {});
+      [
+        "currency_name", "currency_command", "currency_emoji", "points_response",
+        "rank_title", "rank_limit", "duel_win_points", "duel_loss_points",
+        "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick",
+      ].forEach((key) => {
+        if ($(key)) $(key).value = settings[key] ?? "";
+      });
+      updatePreview(settings);
+      updateEconomyCards(settings);
+      await loadCommands();
+      if ($("settingsMsg")) $("settingsMsg").textContent = "✓ Configuração redefinida.";
+    } catch (e) {
+      if ($("settingsMsg")) $("settingsMsg").textContent = "⚠ " + e.message;
+    }
+  }
+
+  async function resetRewardsSettings() {
+    const ok = await sn7ConfirmAction(
+      "Redefinir recompensas?",
+      "Os valores de presença, intervalo, bônus de inscrição e bônus por KICK voltarão ao padrão original.",
+      "Continuar"
+    );
+    if (!ok) return;
+
+    try {
+      const data = await apiJson(`/api/settings/${BROADCASTER_ID}/reset-rewards`, { method: "POST" });
+      const settings = data.settings || {};
+      Object.assign(settings, settings.point_rewards || {});
+      [
+        "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick",
+      ].forEach((key) => {
+        if ($(key)) $(key).value = settings[key] ?? "";
+      });
+      updateEconomyCards(settings);
+      if ($("rewardsMsg")) $("rewardsMsg").textContent = "✓ Configuração redefinida.";
+    } catch (e) {
+      if ($("rewardsMsg")) $("rewardsMsg").textContent = "⚠ " + e.message;
+    }
+  }
+
+  async function resetApostaSettings() {
+    const ok = await sn7ConfirmAction(
+      "Redefinir configuração da aposta?",
+      "O comando e a mensagem da aposta voltarão ao padrão original do sistema.",
+      "Continuar"
+    );
+    if (!ok) return;
+
+    try {
+      await apiJson(`/api/commands/${BROADCASTER_ID}/duel/reset`, { method: "POST" });
+      await loadCommands();
+      await loadApostaSettings();
+      if ($("apostaMsg")) $("apostaMsg").textContent = "✓ Configuração redefinida.";
+    } catch (e) {
+      if ($("apostaMsg")) $("apostaMsg").textContent = "⚠ " + e.message;
+    }
+  }
+
+  window.resetPointsSettings = resetPointsSettings;
+  window.resetRewardsSettings = resetRewardsSettings;
+  window.resetApostaSettings = resetApostaSettings;
 
   async function saveApostaSettings() {
     const msg = $("apostaMsg");

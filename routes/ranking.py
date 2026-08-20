@@ -52,3 +52,23 @@ def user_rank(broadcaster_id):
         "rank": rank,
         "ranked": rank is not None,
     })
+
+
+@ranking_bp.post("/<int:broadcaster_id>/reset")
+def reset_ranking(broadcaster_id):
+    try:
+        conn = get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE players SET points=0, updated_at=NOW() WHERE broadcaster_user_id=%s",
+                    (broadcaster_id,),
+                )
+                affected = cur.rowcount
+            conn.commit()
+        finally:
+            conn.close()
+        return jsonify({"ok": True, "reset_users": affected})
+    except Exception as exc:
+        print(f"[RANKING] RESET erro: {exc}", flush=True)
+        return jsonify({"ok": False, "error": str(exc)}), 500
