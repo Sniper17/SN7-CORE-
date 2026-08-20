@@ -9,7 +9,7 @@ button{touch-action:manipulation}
 .brand{display:flex;align-items:baseline;gap:7px;padding:4px 12px 22px;font-weight:900;font-size:25px}
 .brand-mark{letter-spacing:-1px}.brand-core{font-size:11px;color:var(--muted);letter-spacing:2px}
 .channel-card{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px;margin:0 4px 20px}
-.channel-avatar{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#202635;font-weight:800}
+.channel-avatar{width:34px!important;height:34px!important;min-width:34px!important;min-height:34px!important;max-width:34px!important;max-height:34px!important;flex:0 0 34px!important;border-radius:10px;display:grid;place-items:center;background-color:#202635;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;overflow:hidden!important;box-sizing:border-box!important;position:relative;isolation:isolate}.channel-avatar img{width:34px!important;height:34px!important;min-width:34px!important;min-height:34px!important;max-width:34px!important;max-height:34px!important;object-fit:cover!important;object-position:center!important;display:block!important;border-radius:10px!important;position:absolute!important;inset:0!important;margin:0!important}.channel-card>div:last-child{min-width:0;flex:1}
 .channel-card strong{display:block;font-size:13px}.channel-card small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 nav{display:flex;flex-direction:column;gap:4px}
 nav button{border:0;background:transparent;color:#aeb6c5;text-align:left;padding:11px 12px;border-radius:9px;font-size:14px;cursor:pointer}
@@ -346,4 +346,20 @@ nav button.active::after{content:""!important;position:absolute!important;inset:
     transition:none !important;
     animation:none !important;
   }
+}
+
+/* SN7 DESKTOP CARDS FIX */
+@media (min-width:901px) and (max-width:1100px){
+  .sn7-points-cards{grid-template-columns:repeat(2,minmax(0,1fr));max-width:980px}
+}
+@media (min-width:1101px){
+  .sn7-points-cards{grid-template-columns:repeat(3,minmax(0,1fr));max-width:980px}
+}
+@media (min-width:901px){
+  .sn7-points-card{min-width:0}
+  .sn7-points-card-body{min-width:0;width:0}
+  .sn7-points-card-body strong,.sn7-points-card-body em{
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+  }
+  .sn7-points-card-arrow{flex:0 0 auto}
 }
