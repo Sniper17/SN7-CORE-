@@ -177,6 +177,30 @@ function updatePreview(settings) {
   updatePointsResponsePreview();
 }
 
+function updateEconomyCards(settings = {}) {
+  const name = settings.currency_name ?? $("currency_name")?.value ?? "Pontos";
+  const command = settings.currency_command ?? $("currency_command")?.value ?? "!pontos";
+  const rewards = settings.point_rewards || {};
+  const watch = settings.watch_points ?? rewards.watch_points ?? $("watch_points")?.value ?? 1;
+  const sub = settings.sub_bonus ?? rewards.sub_bonus ?? $("sub_bonus")?.value ?? 500;
+  const kicks = settings.kicks_bonus_per_kick ?? rewards.kicks_bonus_per_kick ?? $("kicks_bonus_per_kick")?.value ?? 1;
+  if ($("pointsCardName")) $("pointsCardName").textContent = name;
+  if ($("pointsCardCommand")) $("pointsCardCommand").textContent = command;
+  if ($("rewardsCardSummary")) {
+    const n = Number(watch);
+    $("rewardsCardSummary").textContent = `${watch} ponto${n === 1 ? "" : "s"} • sub +${sub} • KICK +${kicks}/cada`;
+  }
+}
+
+function setSaveMessage(id, text, ok = true) {
+  const el = $(id);
+  if (!el) return;
+  el.textContent = text;
+  el.classList.toggle("success", ok);
+  el.classList.toggle("error", !ok);
+  el.hidden = false;
+}
+
 function injectCommandStyles() {
   if ($("sn7-command-v24-style")) return;
   const style = document.createElement("style");
@@ -214,7 +238,10 @@ function injectCommandStyles() {
     .sn7-alias-row{display:flex;gap:8px;margin-top:7px}
     .sn7-alias-row input{margin:0}
     .sn7-danger{border:1px solid #63383b;background:transparent;color:#ff9c9c;border-radius:8px;padding:8px 11px;cursor:pointer}
-    .sn7-actions{display:flex;justify-content:space-between;gap:10px;margin-top:20px}
+    .sn7-actions{display:flex;justify-content:space-between;gap:10px;margin-top:20px;align-items:center;flex-wrap:wrap}
+    .sn7-save-message{font-size:12px;min-height:18px;color:#8f98a8}
+    .sn7-save-message.success{color:#55d98b}
+    .sn7-save-message.error{color:#ff9ca6}
     .sn7-system-action:disabled{opacity:.72;cursor:wait}
     .sn7-spinner{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-2px;margin-right:7px;animation:sn7spin .65s linear infinite}
     @keyframes sn7spin{to{transform:rotate(360deg)}}
@@ -437,12 +464,13 @@ function showCommand(command, isNew = false) {
         `}
       </label>
       <div class="sn7-actions">
+        <p id="commandSaveMsg" class="sn7-save-message" aria-live="polite"></p>
         <button class="${command.is_system ? "sn7-system-action" : "sn7-danger"} ${command.is_system && !command.enabled ? "off" : ""}" type="button"
           onclick="deleteCommandV2('${encodeURIComponent(command.command_key)}',${command.is_system},this)">
           ${command.is_system ? (command.enabled ? "Desativar comando" : "Ativar comando") : "Excluir"}
         </button>
         <div>
-          <button class="btn" type="button" onclick="saveCommandV2('${encodeURIComponent(command.command_key)}',${isNew})">Salvar</button>
+          <button id="commandSaveButton" class="btn" type="button" onclick="saveCommandV2('${encodeURIComponent(command.command_key)}',${isNew},this)">Salvar alterações</button>
           <button class="sn7-subtle" type="button" onclick="closeCommandModal()">Fechar</button>
         </div>
       </div>
@@ -452,14 +480,16 @@ function showCommand(command, isNew = false) {
   if (isNew) renderDraftAliases();
 }
 
-async function saveCommandV2(encodedKey, isNew) {
+async function saveCommandV2(encodedKey, isNew, button) {
   const body = {
     command: $("v2cmd")?.value.trim(),
     description: $("v2desc")?.value.trim(),
     response: $("v2resp")?.value,
   };
   if (isNew) body.aliases = [...draftAliases];
-
+  const saveButton = button || $("commandSaveButton");
+  const originalText = saveButton?.textContent || "Salvar alterações";
+  if (saveButton) { saveButton.disabled = true; saveButton.textContent = "Salvando..."; }
   try {
     const data = await apiJson(
       isNew
@@ -472,11 +502,22 @@ async function saveCommandV2(encodedKey, isNew) {
       }
     );
     commandCache = data.commands || [];
-    document.querySelector(".sn7-command-modal")?.remove();
-    draftAliases = [];
     renderCommands();
+    if (isNew) {
+      const created = commandCache.find((item) => item.command === body.command);
+      if (created) {
+        document.querySelector(".sn7-command-modal")?.remove();
+        draftAliases = [];
+        showCommand(created, false);
+      }
+    }
+    setSaveMessage("commandSaveMsg", "✓ Alterações salvas.", true);
+    if (saveButton) saveButton.textContent = "Salvo ✓";
+    setTimeout(() => { if (saveButton) saveButton.textContent = originalText; }, 1400);
   } catch (error) {
-    alert(error.message);
+    setSaveMessage("commandSaveMsg", `⚠ ${error.message}`, false);
+  } finally {
+    if (saveButton) saveButton.disabled = false;
   }
 }
 
@@ -561,6 +602,7 @@ async function loadSettings() {
       if ($(key)) $(key).value = settings[key] ?? "";
     });
     updatePreview(settings);
+    updateEconomyCards(settings);
     if (data.demo) setMessage("Modo demonstração: alterações não são persistidas.", false);
   } catch (error) {
     setMessage(`⚠ ${error.message}`, false);
@@ -573,7 +615,10 @@ async function saveSettingsAndClose(modalId) {
   if (button) button.disabled = true;
   try {
     const ok = await saveSettings();
-    if (ok) closeModal(modalId);
+    if (ok) {
+      const target = modalId === "sn7RewardsEditor" ? "rewardsMsg" : "settingsMsg";
+      setSaveMessage(target, "✓ Alterações salvas.", true);
+    }
   } finally {
     if (button) button.disabled = false;
   }
@@ -620,7 +665,9 @@ async function saveSettings() {
       body: JSON.stringify(data),
     });
     updatePreview(result.settings);
+    updateEconomyCards(result.settings);
     setMessage("✓ Alterações salvas.", true);
+    setSaveMessage("rewardsMsg", "✓ Alterações salvas.", true);
     await loadCommands();
     return true;
   } catch (error) {
@@ -637,9 +684,10 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTabPersistence();
   restoreSavedTab();
 
-  ["currency_name", "currency_emoji", "currency_command", "points_response"].forEach((id) => {
+  ["currency_name", "currency_emoji", "currency_command", "points_response", "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick"].forEach((id) => {
     $(id)?.addEventListener("input", () => {
       updatePointsResponsePreview();
+      updateEconomyCards();
       renderCommands();
     });
   });
@@ -760,8 +808,8 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({command, response})
       });
       if ($("apostaCardCommand")) $("apostaCardCommand").textContent = command;
-      if (msg) msg.textContent = "Salvo.";
-      closeModal("sn7ApostaEditor");
+      setSaveMessage("apostaMsg", "✓ Alterações salvas.", true);
+      if ($("apostaMsg")) $("apostaMsg").textContent = "✓ Alterações salvas.";
     } catch (e) {
       if (msg) msg.textContent = "⚠ " + e.message;
     }

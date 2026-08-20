@@ -36,13 +36,6 @@ def ensure_command_defaults(bid):
                     ("Pontos", bid),
                 )
 
-            if points_command == "!points":
-                points_command = "!pontos"
-                cur.execute(
-                    "UPDATE channels SET currency_command=%s WHERE broadcaster_user_id=%s",
-                    ("!pontos", bid),
-                )
-
             # Migra apenas a resposta padrão antiga; não sobrescreve personalizações.
             old_default = "$(user), você tem $(points) $(currency). $(emoji) Sua posição no ranking é #$(rank)."
             if points_response.strip() == old_default:

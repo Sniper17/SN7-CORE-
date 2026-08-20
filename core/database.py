@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS kick_connections (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT UNIQUE NOT NULL,
     username TEXT NOT NULL DEFAULT '',
+    profile_picture_url TEXT NOT NULL DEFAULT '',
     access_token TEXT,
     refresh_token TEXT,
     expires_at BIGINT NOT NULL DEFAULT 0,
@@ -104,6 +105,7 @@ def init_db():
     try:
         with conn.cursor() as cur:
             cur.execute(SCHEMA)
+            cur.execute("ALTER TABLE kick_connections ADD COLUMN IF NOT EXISTS profile_picture_url TEXT NOT NULL DEFAULT ''")
             ensure_point_rewards_table(conn)
             cur.execute("""
                 ALTER TABLE channels
@@ -125,23 +127,6 @@ def init_db():
                 ALTER COLUMN points_response SET DEFAULT '{default_sql}'
             """)
 
-            cur.execute("""
-                UPDATE channels
-                   SET currency_command = '!points',
-                       points_response = %s,
-                       updated_at = NOW()
-                 WHERE currency_command = '!tabaco'
-                   AND (points_response IS NULL OR BTRIM(points_response) = '' OR LOWER(BTRIM(points_response)) = 'ola')
-            """, (DEFAULT_POINTS_RESPONSE,))
-
-            cur.execute("""
-                UPDATE command_configs
-                   SET command = '!points',
-                       response = %s,
-                       updated_at = NOW()
-                 WHERE command_key = 'points'
-                   AND command = '!tabaco'
-            """, (DEFAULT_POINTS_RESPONSE,))
 
 
             # SN7_POINTS_DEFAULT_MIGRATION_V3
@@ -155,14 +140,13 @@ def init_db():
                     OR currency_name = 'Points'
             """)
 
+            # Nunca sobrescreva um comando personalizado salvo pelo streamer.
+            # Apenas valores realmente vazios recebem o padrão.
             cur.execute("""
                 UPDATE channels
                    SET currency_command = '!pontos',
                        updated_at = NOW()
-                 WHERE currency_command IS NULL
-                    OR BTRIM(currency_command) = ''
-                    OR currency_command = '!points'
-                    OR currency_command = '!tabaco'
+                 WHERE currency_command IS NULL OR BTRIM(currency_command) = ''
             """)
 
             cur.execute("""
@@ -171,12 +155,7 @@ def init_db():
                        response = %s,
                        updated_at = NOW()
                  WHERE command_key = 'points'
-                   AND (
-                       command IS NULL
-                       OR BTRIM(command) = ''
-                       OR command = '!points'
-                       OR command = '!tabaco'
-                   )
+                   AND (command IS NULL OR BTRIM(command) = '')
             """, (DEFAULT_POINTS_RESPONSE,))
 
             cur.execute("""

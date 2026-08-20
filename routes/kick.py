@@ -73,22 +73,24 @@ def _save_connection(user, token_data):
     expires_at = now + expires_in if expires_in else 0
     scope = str(token_data.get("scope") or "")
     username = str(user.get("username") or user.get("slug") or user.get("channel_slug") or user.get("name") or user.get("display_name") or "").strip()
+    profile_picture_url = str(user.get("profile_picture") or user.get("profile_picture_url") or user.get("profile_pic") or user.get("avatar_url") or "").strip()
 
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """INSERT INTO kick_connections
-                   (broadcaster_user_id, username, access_token, refresh_token, expires_at, scope, updated_at)
-                   VALUES (%s,%s,%s,%s,%s,%s,NOW())
+                   (broadcaster_user_id, username, profile_picture_url, access_token, refresh_token, expires_at, scope, updated_at)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())
                    ON CONFLICT (broadcaster_user_id) DO UPDATE SET
                      username=EXCLUDED.username,
+                     profile_picture_url=CASE WHEN EXCLUDED.profile_picture_url <> '' THEN EXCLUDED.profile_picture_url ELSE kick_connections.profile_picture_url END,
                      access_token=EXCLUDED.access_token,
                      refresh_token=COALESCE(EXCLUDED.refresh_token,kick_connections.refresh_token),
                      expires_at=EXCLUDED.expires_at,
                      scope=EXCLUDED.scope,
                      updated_at=NOW()""",
-                (broadcaster_id, username, token_data.get("access_token"),
+                (broadcaster_id, username, profile_picture_url, token_data.get("access_token"),
                  token_data.get("refresh_token"), expires_at, scope),
             )
         conn.commit()
@@ -104,7 +106,7 @@ def _get_connection(broadcaster_id):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT broadcaster_user_id, username, access_token, refresh_token, expires_at, scope
+                """SELECT broadcaster_user_id, username, profile_picture_url, access_token, refresh_token, expires_at, scope
                    FROM kick_connections WHERE broadcaster_user_id=%s""",
                 (int(broadcaster_id),),
             )
@@ -114,9 +116,9 @@ def _get_connection(broadcaster_id):
     if not row:
         return None
     return {
-        "broadcaster_user_id": row[0], "username": row[1],
-        "access_token": row[2], "refresh_token": row[3],
-        "expires_at": row[4] or 0, "scope": row[5] or "",
+        "broadcaster_user_id": row[0], "username": row[1], "profile_picture_url": row[2] or "",
+        "access_token": row[3], "refresh_token": row[4],
+        "expires_at": row[5] or 0, "scope": row[6] or "",
     }
 
 
@@ -904,6 +906,19 @@ def _bot_active(access_token):
     return bool(_chat_subscription_ids(access_token))
 
 
+
+def _save_profile_picture(broadcaster_id, url):
+    url = str(url or "").strip()
+    if not url:
+        return
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE kick_connections SET profile_picture_url=%s, updated_at=NOW() WHERE broadcaster_user_id=%s", (url, int(broadcaster_id)))
+        conn.commit()
+    finally:
+        conn.close()
+
 def _save_username(broadcaster_id, username):
     username=str(username or "").strip()
     if not username:
@@ -926,13 +941,16 @@ def me():
     if not conn:
         return jsonify({"ok": True, "authenticated": False, "user": None, "bot": {"active": False}})
     username=str(conn.get("username") or "").strip()
-    if not username:
+    profile_picture_url=str(conn.get("profile_picture_url") or "").strip()
+    if not username or not profile_picture_url:
         try:
             ku=_kick_user(conn["access_token"])
-            username=str(ku.get("username") or ku.get("slug") or ku.get("channel_slug") or ku.get("name") or ku.get("display_name") or "").strip()
-            _save_username(bid,username)
+            username=str(ku.get("username") or ku.get("slug") or ku.get("channel_slug") or ku.get("name") or ku.get("display_name") or username).strip()
+            profile_picture_url=str(ku.get("profile_picture") or ku.get("profile_picture_url") or ku.get("profile_pic") or ku.get("avatar_url") or profile_picture_url).strip()
+            if username: _save_username(bid,username)
+            if profile_picture_url: _save_profile_picture(bid,profile_picture_url)
         except Exception as exc:
-            print(f"[KICK-BOT] não foi possível atualizar nome: {exc}",flush=True)
+            print(f"[KICK-BOT] não foi possível atualizar perfil: {exc}",flush=True)
 
     try:
         active=_bot_active(conn["access_token"])
@@ -942,7 +960,7 @@ def me():
     return jsonify({
         "ok": True,
         "authenticated": True,
-        "user": {"id": int(bid), "username": username},
+        "user": {"id": int(bid), "username": username, "profile_picture_url": profile_picture_url},
         "bot": {"active": active},
     })
 

@@ -55,7 +55,7 @@ body.sn7-modal-open{overflow:hidden}
   <aside class="sidebar">
     <div class="brand"><span class="brand-mark">SN7</span><span class="brand-core">CORE</span></div>
     <div class="channel-card">
-      <div class="channel-avatar">S</div>
+      <div id="sn7ChannelAvatar" class="channel-avatar">S</div>
       <div><strong>Minha live</strong><small>Canal conectado</small></div>
     </div>
     <nav>
@@ -64,7 +64,7 @@ body.sn7-modal-open{overflow:hidden}
       <button type="button" data-tab="ranking"><span>♛</span> Ranking</button>
       <button type="button" data-tab="minigames"><span>▣</span> Mini Games</button>
       <button type="button" data-tab="commands"><span>⌘</span> Comandos</button>
-      <button type="button" data-tab="profile"><span>◉</span> Perfil</button>
+      <button type="button" data-tab="profile"><span id="sn7NavProfileIcon" class="sn7-nav-profile-icon">◉</span> Perfil</button>
     </nav>
     <div class="sidebar-footer">SN7 CORE <span>v1.2</span></div>
   </aside>
@@ -118,7 +118,10 @@ body.sn7-modal-open{overflow:hidden}
       <div class="panel sn7-profile-panel">
         <style>
           .sn7-profile-user{display:flex;align-items:center;gap:14px;padding:4px 0 22px;border-bottom:1px solid var(--border)}
-          .sn7-profile-avatar{width:54px;height:54px;border-radius:15px;display:grid;place-items:center;background:#1b202a;color:#b7abff;font-size:22px;font-weight:800;flex:0 0 54px}
+          .sn7-profile-avatar{width:54px;height:54px;border-radius:15px;display:grid;place-items:center;background:#1b202a;color:#b7abff;font-size:22px;font-weight:800;flex:0 0 54px;overflow:hidden}
+          .sn7-profile-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+          .sn7-nav-profile-icon{width:24px;height:24px;border-radius:50%;display:inline-grid;place-items:center;overflow:hidden;vertical-align:-6px}
+          .sn7-nav-profile-icon img{width:100%;height:100%;object-fit:cover;display:block}
           .sn7-profile-user h3{margin:0;font-size:20px;overflow-wrap:anywhere}
           .sn7-profile-user small{display:block;color:var(--muted);margin-top:4px}
           .sn7-profile-status{display:none!important;margin-left:auto;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:#151a22;border:1px solid var(--border);font-size:11px;font-weight:700;color:var(--muted)}
@@ -147,7 +150,7 @@ body.sn7-modal-open{overflow:hidden}
         </div>
         <div id="sn7ProfileLoggedIn" hidden>
           <div class="sn7-profile-user">
-            <div class="sn7-profile-avatar">●</div>
+            <div id="sn7ProfileAvatar" class="sn7-profile-avatar">●</div>
             <div><h3 id="sn7ProfileUsername">—</h3><small id="sn7ProfileChannel">Canal conectado</small></div>
             <div class="sn7-profile-status"><i id="sn7ProfileDot" class="sn7-profile-dot"></i><span id="sn7ProfileStatus">Verificando</span></div>
           </div>
@@ -171,7 +174,7 @@ body.sn7-modal-open{overflow:hidden}
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
-<script src="/static/js/app.js?v=5"></script><script>
+<script src="/static/js/app.js?v=6"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -199,18 +202,46 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
 (function(){
   const q=id=>document.getElementById(id);
   function msg(t,e){const x=q("sn7ProfileMessage");if(!x)return;x.textContent=t||"";x.classList.toggle("error",!!e);x.hidden=!t}
-  function out(){q("sn7ProfileLoggedIn").hidden=true;q("sn7ProfileLoggedOut").hidden=false}
-  function user(u){q("sn7ProfileLoggedOut").hidden=true;q("sn7ProfileLoggedIn").hidden=false;q("sn7ProfileUsername").textContent="@"+(u.username||"Kick");q("sn7ProfileChannel").textContent="ID do canal: "+(u.id??"—")}
+  function out(){
+    q("sn7ProfileLoggedIn").hidden=true;q("sn7ProfileLoggedOut").hidden=false;
+    setAvatar(q("sn7ChannelAvatar"), "S", "");
+    setAvatar(q("sn7NavProfileIcon"), "◉", "");
+  }
+  function setAvatar(el, fallback, url){
+    if(!el)return;
+    el.innerHTML="";
+    if(url){
+      const img=document.createElement("img");
+      img.src=url; img.alt="Foto do perfil"; img.loading="eager";
+      img.onerror=()=>{el.textContent=fallback||"S";};
+      el.appendChild(img);
+    }else{el.textContent=fallback||"S";}
+  }
+  function user(u){
+    q("sn7ProfileLoggedOut").hidden=true;q("sn7ProfileLoggedIn").hidden=false;
+    const username=u.username||"Kick";
+    q("sn7ProfileUsername").textContent="@"+username;
+    q("sn7ProfileChannel").textContent="ID do canal: "+(u.id??"—");
+    const initials=(username.replace(/^@/,"").trim().charAt(0)||"S").toUpperCase();
+    const avatarUrl=u.profile_picture_url||u.profile_picture||u.avatar_url||"";
+    setAvatar(q("sn7ProfileAvatar"), initials, avatarUrl);
+    setAvatar(q("sn7ChannelAvatar"), initials, avatarUrl);
+    const nav=q("sn7NavProfileIcon");
+    setAvatar(nav, initials, avatarUrl);
+  }
   function bot(a){const on=!!a;q("sn7ProfileDot").classList.toggle("on",on);q("sn7ProfileStatus").textContent=on?"Bot ativo":"Bot desligado";q("sn7ProfileBotTitle").textContent=on?"🟢 Bot ligado":"⚪ Bot desligado";q("sn7ProfileBotDescription").textContent=on?"O SN7 Core está ouvindo os comandos da live.":"O bot não está ouvindo os comandos da live.";q("sn7ProfileBotToggle").textContent=on?"Desligar bot":"Ligar bot";q("sn7ProfileBotToggle").dataset.active=String(on);q("sn7ProfileBotToggle").disabled=false}
   async function load(){const b=q("sn7ProfileBotToggle");if(!b)return;b.disabled=true;b.textContent="Verificando...";msg("");try{const r=await fetch("/kick/me",{credentials:"same-origin",cache:"no-store"}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível consultar o perfil.");if(!d.authenticated||!d.user){out();return}user(d.user);bot(!!(d.bot&&d.bot.active))}catch(e){out();msg(e.message||"Erro ao consultar o perfil.",true)}}
   q("sn7ProfileBotToggle")?.addEventListener("click",async()=>{const b=q("sn7ProfileBotToggle"),cur=b.dataset.active==="true";b.disabled=true;b.textContent="Alterando...";msg("");try{const r=await fetch("/kick/bot/toggle",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({active:!cur})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível alterar o bot.");bot(!!d.active);msg(d.active?"Bot ligado com sucesso.":"Bot desligado com sucesso.")}catch(e){msg(e.message||"Erro ao alterar o bot.",true);load()}});
   q("sn7ProfileRefresh")?.addEventListener("click",load);
   q("sn7ProfileLogout")?.addEventListener("click",async()=>{q("sn7ProfileLogout").disabled=true;try{await fetch("/kick/logout",{method:"POST",credentials:"same-origin"})}finally{window.location.href="/?profile=1"}});
   document.addEventListener("DOMContentLoaded",()=>{
-    if(window.SN7_OPEN_PROFILE){
+    if(window.SN7_OPEN_PROFILE || window.SN7_NAV_FROM_URL){
       const profileBtn=document.querySelector('nav button[data-tab="profile"]');
       if(profileBtn) profileBtn.click();
-      try{history.replaceState({},document.title,"/")}catch(_){}
+      try{
+        const cleanPath=window.location.pathname || "/dashboard";
+        history.replaceState({},document.title,cleanPath);
+      }catch(_){}
     }
     load();
   });
