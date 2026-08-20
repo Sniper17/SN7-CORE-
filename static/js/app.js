@@ -286,7 +286,7 @@ function renderCommands() {
       <div class="sn7-command-row ${command.enabled ? "" : "disabled"}"
            onclick="openCommand('${encodeURIComponent(command.command_key)}')">
         <div>
-          <code>${esc(command.command)}</code>
+          <code>${esc(command.command_key === "duel" ? "!aposta" : command.command)}</code>
           <small>${esc(command.description)}</small>
           <span class="sn7-command-preview">${esc(renderCommandListPreview(command))}</span>
           ${command.aliases?.length ? `<div class="sn7-aliases">Variantes: ${command.aliases.map(esc).join(", ")}</div>` : ""}
@@ -690,9 +690,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await apiJson(`/api/commands/${BROADCASTER_ID}`);
       const cmd = (data.commands || []).find((x) => x.command_key === "duel");
 
-      if ($("aposta_command")) $("aposta_command").value = cmd?.command || "!aposta";
-      if ($("aposta_response")) $("aposta_response").value = cmd?.response || "$(duel_result)";
-      if ($("apostaCardCommand")) $("apostaCardCommand").textContent = cmd?.command || "!aposta";
+      const apostaCommand = "!aposta";
+      const oldDefault = "$(duel_result)";
+      const newDefault = "$(user) está apostando $(amount) points contra $(target).";
+      const savedResponse = String(cmd?.response || "").trim();
+      const apostaResponse = !savedResponse || savedResponse === oldDefault ? newDefault : savedResponse;
+      if ($("aposta_command")) $("aposta_command").value = apostaCommand;
+      if ($("aposta_response")) $("aposta_response").value = apostaResponse;
+      if ($("apostaCardCommand")) $("apostaCardCommand").textContent = "!aposta";
     } catch (e) {
       if ($("apostaMsg")) $("apostaMsg").textContent = "⚠ " + e.message;
     }

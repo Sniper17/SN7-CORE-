@@ -173,3 +173,26 @@ body.sn7-modal-open { overflow: hidden !important; }
   }
   .sn7-config-close { top: 8px !important; right: 8px !important; }
 }
+
+
+/* SN7 UI POLISH V1 - COMMAND CARDS + SUBTLE TOUCH */
+.sn7-command-panel{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;overflow:visible!important}
+.sn7-command-category{padding:0!important;margin:0 0 22px!important;border:0!important}
+.sn7-command-category+.sn7-command-category{border-top:0!important}
+.sn7-command-head{padding:0 2px 10px!important}
+.sn7-command-row{position:relative!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:14px!important;min-height:88px!important;margin:10px 0!important;padding:16px 14px!important;box-sizing:border-box!important;border:1px solid var(--border)!important;border-radius:16px!important;background:#11151d!important;cursor:pointer!important;overflow:hidden!important;-webkit-tap-highlight-color:transparent!important;transition:border-color .16s ease,background .16s ease,transform .08s ease!important}
+.sn7-command-row:first-child{border-top:1px solid var(--border)!important}
+.sn7-command-row:hover{background:#141923!important;border-color:#2b3342!important}
+.sn7-command-row:active{background:#121720!important;border-color:#30394a!important;transform:scale(.998)!important}
+.sn7-command-row>div:first-child{min-width:0!important;flex:1 1 auto!important}
+.sn7-command-row code{display:block!important;color:#f4f6fa!important;font-size:16px!important;line-height:1.25!important}
+.sn7-command-row small{display:block!important;margin-top:6px!important;color:var(--muted)!important;font-size:13px!important;line-height:1.4!important}
+.sn7-command-preview,.sn7-aliases{display:block!important;margin-top:6px!important}
+.sn7-command-row>.sn7-command-status-badge{flex:0 0 auto!important}
+nav button,.sn7-points-card,.sn7-command-row{-webkit-tap-highlight-color:transparent!important;tap-highlight-color:transparent!important}
+nav button:focus,nav button:focus-visible{outline:none!important}
+nav button:active{background:inherit!important;box-shadow:none!important;transform:none!important}
+nav button.active{position:relative!important;overflow:hidden!important;isolation:isolate!important}
+nav button.active::after{content:""!important;position:absolute!important;inset:3px!important;border-radius:inherit!important;background:rgba(255,255,255,.018)!important;pointer-events:none!important;z-index:-1!important}
+.sn7-points-card:active,.sn7-command-row:active{box-shadow:none!important}
+@media(max-width:700px){.sn7-command-row{min-height:84px!important;margin:9px 0!important;padding:15px 14px!important;border-radius:16px!important}.sn7-command-row code{font-size:15px!important}.sn7-command-row small,.sn7-command-preview,.sn7-aliases{font-size:12px!important}}
