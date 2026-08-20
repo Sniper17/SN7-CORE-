@@ -57,6 +57,20 @@ CREATE TABLE IF NOT EXISTS duel_events (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS pending_bets (
+    id BIGSERIAL PRIMARY KEY,
+    broadcaster_user_id BIGINT NOT NULL,
+    challenger TEXT NOT NULL,
+    defender TEXT NOT NULL,
+    amount BIGINT NOT NULL CHECK (amount > 0),
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '5 minutes')
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_bets_lookup
+ON pending_bets (broadcaster_user_id, defender, status, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS kick_connections (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT UNIQUE NOT NULL,

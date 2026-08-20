@@ -24,6 +24,12 @@ KICK_PUBLIC_KEY_URL = f"{KICK_API}/public-key"
 _oauth_states = {}
 _public_key_pem = None
 
+# Cache curto do estado da live para não consultar a API da Kick a cada mensagem.
+_live_status_cache = {}
+_live_status_cache_ttl = 10
+_app_access_token = None
+_app_access_token_expires_at = 0
+
 
 def _env(name, default=""):
     import os
@@ -36,6 +42,81 @@ def _client_id():
 
 def _client_secret():
     return _env("KICK_CLIENT_SECRET")
+
+
+def _kick_app_access_token():
+    """Obtém token de aplicação para consultar dados públicos da Kick."""
+    global _app_access_token, _app_access_token_expires_at
+    now = int(time.time())
+    if _app_access_token and _app_access_token_expires_at > now + 30:
+        return _app_access_token
+
+    client_id = _client_id()
+    client_secret = _client_secret()
+    if not client_id or not client_secret:
+        return None
+
+    try:
+        response = requests.post(
+            f"{KICK_ID}/oauth/token",
+            data={
+                "grant_type": "client_credentials",
+                "client_id": client_id,
+                "client_secret": client_secret,
+            },
+            timeout=10,
+        )
+        data = response.json()
+    except Exception as exc:
+        print(f"[KICK-LIVE] erro obtendo app access token: {exc}", flush=True)
+        return None
+
+    if response.status_code >= 400 or not data.get("access_token"):
+        print(f"[KICK-LIVE] app token falhou HTTP {response.status_code}: {data}", flush=True)
+        return None
+
+    _app_access_token = str(data["access_token"])
+    _app_access_token_expires_at = now + int(data.get("expires_in") or 3600)
+    return _app_access_token
+
+
+def _kick_channel_is_live(broadcaster_id):
+    """Retorna True somente quando a Kick confirma que o canal está ao vivo."""
+    try:
+        bid = int(broadcaster_id)
+    except (TypeError, ValueError):
+        return False
+
+    now = time.time()
+    cached = _live_status_cache.get(bid)
+    if cached and now - cached[0] < _live_status_cache_ttl:
+        return bool(cached[1])
+
+    token = _kick_app_access_token()
+    if not token:
+        # Falha fechada: sem confirmação da live, não concede pontos de presença.
+        _live_status_cache[bid] = (now, False)
+        return False
+
+    try:
+        response = requests.get(
+            f"{KICK_API}/livestreams",
+            headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+            params={"broadcaster_user_id": bid},
+            timeout=10,
+        )
+        data = response.json()
+        if response.status_code >= 400:
+            print(f"[KICK-LIVE] HTTP {response.status_code}: {data}", flush=True)
+            live = False
+        else:
+            live = bool(data.get("data"))
+    except Exception as exc:
+        print(f"[KICK-LIVE] erro consultando status: {exc}", flush=True)
+        live = False
+
+    _live_status_cache[bid] = (now, live)
+    return live
 
 
 def _redirect_uri():
@@ -608,14 +689,15 @@ def _process_chat(payload):
     if not bid or not user:
         return
 
-    # A API pública da Kick não fornece presença/watchtime individual.
-    # O Core usa interação no chat como sinal de presença e aplica cooldown.
-    try:
-        presence_bonus = award_watch_presence(bid, user, uid)
-        if presence_bonus:
-            print(f"[SN7-REWARDS] {user} +{presence_bonus} por presença", flush=True)
-    except Exception as exc:
-        print(f"[SN7-REWARDS] erro presença: {exc}", flush=True)
+    # A presença individual é inferida por mensagens no chat.
+    # Só concede o bônus se a Kick confirmar que a live está ao vivo.
+    if _kick_channel_is_live(bid):
+        try:
+            presence_bonus = award_watch_presence(bid, user, uid)
+            if presence_bonus:
+                print(f"[SN7-REWARDS] {user} +{presence_bonus} por presença em live", flush=True)
+        except Exception as exc:
+            print(f"[SN7-REWARDS] erro presença: {exc}", flush=True)
 
     if not content.startswith("!"):
         return
@@ -658,22 +740,22 @@ def _process_chat(payload):
             return
 
         if key == "duel":
-            # Aceita @usuario, usuario, @usuario 100 ou 100 @usuario.
+            # !aposta @usuario quantidade cria uma aposta pendente.
             command_values = _extract_command_values(args)
             target_value = str(command_values.get("target") or "").strip().lstrip("@")
             amount_value = command_values.get("amount")
 
-            if not target_value:
+            if not target_value or amount_value is None or int(amount_value) <= 0:
                 _send_chat(
                     bid,
                     _render_response(
                         cfg["response"],
                         {
                             "user": _mention(user),
-                            "target": "",
+                            "target": _mention(target_value),
                             "amount": amount_value if amount_value is not None else "",
                             "command": cfg["command"],
-                            "duel_result": f"⚔️ Use {cfg['command']} @usuário",
+                            "duel_result": f"⚔️ Use {cfg['command']} @usuário quantidade",
                             "currency": currency,
                             "emoji": emoji,
                         },
@@ -681,16 +763,16 @@ def _process_chat(payload):
                 )
                 return
 
-            defender = target_value
-            if not defender or defender.lower() == user.lower():
+            amount_value = int(amount_value)
+            if target_value.lower() == user.lower():
                 _send_chat(
                     bid,
                     _render_response(
                         cfg["response"],
                         {
                             "user": _mention(user),
-                            "target": _mention(defender),
-                            "amount": amount_value if amount_value is not None else "",
+                            "target": _mention(target_value),
+                            "amount": amount_value,
                             "command": cfg["command"],
                             "duel_result": "⚔️ Você não pode apostar consigo mesmo.",
                             "currency": currency,
@@ -700,58 +782,216 @@ def _process_chat(payload):
                 )
                 return
 
-            ensure_player(bid, defender)
-            import random
-            winner = random.choice([user, defender])
-            loser = defender if winner == user else user
-            win = int(ch["duel_win_points"])
-            loss = int(ch["duel_loss_points"])
+            ensure_player(bid, target_value)
 
             conn = get_conn()
             try:
                 with conn.cursor() as cur:
+                    # Remove apostas expiradas do mesmo canal.
                     cur.execute(
-                        "UPDATE players SET points=points+%s WHERE broadcaster_user_id=%s AND username=%s",
-                        (win, bid, winner),
+                        "DELETE FROM pending_bets WHERE broadcaster_user_id=%s AND (status<>'pending' OR expires_at<NOW())",
+                        (bid,),
                     )
+
                     cur.execute(
-                        "UPDATE players SET points=GREATEST(0,points-%s) WHERE broadcaster_user_id=%s AND username=%s",
-                        (loss, bid, loser),
+                        """
+                        SELECT id FROM pending_bets
+                         WHERE broadcaster_user_id=%s
+                           AND status='pending'
+                           AND (challenger=%s OR defender=%s OR challenger=%s OR defender=%s)
+                         LIMIT 1
+                        """,
+                        (bid, user, user, target_value, target_value),
                     )
+                    existing = cur.fetchone()
+                    if existing:
+                        _send_chat(
+                            bid,
+                            f"⚔️ Já existe uma aposta pendente envolvendo {_mention(user)} ou {_mention(target_value)}."
+                        )
+                        return
+
                     cur.execute(
-                        "INSERT INTO duel_events (broadcaster_user_id,attacker,defender,winner,winner_points_delta,loser_points_delta) VALUES (%s,%s,%s,%s,%s,%s)",
-                        (bid, user, defender, winner, win, -loss),
+                        """
+                        SELECT points FROM players
+                         WHERE broadcaster_user_id=%s AND username=%s
+                        FOR UPDATE
+                        """,
+                        (bid, user),
                     )
+                    row = cur.fetchone()
+                    current_points = int(row[0] or 0) if row else 0
+
+                    if current_points < amount_value:
+                        _send_chat(
+                            bid,
+                            f"❌ {_mention(user)} não tem {amount_value} {currency} para apostar. Saldo: {current_points}."
+                        )
+                        return
+
+                    cur.execute(
+                        """
+                        INSERT INTO pending_bets
+                            (broadcaster_user_id, challenger, defender, amount)
+                        VALUES (%s,%s,%s,%s)
+                        RETURNING id
+                        """,
+                        (bid, user, target_value, amount_value),
+                    )
+                    bet_id = cur.fetchone()[0]
                 conn.commit()
             finally:
                 conn.close()
 
-            result = (
-                f"⚔️ {_mention(user)} apostou contra {_mention(defender)}! "
-                f"💥 {_mention(winner)} venceu! "
-                f"🏆 +{win} {currency} para {_mention(winner)}. "
-                f"💀 {_mention(loser)} perdeu {loss}."
-            )
-
             duel_values = {
                 "user": _mention(user),
-                "target": _mention(defender),
-                "amount": amount_value if amount_value is not None else "",
+                "target": _mention(target_value),
+                "amount": amount_value,
                 "command": cfg["command"],
-                "duel_result": result,
+                "duel_result": (
+                    f"⚔️ {_mention(user)} desafiou {_mention(target_value)} "
+                    f"por {amount_value} {currency}! "
+                    f"✅ {_mention(target_value)} pode usar !aceitar ou !correr."
+                ),
                 "attacker": _mention(user),
-                "defender": _mention(defender),
-                "winner": _mention(winner),
-                "loser": _mention(loser),
-                "win": win,
-                "loss": loss,
+                "defender": _mention(target_value),
+                "winner": "",
+                "loser": "",
+                "win": amount_value,
+                "loss": amount_value,
                 "currency": currency,
                 "emoji": emoji,
+                "bet_id": bet_id,
             }
+            _send_chat(bid, _render_response(cfg["response"], duel_values))
+            return
+
+        if key in {"bet_accept", "bet_decline"}:
+            conn = get_conn()
+            try:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT id, challenger, defender, amount
+                          FROM pending_bets
+                         WHERE broadcaster_user_id=%s
+                           AND defender=%s
+                           AND status='pending'
+                           AND expires_at>=NOW()
+                         ORDER BY created_at DESC
+                         LIMIT 1
+                        FOR UPDATE
+                        """,
+                        (bid, user),
+                    )
+                    bet = cur.fetchone()
+
+                    if not bet:
+                        result = "⚔️ Você não possui uma aposta pendente para aceitar ou recusar."
+                    elif key == "bet_decline":
+                        cur.execute(
+                            "UPDATE pending_bets SET status='declined' WHERE id=%s",
+                            (bet[0],),
+                        )
+                        result = (
+                            f"🏃 {_mention(user)} recusou a aposta de "
+                            f"{_mention(bet[1])}."
+                        )
+                    else:
+                        bet_id, challenger, defender, amount = bet
+                        amount = int(amount)
+
+                        cur.execute(
+                            """
+                            SELECT username, points
+                              FROM players
+                             WHERE broadcaster_user_id=%s
+                               AND username IN (%s,%s)
+                             FOR UPDATE
+                            """,
+                            (bid, challenger, defender),
+                        )
+                        balances = {row[0]: int(row[1] or 0) for row in cur.fetchall()}
+                        challenger_points = balances.get(challenger, 0)
+                        defender_points = balances.get(defender, 0)
+
+                        if challenger_points < amount:
+                            cur.execute(
+                                "UPDATE pending_bets SET status='cancelled' WHERE id=%s",
+                                (bet_id,),
+                            )
+                            result = (
+                                f"❌ A aposta foi cancelada: {_mention(challenger)} "
+                                f"não possui mais {amount} {currency}."
+                            )
+                        elif defender_points < amount:
+                            cur.execute(
+                                "UPDATE pending_bets SET status='cancelled' WHERE id=%s",
+                                (bet_id,),
+                            )
+                            result = (
+                                f"❌ {_mention(user)} não possui {amount} {currency} "
+                                f"para aceitar a aposta."
+                            )
+                        else:
+                            import random
+                            winner = challenger if random.choice([True, False]) else defender
+                            loser = defender if winner == challenger else challenger
+
+                            cur.execute(
+                                """
+                                UPDATE players
+                                   SET points=points+%s, duels=duels+1, updated_at=NOW()
+                                 WHERE broadcaster_user_id=%s AND username=%s
+                                """,
+                                (amount, bid, winner),
+                            )
+                            cur.execute(
+                                """
+                                UPDATE players
+                                   SET points=GREATEST(0,points-%s), duels=duels+1, updated_at=NOW()
+                                 WHERE broadcaster_user_id=%s AND username=%s
+                                """,
+                                (amount, bid, loser),
+                            )
+                            cur.execute(
+                                "UPDATE pending_bets SET status='accepted' WHERE id=%s",
+                                (bet_id,),
+                            )
+                            cur.execute(
+                                """
+                                INSERT INTO duel_events
+                                    (broadcaster_user_id,attacker,defender,winner,
+                                     winner_points_delta,loser_points_delta)
+                                VALUES (%s,%s,%s,%s,%s,%s)
+                                """,
+                                (bid, challenger, defender, winner, amount, -amount),
+                            )
+                            result = (
+                                f"🎲 {_mention(challenger)} x {_mention(defender)}! "
+                                f"🏆 {_mention(winner)} venceu e ganhou {amount} {currency}. "
+                                f"💀 {_mention(loser)} perdeu {amount} {currency}."
+                            )
+
+                conn.commit()
+            finally:
+                conn.close()
 
             _send_chat(
                 bid,
-                _render_response(cfg["response"], duel_values),
+                _render_response(
+                    cfg["response"],
+                    {
+                        "user": _mention(user),
+                        "target": _mention(bet[1]) if bet else "",
+                        "amount": int(bet[3]) if bet else "",
+                        "command": cfg["command"],
+                        "bet_result": result,
+                        "duel_result": result,
+                        "currency": currency,
+                        "emoji": emoji,
+                    },
+                ),
             )
             return
 

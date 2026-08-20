@@ -6,6 +6,8 @@ SYSTEM = {
     "points": ("!pontos", "Consulta seu saldo de pontos.", "public", DEFAULT_POINTS_RESPONSE),
     "ranking": ("!ranking", "Mostra o ranking do canal.", "public", "$(ranking)"),
     "duel": ("!aposta", "Inicia uma aposta contra outro usuário.", "public", "$(duel_result)"),
+    "bet_accept": ("!aceitar", "Aceita uma aposta pendente.", "public", "$(bet_result)"),
+    "bet_decline": ("!correr", "Recusa uma aposta pendente.", "public", "$(bet_result)"),
     "cmds": ("!cmds", "Lista os comandos personalizados da live.", "public", "$(commands)"),
     "addcmd": ("!addcmd", "Cria ou atualiza um comando personalizado.", "mod", "✅ $(command) configurado."),
     "addpoint": ("!addpoint", "Adiciona pontos a um usuário.", "mod", "🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency)."),
