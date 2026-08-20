@@ -25,8 +25,26 @@ async function apiJson(url, options = {}) {
   return data;
 }
 
+function sn7ShowOperationLoader() {
+  const loader = document.getElementById("sn7OperationLoader");
+  if (loader) loader.classList.add("open");
+}
+
+function sn7HideOperationLoader() {
+  const loader = document.getElementById("sn7OperationLoader");
+  if (loader) loader.classList.remove("open");
+}
+
+function sn7HideBootLoader() {
+  const loader = document.getElementById("sn7BootLoader");
+  if (!loader) return;
+  loader.classList.add("done");
+  setTimeout(() => loader.remove(), 220);
+}
+
 
 const SN7_ACTIVE_TAB_KEY = "sn7-core-active-tab";
+const SN7_ACTIVE_MODAL_KEY = "sn7-core-active-modal";
 let sn7NavigationReady = false;
 
 function getSavedTab() {
@@ -364,6 +382,7 @@ function closeCommandModal() {
   const modal = document.querySelector(".sn7-command-modal");
   if (!modal) return;
   modal.classList.remove("open");
+  try { sessionStorage.removeItem(SN7_ACTIVE_MODAL_KEY); } catch (_) {}
   setTimeout(() => modal.remove(), 220);
 }
 
@@ -524,6 +543,7 @@ function showCommand(command, isNew = false) {
       </div>
     </div>`;
   document.body.appendChild(modal);
+  try { sessionStorage.setItem(SN7_ACTIVE_MODAL_KEY, `command:${command.command_key || "new"}`); } catch (_) {}
   requestAnimationFrame(() => modal.classList.add("open"));
   if (isNew) renderDraftAliases();
 }
@@ -535,9 +555,12 @@ async function saveCommandV2(encodedKey, isNew, button) {
     response: $("v2resp")?.value,
   };
   if (isNew) body.aliases = [...draftAliases];
+  const modal = document.querySelector(".sn7-command-modal");
+  if (modal?.dataset.resetAliases === "1") body.reset_aliases = true;
   const saveButton = button || $("commandSaveButton");
   const originalText = saveButton?.textContent || "Salvar alterações";
   if (saveButton) { saveButton.disabled = true; saveButton.textContent = "Salvando..."; }
+  sn7ShowOperationLoader();
   try {
     const data = await apiJson(
       isNew
@@ -566,12 +589,14 @@ async function saveCommandV2(encodedKey, isNew, button) {
     setSaveMessage("commandSaveMsg", `⚠ ${error.message}`, false);
   } finally {
     if (saveButton) saveButton.disabled = false;
+    sn7HideOperationLoader();
   }
 }
 
 async function addAlias(encodedKey) {
   const alias = $("v2alias")?.value.trim();
   if (!alias) return;
+  sn7ShowOperationLoader();
   try {
     await apiJson(`/api/commands/${BROADCASTER_ID}/${encodedKey}/aliases`, {
       method: "POST",
@@ -583,10 +608,13 @@ async function addAlias(encodedKey) {
     openCommand(encodedKey);
   } catch (error) {
     alert(error.message);
+  } finally {
+    sn7HideOperationLoader();
   }
 }
 
 async function removeAlias(encodedKey, encodedAlias) {
+  sn7ShowOperationLoader();
   try {
     await apiJson(`/api/commands/${BROADCASTER_ID}/${encodedKey}/aliases`, {
       method: "DELETE",
@@ -598,6 +626,8 @@ async function removeAlias(encodedKey, encodedAlias) {
     openCommand(encodedKey);
   } catch (error) {
     alert(error.message);
+  } finally {
+    sn7HideOperationLoader();
   }
 }
 
@@ -608,18 +638,36 @@ async function resetSystemCommandV2(encodedKey) {
 
   const ok = await sn7ConfirmAction(
     "Redefinir configuração?",
-    `A configuração de ${command.command} será restaurada para o padrão original do sistema.`,
+    `A configuração de ${command.command} será restaurada para o padrão original do sistema. Clique em Salvar alterações para aplicar.`,
     "Continuar"
   );
   if (!ok) return;
 
+  sn7ShowOperationLoader();
   try {
-    await apiJson(`/api/commands/${BROADCASTER_ID}/${encodedKey}/reset`, { method: "POST" });
-    document.querySelector(".sn7-command-modal")?.remove();
-    await loadCommands();
-    openCommand(encodedKey);
+    const data = await apiJson(`/api/commands/${BROADCASTER_ID}/${encodedKey}/reset`, { method: "POST" });
+    const defaults = data.default;
+    if (!defaults) throw new Error("Não foi possível carregar o padrão do comando.");
+    const currentModal = document.querySelector(".sn7-command-modal");
+    if (currentModal) {
+      currentModal.dataset.resetAliases = "1";
+      currentModal.remove();
+    }
+    showCommand({
+      ...command,
+      command: defaults.command,
+      description: defaults.description,
+      response: defaults.response,
+      enabled: true,
+      aliases: [],
+    }, false);
+    const modal = document.querySelector(".sn7-command-modal");
+    if (modal) modal.dataset.resetAliases = "1";
+    setSaveMessage("commandSaveMsg", "Padrão carregado. Clique em Salvar alterações para aplicar.", true);
   } catch (error) {
-    alert(error.message);
+    setSaveMessage("commandSaveMsg", `⚠ ${error.message}`, false);
+  } finally {
+    sn7HideOperationLoader();
   }
 }
 
@@ -632,6 +680,7 @@ async function deleteCommandV2(encodedKey, isSystem, button) {
     button.disabled = true;
     button.innerHTML = `<span class="sn7-spinner"></span>${isSystem ? "Atualizando..." : "Excluindo..."}`;
   }
+  sn7ShowOperationLoader();
 
   try {
     const row = button?.closest(".sn7-command-row");
@@ -657,6 +706,8 @@ async function deleteCommandV2(encodedKey, isSystem, button) {
       button.textContent = originalText || (isSystem ? "Desativar comando" : "Excluir");
     }
     alert(error.message);
+  } finally {
+    sn7HideOperationLoader();
   }
 }
 
@@ -681,8 +732,7 @@ async function loadSettings() {
   await loadCommands();
 }
 
-async function saveSettingsAndClose(modalId) {
-  const button = (typeof event !== "undefined" && event) ? event.currentTarget : null;
+async function saveSettingsAndClose(modalId, button) {
   if (button) button.disabled = true;
   try {
     const ok = await saveSettings();
@@ -727,11 +777,14 @@ async function resetRankingPoints() {
   );
   if (!ok) return;
 
+  sn7ShowOperationLoader();
   try {
     await apiJson(`/api/ranking/${BROADCASTER_ID}/reset`, { method: "POST" });
     await loadRanking();
   } catch (error) {
     alert(error.message);
+  } finally {
+    sn7HideOperationLoader();
   }
 }
 
@@ -746,14 +799,25 @@ async function saveSettings() {
     if ($(key)) data[key] = $(key).value;
   });
 
+  sn7ShowOperationLoader();
   try {
     const result = await apiJson(`/api/settings/${BROADCASTER_ID}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    updatePreview(result.settings);
-    updateEconomyCards(result.settings);
+    const saved = result.settings || {};
+    Object.assign(saved, saved.point_rewards || {});
+    [
+      "currency_name", "currency_command", "currency_emoji", "points_response",
+      "rank_title", "rank_limit", "duel_win_points", "duel_loss_points",
+      "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick",
+    ].forEach((key) => {
+      if ($(key) && Object.prototype.hasOwnProperty.call(saved, key)) $(key).value = saved[key] ?? "";
+    });
+    updatePreview(saved);
+    updateEconomyCards(saved);
+    renderCommands();
     setMessage("✓ Alterações salvas.", true);
     setSaveMessage("rewardsMsg", "✓ Alterações salvas.", true);
     await loadCommands();
@@ -761,6 +825,8 @@ async function saveSettings() {
   } catch (error) {
     setMessage(`⚠ ${error.message}`, false);
     return false;
+  } finally {
+    sn7HideOperationLoader();
   }
 }
 
@@ -780,8 +846,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  loadSettings();
-  loadRanking();
+  Promise.allSettled([loadSettings(), loadRanking()]).finally(() => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (typeof window.sn7RestoreSavedModal === "function") {
+          window.sn7RestoreSavedModal();
+        }
+        sn7HideBootLoader();
+      }, 80);
+    });
+  });
 });
 
 // SN7 MODAL + POINTS CLEAN IMPLEMENTATION
@@ -801,6 +875,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!el) return false;
     if (el.parentElement !== document.body) document.body.appendChild(el);
     el.hidden = false;
+    try { sessionStorage.setItem(SN7_ACTIVE_MODAL_KEY, id); } catch (_) {}
     syncBodyLock();
     const card = el.querySelector(".sn7-config-modal-card");
     if (card) card.scrollTop = 0;
@@ -811,6 +886,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const el = $(id);
     if (!el) return false;
     el.hidden = true;
+    try {
+      if (sessionStorage.getItem(SN7_ACTIVE_MODAL_KEY) === id) sessionStorage.removeItem(SN7_ACTIVE_MODAL_KEY);
+    } catch (_) {}
     syncBodyLock();
     return true;
   }
@@ -826,6 +904,30 @@ document.addEventListener("DOMContentLoaded", () => {
     return true;
   };
   window.closeApostaEditor = () => closeModal("sn7ApostaEditor");
+
+
+  window.sn7RestoreSavedModal = async function () {
+    try {
+      const id = sessionStorage.getItem(SN7_ACTIVE_MODAL_KEY);
+      if (!id) return;
+
+      if (id === "sn7ApostaEditor") {
+        openModal(id);
+        await loadApostaSettings();
+      } else if (id === "sn7PointsEditor" || id === "sn7RewardsEditor") {
+        openModal(id);
+      } else if (id.startsWith("command:")) {
+        const key = id.slice(8);
+        if (key && key !== "new") {
+          if (!commandCache.length) {
+            await loadCommands();
+          }
+          const encoded = encodeURIComponent(key);
+          setTimeout(() => openCommand(encoded), 80);
+        }
+      }
+    } catch (_) {}
+  };
 
   function applyDefaults() {
     const name = $("currency_name");
@@ -888,70 +990,63 @@ document.addEventListener("DOMContentLoaded", () => {
   async function resetPointsSettings() {
     const ok = await sn7ConfirmAction(
       "Redefinir configuração de pontos?",
-      "A configuração atual será substituída pelo padrão original do sistema. Isso não apaga os pontos dos usuários.",
+      "Os campos voltarão ao padrão original. Nada será salvo até você clicar em Salvar alterações.",
       "Continuar"
     );
     if (!ok) return;
 
+    sn7ShowOperationLoader();
     try {
-      const data = await apiJson(`/api/settings/${BROADCASTER_ID}/reset-points`, { method: "POST" });
-      const settings = data.settings || {};
-      Object.assign(settings, settings.point_rewards || {});
-      [
-        "currency_name", "currency_command", "currency_emoji", "points_response",
-        "rank_title", "rank_limit", "duel_win_points", "duel_loss_points",
-        "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick",
-      ].forEach((key) => {
-        if ($(key)) $(key).value = settings[key] ?? "";
-      });
-      updatePreview(settings);
-      updateEconomyCards(settings);
-      await loadCommands();
-      if ($("settingsMsg")) $("settingsMsg").textContent = "✓ Configuração redefinida.";
-    } catch (e) {
-      if ($("settingsMsg")) $("settingsMsg").textContent = "⚠ " + e.message;
+      const defaults = {
+        currency_name: "Pontos",
+        currency_command: "!pontos",
+        currency_emoji: "",
+        points_response: "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)",
+      };
+      Object.entries(defaults).forEach(([key, value]) => { if ($(key)) $(key).value = value; });
+      updatePreview(defaults);
+      updateEconomyCards(defaults);
+      if ($("settingsMsg")) setSaveMessage("settingsMsg", "Padrão carregado. Clique em Salvar alterações para aplicar.", true);
+    } finally {
+      sn7HideOperationLoader();
     }
   }
 
   async function resetRewardsSettings() {
     const ok = await sn7ConfirmAction(
       "Redefinir recompensas?",
-      "Os valores de presença, intervalo, bônus de inscrição e bônus por KICK voltarão ao padrão original.",
+      "Os valores voltarão ao padrão original. Nada será salvo até você clicar em Salvar alterações.",
       "Continuar"
     );
     if (!ok) return;
 
+    sn7ShowOperationLoader();
     try {
-      const data = await apiJson(`/api/settings/${BROADCASTER_ID}/reset-rewards`, { method: "POST" });
-      const settings = data.settings || {};
-      Object.assign(settings, settings.point_rewards || {});
-      [
-        "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick",
-      ].forEach((key) => {
-        if ($(key)) $(key).value = settings[key] ?? "";
-      });
-      updateEconomyCards(settings);
-      if ($("rewardsMsg")) $("rewardsMsg").textContent = "✓ Configuração redefinida.";
-    } catch (e) {
-      if ($("rewardsMsg")) $("rewardsMsg").textContent = "⚠ " + e.message;
+      const defaults = { watch_points: "1", watch_interval_minutes: "10", sub_bonus: "500", kicks_bonus_per_kick: "1" };
+      Object.entries(defaults).forEach(([key, value]) => { if ($(key)) $(key).value = value; });
+      updateEconomyCards();
+      setSaveMessage("rewardsMsg", "Padrão carregado. Clique em Salvar alterações para aplicar.", true);
+    } finally {
+      sn7HideOperationLoader();
     }
   }
 
   async function resetApostaSettings() {
     const ok = await sn7ConfirmAction(
       "Redefinir configuração da aposta?",
-      "O comando e a mensagem da aposta voltarão ao padrão original do sistema.",
+      "O comando e a mensagem voltarão ao padrão original. Nada será salvo até você clicar em Salvar alterações.",
       "Continuar"
     );
     if (!ok) return;
 
+    sn7ShowOperationLoader();
     try {
-      await apiJson(`/api/commands/${BROADCASTER_ID}/duel/reset`, { method: "POST" });
-      await loadCommands();
-      await loadApostaSettings();
-      if ($("apostaMsg")) $("apostaMsg").textContent = "✓ Configuração redefinida.";
-    } catch (e) {
-      if ($("apostaMsg")) $("apostaMsg").textContent = "⚠ " + e.message;
+      if ($("aposta_command")) $("aposta_command").value = "!aposta";
+      if ($("aposta_response")) $("aposta_response").value = "$(user) está apostando $(amount) $(currency) contra $(target). Digite $(accept_command) ou $(decline_command).";
+      if ($("apostaCardCommand")) $("apostaCardCommand").textContent = "!aposta";
+      setSaveMessage("apostaMsg", "Padrão carregado. Clique em Salvar alterações para aplicar.", true);
+    } finally {
+      sn7HideOperationLoader();
     }
   }
 
@@ -961,6 +1056,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function saveApostaSettings() {
     const msg = $("apostaMsg");
+    sn7ShowOperationLoader();
     try {
       const command = $("aposta_command")?.value.trim() || "!aposta";
       const response = $("aposta_response")?.value.trim() || "$(duel_result)";
@@ -969,11 +1065,14 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({command, response})
       });
+      await loadCommands();
       if ($("apostaCardCommand")) $("apostaCardCommand").textContent = command;
       setSaveMessage("apostaMsg", "✓ Alterações salvas.", true);
       if ($("apostaMsg")) $("apostaMsg").textContent = "✓ Alterações salvas.";
     } catch (e) {
       if (msg) msg.textContent = "⚠ " + e.message;
+    } finally {
+      sn7HideOperationLoader();
     }
   }
 

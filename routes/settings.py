@@ -38,64 +38,40 @@ def get_settings(broadcaster_id):
 
 @settings_bp.post("/<int:broadcaster_id>/reset-points")
 def reset_points_settings(broadcaster_id):
-    try:
-        ensure_channel(broadcaster_id)
-        update_command(
-            broadcaster_id,
-            "points",
-            command="!pontos",
-            response=DEFAULT_SETTINGS["points_response"],
-            enabled=True,
-        )
-        conn = get_conn()
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    UPDATE channels
-                       SET currency_name='Pontos',
-                           currency_command='!pontos',
-                           currency_emoji='',
-                           points_response=%s,
-                           updated_at=NOW()
-                     WHERE broadcaster_user_id=%s
-                    """,
-                    (DEFAULT_SETTINGS["points_response"], broadcaster_id),
-                )
-            conn.commit()
-        finally:
-            conn.close()
-        return jsonify({
-            "ok": True,
-            "settings": {**get_channel(broadcaster_id), "point_rewards": get_point_rewards(broadcaster_id)},
-            "demo": False,
-        })
-    except Exception as exc:
-        print(f"[SETTINGS] RESET POINTS erro: {exc}", flush=True)
-        return jsonify({"ok": False, "error": str(exc)}), 500
-
-
-@settings_bp.post("/<int:broadcaster_id>/reset-rewards")
-def reset_rewards_settings(broadcaster_id):
-    try:
-        ensure_channel(broadcaster_id)
-        update_point_rewards(
-            broadcaster_id,
-            {
+    # Endpoint de pré-visualização: o reset só é persistido pelo PUT de salvar.
+    return jsonify({
+        "ok": True,
+        "settings": {
+            **DEFAULT_SETTINGS,
+            "broadcaster_user_id": broadcaster_id,
+            "point_rewards": {
                 "watch_points": DEFAULT_SETTINGS["watch_points"],
                 "watch_interval_minutes": DEFAULT_SETTINGS["watch_interval_minutes"],
                 "sub_bonus": DEFAULT_SETTINGS["sub_bonus"],
                 "kicks_bonus_per_kick": DEFAULT_SETTINGS["kicks_bonus_per_kick"],
             },
-        )
-        return jsonify({
-            "ok": True,
-            "settings": {**get_channel(broadcaster_id), "point_rewards": get_point_rewards(broadcaster_id)},
-            "demo": False,
-        })
-    except Exception as exc:
-        print(f"[SETTINGS] RESET REWARDS erro: {exc}", flush=True)
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        },
+        "demo": False,
+    })
+
+
+@settings_bp.post("/<int:broadcaster_id>/reset-rewards")
+def reset_rewards_settings(broadcaster_id):
+    # Endpoint de pré-visualização: o reset só é persistido pelo PUT de salvar.
+    return jsonify({
+        "ok": True,
+        "settings": {
+            **DEFAULT_SETTINGS,
+            "broadcaster_user_id": broadcaster_id,
+            "point_rewards": {
+                "watch_points": DEFAULT_SETTINGS["watch_points"],
+                "watch_interval_minutes": DEFAULT_SETTINGS["watch_interval_minutes"],
+                "sub_bonus": DEFAULT_SETTINGS["sub_bonus"],
+                "kicks_bonus_per_kick": DEFAULT_SETTINGS["kicks_bonus_per_kick"],
+            },
+        },
+        "demo": False,
+    })
 
 
 @settings_bp.put("/<int:broadcaster_id>")

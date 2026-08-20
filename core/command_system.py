@@ -17,72 +17,22 @@ SYSTEM = {
 }
 
 
-def reset_system_command(bid, key):
-    """Restaura um comando de sistema ao padrão original do Core."""
-    bid = int(bid)
+def get_system_command_default(bid, key):
+    """Retorna o padrão original sem alterar o banco. O reset é aplicado somente ao salvar."""
     key = str(key or "").strip()
     if key not in SYSTEM:
         raise ValueError("Somente comandos do sistema podem ser redefinidos.")
-
     command, description, category, response = SYSTEM[key]
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            if key == "points":
-                cur.execute(
-                    """
-                    UPDATE channels
-                       SET currency_name='Pontos',
-                           currency_command='!pontos',
-                           currency_emoji='',
-                           points_response=%s,
-                           updated_at=NOW()
-                     WHERE broadcaster_user_id=%s
-                    """,
-                    (DEFAULT_POINTS_RESPONSE, bid),
-                )
-                command = "!pontos"
-                response = DEFAULT_POINTS_RESPONSE
-
-            cur.execute(
-                """
-                UPDATE command_configs
-                   SET command=%s,
-                       description=%s,
-                       response=%s,
-                       enabled=TRUE,
-                       updated_at=NOW()
-                 WHERE broadcaster_user_id=%s
-                   AND command_key=%s
-                   AND is_system=TRUE
-                """,
-                (command, description, response, bid, key),
-            )
-            if cur.rowcount == 0:
-                cur.execute(
-                    """
-                    INSERT INTO command_configs
-                        (broadcaster_user_id,command_key,command,description,response,enabled,category,is_system)
-                    VALUES (%s,%s,%s,%s,%s,TRUE,%s,TRUE)
-                    """,
-                    (bid, key, command, description, response, category),
-                )
-
-            # Redefinir também remove variantes adicionadas manualmente.
-            cur.execute(
-                """
-                DELETE FROM command_aliases
-                 WHERE broadcaster_user_id=%s
-                   AND command_id IN (
-                       SELECT id FROM command_configs
-                        WHERE broadcaster_user_id=%s AND command_key=%s
-                   )
-                """,
-                (bid, bid, key),
-            )
-        conn.commit()
-    finally:
-        conn.close()
+    return {
+        "command_key": key,
+        "command": command,
+        "description": description,
+        "category": category,
+        "response": response,
+        "enabled": True,
+        "is_system": True,
+        "aliases": [],
+    }
 
 
 def ensure_command_defaults(bid):
@@ -295,7 +245,7 @@ def find_command(bid, typed):
         conn.close()
 
 
-def update_command(bid, key, command=None, response=None, enabled=None, description=None):
+def update_command(bid, key, command=None, response=None, enabled=None, description=None, reset_aliases=False):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -354,6 +304,19 @@ def update_command(bid, key, command=None, response=None, enabled=None, descript
                 cur.execute(
                     "UPDATE channels SET currency_command=%s,updated_at=NOW() WHERE broadcaster_user_id=%s",
                     (command, int(bid)),
+                )
+
+            if reset_aliases:
+                cur.execute(
+                    """
+                    DELETE FROM command_aliases
+                     WHERE broadcaster_user_id=%s
+                       AND command_id=(
+                           SELECT id FROM command_configs
+                            WHERE broadcaster_user_id=%s AND command_key=%s
+                       )
+                    """,
+                    (int(bid), int(bid), key),
                 )
         conn.commit()
     finally:

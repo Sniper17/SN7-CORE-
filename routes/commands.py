@@ -7,7 +7,7 @@ from core.command_system import (
     delete_custom,
     list_commands,
     update_command,
-    reset_system_command,
+    get_system_command_default,
 )
 
 commands_bp = Blueprint("commands", __name__)
@@ -143,6 +143,7 @@ def edit_command(broadcaster_id, key):
             response=data.get("response"),
             enabled=data.get("enabled"),
             description=data.get("description"),
+            reset_aliases=bool(data.get("reset_aliases")),
         )
         return jsonify({"ok": True, "commands": list_commands(broadcaster_id)})
     except ValueError as exc:
@@ -173,8 +174,8 @@ def delete_command(broadcaster_id, key):
 @commands_bp.post("/<int:broadcaster_id>/<path:key>/reset")
 def reset_command(broadcaster_id, key):
     try:
-        reset_system_command(broadcaster_id, key)
-        return jsonify({"ok": True, "commands": list_commands(broadcaster_id)})
+        # Apenas devolve o padrão. Nada é persistido até o usuário clicar em Salvar.
+        return jsonify({"ok": True, "default": get_system_command_default(broadcaster_id, key)})
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
     except Exception as exc:
