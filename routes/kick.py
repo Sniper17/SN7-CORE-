@@ -506,26 +506,71 @@ def _send_chat(broadcaster_id, content):
     return response.status_code < 400
 
 
-def _render_response(template,values):
- text=str(template or '')
- for key,value in values.items():
-  text=text.replace('$('+key+')',str(value))
- if values.get('rank') is None:
-  text=text.replace('#None','')
-  text=text.replace('$(rank)','')
- return ' '.join(text.split())
-def _format_balance(bid,user):
- ch=get_channel(bid);p=get_player(bid,user);rank=get_rank(bid,user)
- emoji=str(ch['currency_emoji'] or '').strip()
- return {
-  'user':user,
-  'points':int(p['points']),
-  'currency':ch['currency_name'],
-  'emoji':emoji,
-  'emoji_text':f' {emoji}' if emoji else '',
-  'rank':rank if rank is not None else '',
-  'rank_text':f' Sua posição no ranking é #{rank}.' if rank is not None else '',
- }
+def _mention(username):
+    """Formata um nome de usuário para o Kick reconhecer como menção."""
+    value = str(username or "").strip()
+    if not value:
+        return ""
+    return value if value.startswith("@") else f"@{value}"
+
+
+
+def _extract_command_values(args):
+    values = {}
+
+    normalized = [
+        str(arg or "").strip()
+        for arg in (args or [])
+        if str(arg or "").strip()
+    ]
+
+    # Primeiro usuário mencionado explicitamente com @.
+    for arg in normalized:
+        if arg.startswith("@") and len(arg) > 1:
+            values["target"] = _mention(arg)
+            break
+
+    # Se não houver @, aceita um argumento textual como usuário-alvo.
+    if "target" not in values:
+        for arg in normalized:
+            if not arg.lstrip("-").isdigit():
+                values["target"] = _mention(arg)
+                break
+
+    # Primeiro número encontrado = quantidade.
+    for arg in normalized:
+        try:
+            values["amount"] = int(arg)
+            break
+        except (TypeError, ValueError):
+            continue
+
+    return values
+
+def _render_response(template, values):
+    text = str(template or "")
+    for key, value in values.items():
+        text = text.replace(f"$({key})", str(value))
+    if values.get("rank") is None:
+        text = text.replace("#None", "")
+        text = text.replace("$(rank)", "")
+    return " ".join(text.split())
+
+
+def _format_balance(bid, user):
+    ch = get_channel(bid)
+    p = get_player(bid, user)
+    rank = get_rank(bid, user)
+    emoji = str(ch["currency_emoji"] or "").strip()
+    return {
+        "user": _mention(user),
+        "points": int(p["points"]),
+        "currency": ch["currency_name"],
+        "emoji": emoji,
+        "emoji_text": f" {emoji}" if emoji else "",
+        "rank": rank if rank is not None else "",
+        "rank_text": f" Sua posição no ranking é #{rank}." if rank is not None else "",
+    }
 def _format_ranking(bid):
  ch=get_channel(bid);limit=max(1,min(int(ch['rank_limit']),10));c=get_conn()
  try:
@@ -664,8 +709,8 @@ def _process_chat(payload):
                 conn.close()
 
             result = (
-                f"⚔️ {user} atacou primeiro! 💥 {winner} venceu o duelo! "
-                f"🏆 +{win} {currency} para {winner}. 💀 {loser} perdeu {loss}."
+                f"⚔️ {_mention(user)} atacou primeiro! 💥 {_mention(winner)} venceu o duelo! "
+                f"🏆 +{win} {currency} para {_mention(winner)}. 💀 {_mention(loser)} perdeu {loss}."
             )
             _send_chat(
                 bid,
@@ -673,10 +718,10 @@ def _process_chat(payload):
                     cfg["response"],
                     {
                         "duel_result": result,
-                        "attacker": user,
-                        "defender": defender,
-                        "winner": winner,
-                        "loser": loser,
+                        "attacker": _mention(user),
+                        "defender": _mention(defender),
+                        "winner": _mention(winner),
+                        "loser": _mention(loser),
                         "win": win,
                         "loss": loss,
                         "currency": currency,
@@ -777,7 +822,7 @@ def _process_chat(payload):
                 _render_response(
                     cfg["response"],
                     {
-                        "target": target,
+                        "target": _mention(target),
                         "amount": amount,
                         "new_points": new_points,
                         "currency": currency,
@@ -817,7 +862,17 @@ def _process_chat(payload):
             return
 
         if not cfg["is_system"]:
-            _send_chat(bid, _render_response(cfg["response"], {"user": user}))
+            custom_values = {
+                "user": _mention(user),
+            }
+
+            # Extrai automaticamente usuário-alvo e quantidade.
+            custom_values.update(_extract_command_values(args))
+
+            _send_chat(
+                bid,
+                _render_response(cfg["response"], custom_values)
+            )
 
     except Exception as exc:
         print(f"[KICK-CHAT] erro processando {content!r}: {exc}", flush=True)
