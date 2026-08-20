@@ -64,6 +64,17 @@ def ensure_command_defaults(bid):
             cur.execute(
                 """
                 UPDATE command_configs
+                   SET command='!aposta', updated_at=NOW()
+                 WHERE broadcaster_user_id=%s
+                   AND command_key='duel'
+                   AND LOWER(command)='!duelo'
+                """,
+                (bid,),
+            )
+
+            cur.execute(
+                """
+                UPDATE command_configs
                    SET command=%s, response=%s, updated_at=NOW()
                  WHERE broadcaster_user_id=%s
                    AND command_key='points'

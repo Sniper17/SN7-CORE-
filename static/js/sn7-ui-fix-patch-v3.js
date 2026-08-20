@@ -154,7 +154,7 @@
     var definitions = [
       ["points", "!points", "Consulta seu saldo de pontos.", "public", DEFAULT_SETTINGS.points_response],
       ["ranking", "!ranking", "Mostra o ranking do canal.", "public", "$(ranking)"],
-      ["duel", "!duelo", "Inicia um duelo contra outro usuário.", "public", "$(duel_result)"],
+      ["duel", "!aposta", "Inicia um duelo contra outro usuário.", "public", "$(duel_result)"],
       ["cmds", "!cmds", "Lista os comandos personalizados da live.", "public", "$(commands)"],
       ["addcmd", "!addcmd", "Cria ou atualiza um comando personalizado.", "mod", "✅ $(command) configurado."],
       ["addpoint", "!addpoint", "Adiciona pontos a um usuário.", "mod", "🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency)."],

@@ -37,7 +37,7 @@
     "!pontos": ["!pontos @user", "@user tem 19.283 Pontos e sua posição no ranking é #4."],
     "!ranking": ["!ranking", "🏆 1. @user 19.283 • 2. Player 10.000"],
     "!aposta": ["!aposta @user", "⚔️ @user venceu a aposta contra @oponente!"],
-    "!cmds": ["!cmds", "📜 Comandos: !meta !duelo !ranking"],
+    "!cmds": ["!cmds", "📜 Comandos: !meta !aposta !ranking"],
     "!addcmd": ["!addcmd !discord Entre no Discord", "✅ !discord configurado."],
     "!addpoint": ["!addpoint @user 1000", "@user tinha 20 Pontos e agora tem 1.020 Pontos."],
     "!setpoint": ["!setpoint @user 1000", "@user tinha 5.000 Pontos e agora tem somente 1.000 Pontos."],

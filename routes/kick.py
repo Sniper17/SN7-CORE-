@@ -658,23 +658,44 @@ def _process_chat(payload):
             return
 
         if key == "duel":
-            if not args:
+            # Aceita @usuario, usuario, @usuario 100 ou 100 @usuario.
+            command_values = _extract_command_values(args)
+            target_value = str(command_values.get("target") or "").strip().lstrip("@")
+            amount_value = command_values.get("amount")
+
+            if not target_value:
                 _send_chat(
                     bid,
                     _render_response(
                         cfg["response"],
-                        {"duel_result": "⚔️ Use !duelo @usuário"},
+                        {
+                            "user": _mention(user),
+                            "target": "",
+                            "amount": amount_value if amount_value is not None else "",
+                            "command": cfg["command"],
+                            "duel_result": f"⚔️ Use {cfg['command']} @usuário",
+                            "currency": currency,
+                            "emoji": emoji,
+                        },
                     ),
                 )
                 return
 
-            defender = args[0].lstrip("@").strip()
+            defender = target_value
             if not defender or defender.lower() == user.lower():
                 _send_chat(
                     bid,
                     _render_response(
                         cfg["response"],
-                        {"duel_result": "⚔️ Você não pode duelar consigo mesmo."},
+                        {
+                            "user": _mention(user),
+                            "target": _mention(defender),
+                            "amount": amount_value if amount_value is not None else "",
+                            "command": cfg["command"],
+                            "duel_result": "⚔️ Você não pode apostar consigo mesmo.",
+                            "currency": currency,
+                            "emoji": emoji,
+                        },
                     ),
                 )
                 return
@@ -685,6 +706,7 @@ def _process_chat(payload):
             loser = defender if winner == user else user
             win = int(ch["duel_win_points"])
             loss = int(ch["duel_loss_points"])
+
             conn = get_conn()
             try:
                 with conn.cursor() as cur:
@@ -697,11 +719,7 @@ def _process_chat(payload):
                         (loss, bid, loser),
                     )
                     cur.execute(
-                        """
-                        INSERT INTO duel_events
-                            (broadcaster_user_id,attacker,defender,winner,winner_points_delta,loser_points_delta)
-                        VALUES (%s,%s,%s,%s,%s,%s)
-                        """,
+                        "INSERT INTO duel_events (broadcaster_user_id,attacker,defender,winner,winner_points_delta,loser_points_delta) VALUES (%s,%s,%s,%s,%s,%s)",
                         (bid, user, defender, winner, win, -loss),
                     )
                 conn.commit()
@@ -709,25 +727,31 @@ def _process_chat(payload):
                 conn.close()
 
             result = (
-                f"⚔️ {_mention(user)} atacou primeiro! 💥 {_mention(winner)} venceu o duelo! "
-                f"🏆 +{win} {currency} para {_mention(winner)}. 💀 {_mention(loser)} perdeu {loss}."
+                f"⚔️ {_mention(user)} apostou contra {_mention(defender)}! "
+                f"💥 {_mention(winner)} venceu! "
+                f"🏆 +{win} {currency} para {_mention(winner)}. "
+                f"💀 {_mention(loser)} perdeu {loss}."
             )
+
+            duel_values = {
+                "user": _mention(user),
+                "target": _mention(defender),
+                "amount": amount_value if amount_value is not None else "",
+                "command": cfg["command"],
+                "duel_result": result,
+                "attacker": _mention(user),
+                "defender": _mention(defender),
+                "winner": _mention(winner),
+                "loser": _mention(loser),
+                "win": win,
+                "loss": loss,
+                "currency": currency,
+                "emoji": emoji,
+            }
+
             _send_chat(
                 bid,
-                _render_response(
-                    cfg["response"],
-                    {
-                        "duel_result": result,
-                        "attacker": _mention(user),
-                        "defender": _mention(defender),
-                        "winner": _mention(winner),
-                        "loser": _mention(loser),
-                        "win": win,
-                        "loss": loss,
-                        "currency": currency,
-                        "emoji": emoji,
-                    },
-                ),
+                _render_response(cfg["response"], duel_values),
             )
             return
 
