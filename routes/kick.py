@@ -31,6 +31,8 @@ _live_status_cache = {}
 _live_status_cache_ttl = 10
 _app_access_token = None
 _app_access_token_expires_at = 0
+_bot_status_cache = {}
+_bot_status_cache_ttl = 30
 
 
 def _env(name, default=""):
@@ -1389,7 +1391,7 @@ def _chat_subscription_ids(access_token):
     response = requests.get(
         f"{KICK_API}/events/subscriptions",
         headers=headers,
-        timeout=20,
+        timeout=8,
     )
     try:
         data = response.json()
@@ -1420,8 +1422,20 @@ def _unsubscribe_chat(access_token):
     return {"ok": True, "active": False, "deleted_subscription_ids": ids}
 
 
-def _bot_active(access_token):
-    return bool(_chat_subscription_ids(access_token))
+def _bot_active(access_token, broadcaster_id=None):
+    try:
+        bid = int(broadcaster_id) if broadcaster_id is not None else None
+    except (TypeError, ValueError):
+        bid = None
+    now = time.time()
+    if bid is not None:
+        cached = _bot_status_cache.get(bid)
+        if cached and now - cached[0] < _bot_status_cache_ttl:
+            return bool(cached[1])
+    active = bool(_chat_subscription_ids(access_token))
+    if bid is not None:
+        _bot_status_cache[bid] = (now, active)
+    return active
 
 
 
@@ -1471,7 +1485,7 @@ def me():
             print(f"[KICK-BOT] não foi possível atualizar perfil: {exc}",flush=True)
 
     try:
-        active=_bot_active(conn["access_token"])
+        active=_bot_active(conn["access_token"], bid)
     except Exception as exc:
         print(f"[KICK-BOT] status falhou: {exc}",flush=True)
         active=False
@@ -1500,6 +1514,7 @@ def bot_toggle():
             result = _subscribe_chat(conn["access_token"], bid)
         else:
             result = _unsubscribe_chat(conn["access_token"])
+        _bot_status_cache[int(bid)] = (time.time(), bool(desired))
         return jsonify({"ok": True, "active": desired, "result": result})
     except Exception as exc:
         print(f"[KICK-BOT] toggle falhou broadcaster={bid}: {exc}", flush=True)

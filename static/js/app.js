@@ -83,8 +83,19 @@ function activateTab(tab, options = {}) {
 
   button.classList.add("active");
 
+  // Carrega cada módulo somente quando ele realmente é aberto.
+  // Isso evita que F5 no painel inicial faça chamadas de banco desnecessárias.
+  if (button.dataset.tab === "economy" && typeof loadSettings === "function") {
+    loadSettings().catch(() => {});
+  }
+  if (button.dataset.tab === "commands" && typeof loadCommands === "function") {
+    loadCommands().catch(() => {});
+  }
   if (button.dataset.tab === "ranking" && typeof loadRanking === "function") {
-    loadRanking();
+    loadRanking().catch(() => {});
+  }
+  if (button.dataset.tab === "profile" && typeof window.sn7LoadProfile === "function") {
+    window.sn7LoadProfile();
   }
 
   const title = $("title");
@@ -881,20 +892,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // O conteúdo essencial não deve ficar bloqueado pelo ranking.
-  // Configurações e comandos carregam em paralelo; o ranking fica em segundo plano.
-  Promise.allSettled([loadSettings(), loadCommands()]).finally(() => {
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        if (typeof window.sn7RestoreSavedModal === "function") {
-          window.sn7RestoreSavedModal();
-        }
-        sn7HideBootLoader();
-      }, 80);
-    });
+  // O primeiro paint não espera APIs nem PostgreSQL.
+  // Os módulos carregam sob demanda ao serem abertos.
+  requestAnimationFrame(() => {
+    if (typeof window.sn7RestoreSavedModal === "function") {
+      window.sn7RestoreSavedModal();
+    }
+    sn7HideBootLoader();
   });
-
-  loadRanking().catch(() => {});
 });
 
 // SN7 MODAL + POINTS CLEAN IMPLEMENTATION

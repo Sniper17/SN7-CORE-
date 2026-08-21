@@ -1,14 +1,21 @@
-from flask import session
+from flask import g, session
 from core.database import get_conn
 
 
 def get_session_broadcaster_id():
+    # Evita duas consultas idênticas ao PostgreSQL no mesmo request
+    # (por exemplo, ao renderizar / e /dashboard).
+    if hasattr(g, "sn7_session_broadcaster_id"):
+        return g.sn7_session_broadcaster_id
+
     raw = session.get("kick_broadcaster_id")
     if raw is None:
+        g.sn7_session_broadcaster_id = None
         return None
     try:
         broadcaster_id = int(raw)
     except (TypeError, ValueError):
+        g.sn7_session_broadcaster_id = None
         return None
 
     try:
@@ -20,12 +27,15 @@ def get_session_broadcaster_id():
                     (broadcaster_id,),
                 )
                 if not cur.fetchone():
+                    g.sn7_session_broadcaster_id = None
                     return None
         finally:
             conn.close()
     except Exception:
+        g.sn7_session_broadcaster_id = None
         return None
 
+    g.sn7_session_broadcaster_id = broadcaster_id
     return broadcaster_id
 
 
