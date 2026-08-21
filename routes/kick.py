@@ -2,7 +2,9 @@ import base64
 import hashlib
 import secrets
 import time
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote, urlparse
+import ipaddress
+import socket
 
 import requests
 from cryptography.hazmat.primitives import hashes, serialization
@@ -628,13 +630,129 @@ def _extract_command_values(args):
 
     return values
 
-def _render_response(template, values):
+def _is_public_http_url(url):
+    """Valida uma URL externa antes de permitir uma consulta customapi."""
+    try:
+        parsed = urlparse(str(url or "").strip())
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+            return False
+        hostname = parsed.hostname
+        try:
+            ip = ipaddress.ip_address(hostname)
+            return not (ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified)
+        except ValueError:
+            pass
+
+        infos = socket.getaddrinfo(hostname, 443, type=socket.SOCK_STREAM)
+        addresses = {info[4][0] for info in infos}
+        if not addresses:
+            return False
+        for address in addresses:
+            try:
+                ip = ipaddress.ip_address(address)
+                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
+                    return False
+            except ValueError:
+                return False
+        return True
+    except Exception:
+        return False
+
+
+def _find_balanced_expression(text, start):
+    """Encontra o fechamento correspondente de uma expressão $(...)."""
+    depth = 0
+    for index in range(start, len(text)):
+        if text.startswith("$(", index):
+            depth += 1
+            continue
+        if text[index] == ")" and depth:
+            depth -= 1
+            if depth == 0:
+                return index
+    return None
+
+
+def _expand_customapi(template, args):
+    """Expande apenas customapi/queryescape e o argumento $(1:), sem tocar nas demais variáveis."""
+    args = [str(arg or "").strip() for arg in (args or [])]
+    whole_args = " ".join(arg for arg in args if arg)
+    first_arg = args[0] if args else ""
+
+    def evaluate(text, allow_customapi=True):
+        text = str(text or "")
+        out = []
+        cursor = 0
+        while cursor < len(text):
+            start = text.find("$(", cursor)
+            if start < 0:
+                out.append(text[cursor:])
+                break
+
+            out.append(text[cursor:start])
+            end = _find_balanced_expression(text, start)
+            if end is None:
+                out.append(text[start:])
+                break
+
+            expression = text[start + 2:end].strip()
+            lowered = expression.lower()
+
+            if lowered == "1:":
+                out.append(whole_args)
+            elif lowered == "1":
+                out.append(first_arg)
+            elif lowered.startswith("queryescape "):
+                inner = evaluate(expression[len("queryescape "):].strip(), allow_customapi=False)
+                out.append(quote(inner, safe=""))
+            elif lowered.startswith("customapi ") and allow_customapi:
+                url = evaluate(expression[len("customapi "):].strip(), allow_customapi=False).strip()
+                out.append(_call_customapi(url))
+            else:
+                # Mantém intactas todas as variáveis que ainda não fazem parte desta melhoria.
+                out.append(text[start:end + 1])
+
+            cursor = end + 1
+        return "".join(out)
+
+    return evaluate(template)
+
+
+def _call_customapi(url):
+    """Consulta uma API externa HTTPS com timeout curto e devolve texto simples."""
+    url = str(url or "").strip()
+    if len(url) > 2048 or not _is_public_http_url(url):
+        print(f"[CUSTOMAPI] URL bloqueada: {url[:200]}", flush=True)
+        return "❌ API externa inválida."
+
+    try:
+        response = requests.get(
+            url,
+            headers={"Accept": "text/plain, application/json;q=0.9, */*;q=0.8"},
+            timeout=5,
+            allow_redirects=False,
+        )
+        if response.status_code >= 400:
+            print(f"[CUSTOMAPI] HTTP {response.status_code}: {url}", flush=True)
+            return "❌ API indisponível."
+
+        return response.text.strip()[:450]
+    except requests.RequestException as exc:
+        print(f"[CUSTOMAPI] erro consultando {url}: {exc}", flush=True)
+        return "❌ API indisponível."
+    except Exception as exc:
+        print(f"[CUSTOMAPI] erro inesperado: {exc}", flush=True)
+        return "❌ API indisponível."
+
+
+def _render_response(template, values, args=None):
     text = str(template or "")
     for key, value in values.items():
         text = text.replace(f"$({key})", str(value))
     if values.get("rank") is None:
         text = text.replace("#None", "")
         text = text.replace("$(rank)", "")
+    text = _expand_customapi(text, args or [])
     return " ".join(text.split())
 
 
@@ -1192,7 +1310,7 @@ def _process_chat(payload):
 
             _send_chat(
                 bid,
-                _render_response(cfg["response"], custom_values)
+                _render_response(cfg["response"], custom_values, args=args)
             )
 
     except Exception as exc:
