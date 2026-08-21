@@ -20,7 +20,12 @@ def _get_engine():
 
 
 def resolve_wzclass(query: str) -> str:
-    """Resolve uma classe Warzone dentro do próprio SN7 Core."""
+    """Resolve uma classe Warzone usando somente os dados internos do SN7 Core.
+
+    O !wzclass não consulta fontes externas em tempo real. Isso evita que
+    páginas de terceiros contaminem a resposta com textos, datas ou outros
+    conteúdos da página. O meta.json já contém o loadout sincronizado.
+    """
     query = str(query or "").strip()
     if not query:
         return "⚠️ Informe a arma. Exemplo: !wzclass vst"
@@ -35,7 +40,11 @@ def resolve_wzclass(query: str) -> str:
         names = ", ".join(x.get("name", "Arma") for x in matches[:6])
         return f"🤔 Qual arma você deseja? {names}"
 
-    return format_class_response(engine.resolve(matches[0]))
+    # IMPORTANTE:
+    # live=False impede qualquer consulta ao WZHUB/CODMunity/
+    # WarzoneLoadout durante o comando. O comando usa exclusivamente
+    # a classe já armazenada no meta.json.
+    return format_class_response(engine.resolve(matches[0], live=False))
 
 
 def reload_wz_data() -> int:

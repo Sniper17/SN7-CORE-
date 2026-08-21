@@ -27,21 +27,24 @@ def _changes(changes, arrow=None):
             labels.append(c)
 
     if arrow == "↓":
-        return " | ".join(f"{x} ↓" for x in labels)
+        return " • ".join(f"{x} ↓" for x in labels)
     if arrow == "+":
-        return " + ".join(labels)
-    return " | ".join(labels)
+        return " • ".join(labels)
+    return " • ".join(labels)
 
 
 def _parts(atts):
     rows = sorted(
-        (x for x in (atts or []) if x.get("slot") and x.get("name")),
+        (x for x in (atts or []) if isinstance(x, dict) and x.get("slot") and x.get("name")),
         key=lambda x: ORDER.get(x.get("slot"), 99),
     )
-    # Regra do Warzone: nunca enviar mais de 5 acessórios.
+
+    # Regra fixa do SN7 Core: nunca enviar mais de 5 acessórios.
+    rows = rows[:MAX_ATTACHMENTS]
+
     return [
         f"{x.get('slot')}: {x.get('name')}"
-        for x in rows[:MAX_ATTACHMENTS]
+        for x in rows
     ]
 
 
@@ -59,32 +62,27 @@ def _fit_bytes(parts, limit=MAX_BYTES):
 
 
 def format_class_response(r):
-    """Resposta do !classe: somente o nome da arma + loadout confirmado + buff/nerf."""
-    w = r["weapon"]
+    """Formata !wzclass de forma limpa: arma + até 5 acessórios.
+
+    Não inclui nome de fonte, página, data, código ou texto extra.
+    Buff/nerf só aparece quando já estiver registrado localmente.
+    """
+    w = r.get("weapon") or {}
     name = w.get("name", "Arma")
-    changes = (r.get("patch") or {}).get("changes") or []
-    typ = r.get("status")
+
+    # O serviço interno já entrega os acessórios do meta.json.
+    # Ainda aplicamos o limite aqui como segunda camada de segurança.
     atts = (r.get("attachments") or [])[:MAX_ATTACHMENTS]
 
     if not atts:
-        if typ == "buff" and changes:
-            return _fit_bytes([
-                f"⚡ {name}",
-                "📈 Buff: " + _changes(changes, "+"),
-                "Loadout ainda não confirmado",
-            ])
-        if typ == "nerf" and changes:
-            return _fit_bytes([
-                f"⚡ {name}",
-                "📉 Nerf: " + _changes(changes, "↓"),
-                "Loadout ainda não confirmado",
-            ])
-        return f"🔎 {name} | Loadout ainda não confirmado."
+        return f"⚠️ {name}: classe não encontrada."
 
-    # A API não faz mais nenhuma marcação de usuário.
-    # O StreamElements fica responsável por $(user).
     parts = [f"⚡ {name}"]
 
+    changes = (r.get("patch") or {}).get("changes") or []
+    typ = r.get("status")
+
+    # Mantém apenas uma eventual informação local de buff/nerf.
     if typ == "buff" and changes:
         parts.append("📈 Buff: " + _changes(changes, "+"))
     elif typ == "nerf" and changes:
@@ -92,4 +90,3 @@ def format_class_response(r):
 
     parts.extend(_parts(atts))
     return _fit_bytes(parts)
-
