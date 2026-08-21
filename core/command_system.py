@@ -15,6 +15,7 @@ SYSTEM = {
     "bet_accept": ("!aceitar", "Aceita uma aposta pendente.", "public", "$(bet_result)"),
     "bet_decline": ("!recusar", "Recusa uma aposta pendente.", "public", "$(bet_result)"),
     "cmds": ("!cmds", "Lista os comandos personalizados da live.", "public", "$(commands)"),
+    "wzclass": ("!wzclass", "Consulta a classe Warzone usando os dados internos do Core.", "public", "$(wzclass)"),
     "addcmd": ("!addcmd", "Cria ou atualiza um comando personalizado.", "mod", "✅ $(command) configurado."),
     "addpoint": ("!addpoint", "Adiciona pontos a um usuário.", "mod", "🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency)."),
     "settpoint": ("!setpoint", "Define o saldo de um usuário.", "mod", "🪙 Saldo de $(target): $(new_points) $(currency)."),
@@ -34,7 +35,7 @@ def get_system_command_default(bid, key):
         "description": description,
         "category": category,
         "response": response,
-        "enabled": True,
+        "enabled": False if key == "wzclass" else True,
         "is_system": True,
         "aliases": [],
     }
@@ -77,6 +78,7 @@ def ensure_command_defaults(bid):
                 points_command = "!pontos"
 
             for key, (command, description, category, response) in SYSTEM.items():
+                default_enabled = key != "wzclass"
                 if key == "points":
                     command = points_command
                     response = points_response
@@ -84,10 +86,10 @@ def ensure_command_defaults(bid):
                     """
                     INSERT INTO command_configs
                         (broadcaster_user_id,command_key,command,description,response,enabled,category,is_system)
-                    VALUES (%s,%s,%s,%s,%s,TRUE,%s,TRUE)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,TRUE)
                     ON CONFLICT (broadcaster_user_id,command_key) DO NOTHING
                     """,
-                    (bid, key, command, description, response, category),
+                    (bid, key, command, description, response, default_enabled, category),
                 )
 
             cur.execute(

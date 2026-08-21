@@ -866,20 +866,6 @@ def _process_chat(payload):
     args = pieces[1:]
 
     try:
-        # !wzclass é um comando interno do SN7 Core e não usa o sistema
-        # de comandos personalizados. Assim, ele fica separado do !classe
-        # que continua sendo atendido pelo StreamElements.
-        if cmd == "!wzclass":
-            query = " ".join(args).strip()
-            try:
-                from core.warzone.service import resolve_wzclass
-                response = resolve_wzclass(query)
-            except Exception as exc:
-                print(f"[WZCLASS] erro interno: {exc}", flush=True)
-                response = "❌ Não consegui consultar a classe Warzone agora."
-            _send_chat(bid, response)
-            return
-
         cfg = find_command(bid, cmd)
         print(
             f"[KICK-CHAT] {user}: {content} -> "
@@ -891,6 +877,30 @@ def _process_chat(payload):
 
         ch = get_channel(bid)
         key = cfg["command_key"]
+
+        if key == "wzclass":
+            query = " ".join(args).strip()
+
+            try:
+                from core.warzone.service import resolve_wzclass
+                wzclass = resolve_wzclass(query)
+            except Exception as exc:
+                print(f"[WZCLASS] erro interno: {exc}", flush=True)
+                wzclass = "❌ Não consegui consultar a classe Warzone agora."
+
+            response = _render_response(
+                cfg["response"],
+                {
+                    "wzclass": wzclass,
+                    "weapon": query,
+                    "query": query,
+                },
+                args=args,
+            )
+
+            _send_chat(bid, response)
+            return
+
         currency = str(ch["currency_name"])
         emoji = str(ch["currency_emoji"])
 
