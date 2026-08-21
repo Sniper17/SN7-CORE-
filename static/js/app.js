@@ -494,6 +494,7 @@ function showCommand(command, isNew = false) {
 
   const modal = document.createElement("div");
   modal.className = "sn7-modal sn7-command-modal";
+  modal.dataset.draftEnabled = command.enabled ? "1" : "0";
 
   const aliases = (command.aliases || []).map((alias) => `
     <div class="sn7-alias-row">
@@ -533,7 +534,7 @@ function showCommand(command, isNew = false) {
         <p id="commandSaveMsg" class="sn7-save-message" aria-live="polite"></p>
         ${command.is_system ? `<button class="sn7-subtle" type="button" onclick="resetSystemCommandV2('${encodeURIComponent(command.command_key)}')">Redefinir configuração</button>` : ""}
         <button class="${command.is_system ? "sn7-system-action" : "sn7-danger"} ${command.is_system && !command.enabled ? "off" : ""}" type="button"
-          onclick="deleteCommandV2('${encodeURIComponent(command.command_key)}',${command.is_system},this)">
+          onclick="${command.is_system ? "toggleCommandDraft(this)" : "deleteCommandV2('" + encodeURIComponent(command.command_key) + "',false,this)"}">
           ${command.is_system ? (command.enabled ? "Desativar comando" : "Ativar comando") : "Excluir"}
         </button>
         <div>
@@ -548,14 +549,37 @@ function showCommand(command, isNew = false) {
   if (isNew) renderDraftAliases();
 }
 
+function toggleCommandDraft(button) {
+  const modal = document.querySelector(".sn7-command-modal");
+  if (!modal || !button) return;
+
+  const current = modal.dataset.draftEnabled !== "0";
+  const next = !current;
+  modal.dataset.draftEnabled = next ? "1" : "0";
+
+  button.classList.toggle("off", !next);
+  button.textContent = next ? "Desativar comando" : "Ativar comando";
+
+  setSaveMessage(
+    "commandSaveMsg",
+    next
+      ? "Comando marcado como ativo. Clique em Salvar alterações para aplicar."
+      : "Comando marcado como desativado. Clique em Salvar alterações para aplicar.",
+    true
+  );
+}
+
 async function saveCommandV2(encodedKey, isNew, button) {
+  const modal = document.querySelector(".sn7-command-modal");
   const body = {
     command: $("v2cmd")?.value.trim(),
     description: $("v2desc")?.value.trim(),
     response: $("v2resp")?.value,
   };
+  if (modal?.dataset.draftEnabled !== undefined) {
+    body.enabled = modal.dataset.draftEnabled === "1";
+  }
   if (isNew) body.aliases = [...draftAliases];
-  const modal = document.querySelector(".sn7-command-modal");
   if (modal?.dataset.resetAliases === "1") body.reset_aliases = true;
   const saveButton = button || $("commandSaveButton");
   const originalText = saveButton?.textContent || "Salvar alterações";

@@ -225,15 +225,30 @@ def list_commands(bid):
                 """,
                 (int(bid),),
             )
-            result = []
-            for row in cur.fetchall():
-                item = _dict_from_row(row)
+            rows = cur.fetchall()
+            result = [_dict_from_row(row) for row in rows]
+
+            # Busca todas as variantes em uma única consulta.
+            # Antes era feito SELECT de aliases para cada comando (N+1).
+            if rows:
+                command_ids = [row[0] for row in rows]
                 cur.execute(
-                    "SELECT alias FROM command_aliases WHERE broadcaster_user_id=%s AND command_id=%s ORDER BY alias",
-                    (int(bid), row[0]),
+                    """
+                    SELECT command_id,alias
+                      FROM command_aliases
+                     WHERE broadcaster_user_id=%s
+                       AND command_id = ANY(%s)
+                     ORDER BY command_id,alias
+                    """,
+                    (int(bid), command_ids),
                 )
-                item["aliases"] = [x[0] for x in cur.fetchall()]
-                result.append(item)
+                aliases_by_command = {}
+                for command_id, alias in cur.fetchall():
+                    aliases_by_command.setdefault(command_id, []).append(alias)
+
+                for item, row in zip(result, rows):
+                    item["aliases"] = aliases_by_command.get(row[0], [])
+
             set_cached_commands(bid, result)
             return result
     finally:
