@@ -46,6 +46,7 @@ function sn7HideBootLoader() {
 const SN7_ACTIVE_TAB_KEY = "sn7-core-active-tab";
 const SN7_ACTIVE_MODAL_KEY = "sn7-core-active-modal";
 let sn7NavigationReady = false;
+let sn7Booting = true;
 
 function getSavedTab() {
   try {
@@ -83,19 +84,22 @@ function activateTab(tab, options = {}) {
 
   button.classList.add("active");
 
-  // Carrega cada módulo somente quando ele realmente é aberto.
-  // Isso evita que F5 no painel inicial faça chamadas de banco desnecessárias.
-  if (button.dataset.tab === "economy" && typeof loadSettings === "function") {
-    loadSettings().catch(() => {});
-  }
-  if (button.dataset.tab === "commands" && typeof loadCommands === "function") {
-    loadCommands().catch(() => {});
-  }
-  if (button.dataset.tab === "ranking" && typeof loadRanking === "function") {
-    loadRanking().catch(() => {});
-  }
-  if (button.dataset.tab === "profile" && typeof window.sn7LoadProfile === "function") {
-    window.sn7LoadProfile();
+  // Durante o boot inicial, os dados essenciais são carregados em paralelo
+  // enquanto o loader cobre a interface. Depois disso, as abas continuam
+  // carregando sob demanda para evitar consultas desnecessárias.
+  if (!sn7Booting) {
+    if (button.dataset.tab === "economy" && typeof loadSettings === "function") {
+      loadSettings().catch(() => {});
+    }
+    if (button.dataset.tab === "commands" && typeof loadCommands === "function") {
+      loadCommands().catch(() => {});
+    }
+    if (button.dataset.tab === "ranking" && typeof loadRanking === "function") {
+      loadRanking().catch(() => {});
+    }
+    if (button.dataset.tab === "profile" && typeof window.sn7LoadProfile === "function") {
+      window.sn7LoadProfile();
+    }
   }
 
   const title = $("title");
@@ -892,13 +896,24 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // O primeiro paint não espera APIs nem PostgreSQL.
-  // Os módulos carregam sob demanda ao serem abertos.
-  requestAnimationFrame(() => {
-    if (typeof window.sn7RestoreSavedModal === "function") {
-      window.sn7RestoreSavedModal();
+  // A interface aparece imediatamente, mas o loader permanece cobrindo a tela
+  // enquanto os dados principais são preparados em paralelo. Assim o painel
+  // abre rápido sem mostrar cards vazios durante alguns segundos.
+  requestAnimationFrame(async () => {
+    try {
+      await Promise.allSettled([
+        loadSettings(),
+        loadCommands(),
+        loadRanking(),
+      ]);
+
+      if (typeof window.sn7RestoreSavedModal === "function") {
+        await window.sn7RestoreSavedModal();
+      }
+    } finally {
+      sn7Booting = false;
+      sn7HideBootLoader();
     }
-    sn7HideBootLoader();
   });
 });
 
