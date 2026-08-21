@@ -1,5 +1,4 @@
 from core.database import get_conn, ensure_point_rewards_table
-from core.command_system import ensure_command_defaults
 from core.cache import (
     get_player_identity,
     remember_player_identity,
@@ -35,8 +34,9 @@ def ensure_channel(broadcaster_id, username=""):
         conn.commit()
     finally:
         conn.close()
-    # A configuração completa é carregada sob demanda; aqui só garantimos o canal.
-    ensure_command_defaults(bid)
+    # O canal é garantido aqui; defaults de comandos são inicializados
+    # somente quando a rota realmente precisa deles. Isso evita dezenas de
+    # operações SQL extras ao abrir configurações/ranking.
     forget_channel(bid)
 
 

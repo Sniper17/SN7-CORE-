@@ -4,6 +4,7 @@ from threading import Lock
 
 _db_initialized = False
 _db_init_lock = Lock()
+_point_rewards_ready = False
 
 DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)"
 
@@ -123,7 +124,7 @@ def get_conn():
     return psycopg.connect(url)
 
 def init_db():
-    global _db_initialized
+    global _db_initialized, _point_rewards_ready
     if _db_initialized:
         return
     with _db_init_lock:
@@ -208,6 +209,7 @@ def init_db():
             conn.close()
     
         _db_initialized = True
+        _point_rewards_ready = True
 # SN7_POINTS_REWARDS_V1
 POINTS_REWARD_SCHEMA = """
 CREATE TABLE IF NOT EXISTS point_rewards (
@@ -221,6 +223,12 @@ CREATE TABLE IF NOT EXISTS point_rewards (
 """
 
 def ensure_point_rewards_table(conn=None):
+    # init_db() já garante o schema no boot. Evita repetir CREATE/ALTER
+    # em cada GET/PUT de configurações.
+    global _point_rewards_ready
+    if conn is None and _point_rewards_ready:
+        return
+
     own_connection = conn is None
     if own_connection:
         conn = get_conn()

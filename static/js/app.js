@@ -352,30 +352,42 @@ function renderCommands() {
   }
 }
 
+let commandsLoadPromise = null;
+
 async function loadCommands() {
-  buildCommandCatalog();
-  const panel = document.querySelector(".sn7-command-panel");
-  if (panel) panel.classList.add("is-loading");
-  const status = $("commandPanelStatus");
-  if (status) status.innerHTML = `<span class="sn7-spinner"></span>Carregando comandos...`;
-  try {
-    const data = await apiJson(`/api/commands/${BROADCASTER_ID}`);
-    commandCache = Array.isArray(data.commands) ? data.commands : [];
-    renderCommands();
-  } catch (error) {
-    commandCache = [];
-    renderCommands();
-    if ($("commandPanelStatus")) $("commandPanelStatus").textContent = `⚠ ${error.message}`;
-  } finally {
-    const currentPanel = document.querySelector(".sn7-command-panel");
-    if (currentPanel) {
-      requestAnimationFrame(() => {
-        currentPanel.classList.remove("is-loading");
-        currentPanel.classList.add("is-ready");
-        setTimeout(() => currentPanel.classList.remove("is-ready"), 260);
-      });
+  if (commandsLoadPromise) return commandsLoadPromise;
+
+  commandsLoadPromise = (async () => {
+    buildCommandCatalog();
+    const panel = document.querySelector(".sn7-command-panel");
+    if (panel) panel.classList.add("is-loading");
+    const status = $("commandPanelStatus");
+    if (status) status.innerHTML = `<span class="sn7-spinner"></span>Carregando comandos...`;
+
+    try {
+      const data = await apiJson(`/api/commands/${BROADCASTER_ID}`);
+      commandCache = Array.isArray(data.commands) ? data.commands : [];
+      renderCommands();
+      return commandCache;
+    } catch (error) {
+      commandCache = [];
+      renderCommands();
+      if ($("commandPanelStatus")) $("commandPanelStatus").textContent = `⚠ ${error.message}`;
+      throw error;
+    } finally {
+      const currentPanel = document.querySelector(".sn7-command-panel");
+      if (currentPanel) {
+        requestAnimationFrame(() => {
+          currentPanel.classList.remove("is-loading");
+          currentPanel.classList.add("is-ready");
+          setTimeout(() => currentPanel.classList.remove("is-ready"), 260);
+        });
+      }
+      commandsLoadPromise = null;
     }
-  }
+  })();
+
+  return commandsLoadPromise;
 }
 
 function closeCommandModal() {
@@ -753,7 +765,6 @@ async function loadSettings() {
   } catch (error) {
     setMessage(`⚠ ${error.message}`, false);
   }
-  await loadCommands();
 }
 
 async function saveSettingsAndClose(modalId, button) {
@@ -870,7 +881,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  Promise.allSettled([loadSettings(), loadRanking()]).finally(() => {
+  // O conteúdo essencial não deve ficar bloqueado pelo ranking.
+  // Configurações e comandos carregam em paralelo; o ranking fica em segundo plano.
+  Promise.allSettled([loadSettings(), loadCommands()]).finally(() => {
     requestAnimationFrame(() => {
       setTimeout(() => {
         if (typeof window.sn7RestoreSavedModal === "function") {
@@ -880,6 +893,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 80);
     });
   });
+
+  loadRanking().catch(() => {});
 });
 
 // SN7 MODAL + POINTS CLEAN IMPLEMENTATION
@@ -992,8 +1007,10 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadApostaSettings() {
     try {
       if (typeof apiJson !== "function" || typeof BROADCASTER_ID === "undefined") return;
-      const data = await apiJson(`/api/commands/${BROADCASTER_ID}`);
-      const cmd = (data.commands || []).find((x) => x.command_key === "duel");
+      const commands = Array.isArray(commandCache) && commandCache.length
+        ? commandCache
+        : await loadCommands();
+      const cmd = (commands || []).find((x) => x.command_key === "duel");
 
       const savedCommand = String(cmd?.command || "").trim();
       const savedResponse = String(cmd?.response || "").trim();
