@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, redirect
+from flask import Blueprint, jsonify, request, redirect, session
 from core.database import get_conn
 from core.auth import require_session_broadcaster
 from core.music import set_public_commands_cache
@@ -330,8 +330,6 @@ def _provider_config(provider):
 
 
 def _oauth_redirect_uri(provider):
-    # OAuth providers require an exact, registered redirect URI. Keep one
-    # stable callback per provider so the same SN7 app works for every channel.
     cfg = _provider_config(provider)
     configured = os.environ.get(cfg["redirect_env"], "").strip() if cfg else ""
     if configured:

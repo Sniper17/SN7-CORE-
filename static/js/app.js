@@ -1329,6 +1329,13 @@ function musicConnect(provider) {
     }
     return;
   }
+  button?.classList.add("is-connecting");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Abrindo…";
+  }
+  const card = button?.closest(".sn7-source-card");
+  card?.classList.add("is-connecting");
   window.location.href = `/api/music/${BROADCASTER_ID}/connect/${encodeURIComponent(provider)}`;
 }
 
@@ -1666,19 +1673,26 @@ async function saveMusicConfig() {
   if (document.querySelector('section#minigames.active')) loadMusic().catch(() => {});
   const params = new URLSearchParams(window.location.search);
   const connected = params.get("music_connected");
-  if (connected) {
+  const oauthError = params.get("music_error");
+  if (connected || oauthError) {
     setTimeout(() => {
       if (typeof activateTab === "function") activateTab("minigames");
       openMusicConfig();
       const msg = $("musicConfigMsg");
       if (msg) {
-        const label = connected === "youtube" ? "YouTube" : connected === "spotify" ? "Spotify" : "SoundCloud";
-        msg.textContent = `✓ ${label} conectado com sucesso.`;
-        msg.className = "sn7-save-message success";
+        if (connected) {
+          const label = connected === "youtube" ? "YouTube" : connected === "spotify" ? "Spotify" : "SoundCloud";
+          msg.textContent = `✓ ${label} conectado com sucesso.`;
+          msg.className = "sn7-save-message success";
+        } else {
+          msg.textContent = `⚠ ${oauthError}`;
+          msg.className = "sn7-save-message error";
+        }
       }
       try {
         const url = new URL(window.location.href);
         url.searchParams.delete("music_connected");
+        url.searchParams.delete("music_error");
         history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
       } catch (_) {}
     }, 120);
