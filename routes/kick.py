@@ -33,6 +33,8 @@ _app_access_token = None
 _app_access_token_expires_at = 0
 _bot_status_cache = {}
 _bot_status_cache_ttl = 30
+_profile_cache = {}
+_profile_cache_ttl = 8
 
 
 def _env(name, default=""):
@@ -818,7 +820,9 @@ def _is_moderator(sender, broadcaster_id):
     return False
 
 
-def _process_chat(payload):
+def _process_chat(payload, send_chat=None):
+    if send_chat is None:
+        send_chat = lambda _bid, message: _send_chat(_bid, message)
     broadcaster = payload.get("broadcaster") or {}
     sender = payload.get("sender") or {}
     try:
@@ -837,7 +841,7 @@ def _process_chat(payload):
     try:
         expired_bets = _expire_pending_bets(bid)
         for challenger, defender, amount in expired_bets:
-            _send_chat(
+            send_chat(
                 bid,
                 f"⏰ A aposta entre {_mention(challenger)} e {_mention(defender)} expirou após 90 segundos. Nenhum ponto foi removido.",
             )
@@ -900,7 +904,7 @@ def _process_chat(payload):
                 args=args,
             )
 
-            _send_chat(bid, response)
+            send_chat(bid, response)
             return
 
         currency = str(ch["currency_name"])
@@ -912,7 +916,7 @@ def _process_chat(payload):
             if key == "addmusic":
                 query = " ".join(args).strip()
                 if not query:
-                    _send_chat(bid, f"🎵 Use {cfg['command']} artista - música ou envie um link.")
+                    send_chat(bid, f"🎵 Use {cfg['command']} artista - música ou envie um link.")
                     return
                 try:
                     item, position = add_from_chat(bid, query, user)
@@ -921,14 +925,14 @@ def _process_chat(payload):
                         "music": item["title"],
                         "queue_position": position
                     })
-                    _send_chat(bid, response)
+                    send_chat(bid, response)
                 except ValueError as exc:
-                    _send_chat(bid, f"❌ {exc}")
+                    send_chat(bid, f"❌ {exc}")
                 return
 
             if key == "skipmusic":
                 current = skip_current(bid)
-                _send_chat(bid, _render_response(cfg["response"], {
+                send_chat(bid, _render_response(cfg["response"], {
                     "music": current["title"] if current else "nenhuma música"
                 }))
                 return
@@ -941,40 +945,40 @@ def _process_chat(payload):
                 for i, item in enumerate(queue[:4], 1):
                     parts.append(f"{i}. {item['title']}")
                 queue_text = "🎵 Fila vazia." if not parts else "🎵 " + " • ".join(parts)
-                _send_chat(bid, _render_response(cfg["response"], {"queue": queue_text}))
+                send_chat(bid, _render_response(cfg["response"], {"queue": queue_text}))
                 return
 
             if key == "nowplaying":
                 current, _ = current_and_queue(bid)
                 music_text = current["title"] if current else "nenhuma música tocando"
-                _send_chat(bid, _render_response(cfg["response"], {"music": music_text}))
+                send_chat(bid, _render_response(cfg["response"], {"music": music_text}))
                 return
 
             if key == "pausemusic":
                 set_playing(bid, False)
-                _send_chat(bid, cfg["response"] or "⏸️ Música pausada.")
+                send_chat(bid, cfg["response"] or "⏸️ Música pausada.")
                 return
 
             if key == "resumemusic":
                 set_playing(bid, True)
-                _send_chat(bid, cfg["response"] or "▶️ Música retomada.")
+                send_chat(bid, cfg["response"] or "▶️ Música retomada.")
                 return
 
             if key == "clearmusic":
                 clear_queue(bid)
-                _send_chat(bid, cfg["response"] or "🧹 Fila de músicas limpa.")
+                send_chat(bid, cfg["response"] or "🧹 Fila de músicas limpa.")
                 return
 
         if key == "points":
-            _send_chat(bid, _render_response(cfg["response"], _format_balance(bid, user)))
+            send_chat(bid, _render_response(cfg["response"], _format_balance(bid, user)))
             return
 
         if key == "ranking":
-            _send_chat(bid, _render_response(cfg["response"], {"ranking": _format_ranking(bid)}))
+            send_chat(bid, _render_response(cfg["response"], {"ranking": _format_ranking(bid)}))
             return
 
         if key == "cmds":
-            _send_chat(bid, _render_response(cfg["response"], {"commands": _commands_text(bid)}))
+            send_chat(bid, _render_response(cfg["response"], {"commands": _commands_text(bid)}))
             return
 
         if key == "duel":
@@ -984,7 +988,7 @@ def _process_chat(payload):
             amount_value = command_values.get("amount")
 
             if not target_value or amount_value is None or int(amount_value) <= 0:
-                _send_chat(
+                send_chat(
                     bid,
                     _render_response(
                         cfg["response"],
@@ -1003,7 +1007,7 @@ def _process_chat(payload):
 
             amount_value = int(amount_value)
             if target_value.lower() == user.lower():
-                _send_chat(
+                send_chat(
                     bid,
                     _render_response(
                         cfg["response"],
@@ -1043,7 +1047,7 @@ def _process_chat(payload):
                     )
                     existing = cur.fetchone()
                     if existing:
-                        _send_chat(
+                        send_chat(
                             bid,
                             f"⚔️ Já existe uma aposta pendente envolvendo {_mention(user)} ou {_mention(target_value)}."
                         )
@@ -1061,7 +1065,7 @@ def _process_chat(payload):
                     current_points = int(row[0] or 0) if row else 0
 
                     if current_points < amount_value:
-                        _send_chat(
+                        send_chat(
                             bid,
                             f"❌ {_mention(user)} não tem {amount_value} {currency} para apostar. Saldo: {current_points}."
                         )
@@ -1107,7 +1111,7 @@ def _process_chat(payload):
                 "emoji": emoji,
                 "bet_id": bet_id,
             }
-            _send_chat(bid, _render_response(cfg["response"], duel_values))
+            send_chat(bid, _render_response(cfg["response"], duel_values))
             return
 
         if key in {"bet_accept", "bet_decline"}:
@@ -1225,7 +1229,7 @@ def _process_chat(payload):
                 conn.close()
 
             if first_message:
-                _send_chat(
+                send_chat(
                     bid,
                     _render_response(
                         response_template,
@@ -1238,9 +1242,9 @@ def _process_chat(payload):
                         },
                     ),
                 )
-                _send_chat(bid, result_message)
+                send_chat(bid, result_message)
             else:
-                _send_chat(
+                send_chat(
                     bid,
                     _render_response(
                         response_template,
@@ -1257,29 +1261,29 @@ def _process_chat(payload):
 
         ismod = _is_moderator(sender, bid)
         if key in {"addcmd", "addpoint", "settpoint", "delcmd"} and not ismod:
-            _send_chat(bid, "⛔ Apenas streamer/mod pode usar este comando.")
+            send_chat(bid, "⛔ Apenas streamer/mod pode usar este comando.")
             return
 
         if key == "addcmd":
             if len(args) < 2:
-                _send_chat(bid, "Use !addcmd !comando resposta")
+                send_chat(bid, "Use !addcmd !comando resposta")
                 return
 
             custom = args[0].lower()
             custom = custom if custom.startswith("!") else "!" + custom
             resp = " ".join(args[1:]).strip()
             if len(custom) > 64:
-                _send_chat(bid, "❌ Comando muito longo.")
+                send_chat(bid, "❌ Comando muito longo.")
                 return
             if not resp:
-                _send_chat(bid, "❌ Informe uma resposta.")
+                send_chat(bid, "❌ Informe uma resposta.")
                 return
 
             all_commands = list_commands(bid)
             used = {x["command"] for x in all_commands}
             used.update(alias for x in all_commands for alias in x["aliases"])
             if custom in used:
-                _send_chat(bid, "⛔ Essa palavra de ativação já está em uso.")
+                send_chat(bid, "⛔ Essa palavra de ativação já está em uso.")
                 return
 
             conn = get_conn()
@@ -1298,7 +1302,7 @@ def _process_chat(payload):
             finally:
                 conn.close()
 
-            _send_chat(
+            send_chat(
                 bid,
                 _render_response(cfg["response"], {"command": custom}),
             )
@@ -1306,7 +1310,7 @@ def _process_chat(payload):
 
         if key in {"addpoint", "settpoint"}:
             if len(args) < 2:
-                _send_chat(bid, f'Use {cfg["command"]} @usuário quantidade')
+                send_chat(bid, f'Use {cfg["command"]} @usuário quantidade')
                 return
 
             target = args[0].lstrip("@").strip()
@@ -1314,11 +1318,11 @@ def _process_chat(payload):
                 amount = int(args[1])
                 amount = max(0, amount) if key == "settpoint" else amount
             except ValueError:
-                _send_chat(bid, "❌ Quantidade inválida.")
+                send_chat(bid, "❌ Quantidade inválida.")
                 return
 
             if key == "addpoint" and amount <= 0:
-                _send_chat(bid, "❌ A quantidade precisa ser maior que 0.")
+                send_chat(bid, "❌ A quantidade precisa ser maior que 0.")
                 return
 
             ensure_player(bid, target)
@@ -1341,7 +1345,7 @@ def _process_chat(payload):
                 conn.close()
 
             new_points = int(row[0]) if row else amount
-            _send_chat(
+            send_chat(
                 bid,
                 _render_response(
                     cfg["response"],
@@ -1358,12 +1362,12 @@ def _process_chat(payload):
 
         if key == "delcmd":
             if not args:
-                _send_chat(bid, "Use !delcmd !comando")
+                send_chat(bid, "Use !delcmd !comando")
                 return
 
             target = find_command(bid, args[0].lower())
             if not target or target["is_system"]:
-                _send_chat(bid, "❌ Esse comando personalizado não existe.")
+                send_chat(bid, "❌ Esse comando personalizado não existe.")
                 return
 
             conn = get_conn()
@@ -1378,7 +1382,7 @@ def _process_chat(payload):
             finally:
                 conn.close()
 
-            _send_chat(
+            send_chat(
                 bid,
                 _render_response(cfg["response"], {"command": args[0]})
                 if deleted else "❌ Comando não existe.",
@@ -1393,7 +1397,7 @@ def _process_chat(payload):
             # Extrai automaticamente usuário-alvo e quantidade.
             custom_values.update(_extract_command_values(args))
 
-            _send_chat(
+            send_chat(
                 bid,
                 _render_response(cfg["response"], custom_values, args=args)
             )
@@ -1528,6 +1532,9 @@ def me():
     bid = _session_broadcaster_id()
     if bid is None:
         return jsonify({"ok": True, "authenticated": False, "user": None, "bot": {"active": False}})
+    cached = _profile_cache.get(int(bid))
+    if cached and time.time() - cached[0] < _profile_cache_ttl:
+        return jsonify(cached[1])
     conn = _valid_connection(bid)
     if not conn:
         return jsonify({"ok": True, "authenticated": False, "user": None, "bot": {"active": False}})
@@ -1548,12 +1555,14 @@ def me():
     except Exception as exc:
         print(f"[KICK-BOT] status falhou: {exc}",flush=True)
         active=False
-    return jsonify({
+    result = {
         "ok": True,
         "authenticated": True,
         "user": {"id": int(bid), "username": username, "profile_picture_url": profile_picture_url},
         "bot": {"active": active},
-    })
+    }
+    _profile_cache[int(bid)] = (time.time(), result)
+    return jsonify(result)
 
 
 @kick_bp.post("/bot/toggle")

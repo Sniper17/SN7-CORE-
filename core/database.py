@@ -93,6 +93,27 @@ CREATE TABLE IF NOT EXISTS kick_connections (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS chat_connections (
+    id BIGSERIAL PRIMARY KEY,
+    broadcaster_user_id BIGINT NOT NULL,
+    provider TEXT NOT NULL,
+    external_user_id TEXT NOT NULL DEFAULT '',
+    username TEXT NOT NULL DEFAULT '',
+    display_name TEXT NOT NULL DEFAULT '',
+    profile_url TEXT NOT NULL DEFAULT '',
+    avatar_url TEXT NOT NULL DEFAULT '',
+    access_token TEXT NOT NULL,
+    refresh_token TEXT,
+    expires_at BIGINT NOT NULL DEFAULT 0,
+    scope TEXT NOT NULL DEFAULT '',
+    bot_active BOOLEAN NOT NULL DEFAULT FALSE,
+    cursor TEXT NOT NULL DEFAULT '',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (broadcaster_user_id, provider)
+);
+CREATE INDEX IF NOT EXISTS idx_chat_connections_provider
+    ON chat_connections(provider, bot_active);
+
 CREATE TABLE IF NOT EXISTS kick_webhook_events (
     message_id TEXT PRIMARY KEY,
     event_type TEXT NOT NULL DEFAULT '',
@@ -206,6 +227,8 @@ def init_db():
                 cur.execute(SCHEMA)
                 cur.execute("ALTER TABLE music_connections ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT ''")
                 cur.execute("ALTER TABLE kick_connections ADD COLUMN IF NOT EXISTS profile_picture_url TEXT NOT NULL DEFAULT ''")
+                cur.execute("ALTER TABLE chat_connections ADD COLUMN IF NOT EXISTS bot_active BOOLEAN NOT NULL DEFAULT FALSE")
+                cur.execute("ALTER TABLE chat_connections ADD COLUMN IF NOT EXISTS cursor TEXT NOT NULL DEFAULT ''")
                 ensure_point_rewards_table(conn)
                 cur.execute("""
                     ALTER TABLE channels

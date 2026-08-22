@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.7.0">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.7.1">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -259,7 +259,7 @@ body.sn7-modal-open{overflow:hidden}
           .sn7-profile-login h3{margin:0 0 7px;font-size:21px}
           .sn7-profile-login p{max-width:500px;margin:0 auto;color:var(--muted);font-size:13px;line-height:1.6}
           .sn7-profile-login .btn{margin-top:20px;min-width:220px}
-          @media(max-width:700px){.sn7-profile-user{align-items:flex-start}.sn7-profile-status{font-size:10px}.sn7-profile-bot{align-items:flex-start;flex-direction:column}.sn7-profile-actions .btn{width:100%}}
+          .sn7-platform-action{margin-left:auto;flex:0 0 auto;padding:7px 10px;font-size:11px}.sn7-platform-card{position:relative}.sn7-platform-status{white-space:nowrap}@media(max-width:700px){.sn7-platform-action{width:auto!important}.sn7-profile-user{align-items:flex-start}.sn7-profile-status{font-size:10px}.sn7-profile-bot{align-items:flex-start;flex-direction:column}.sn7-profile-actions .btn{width:100%}}
         </style>
         <div id="sn7ProfileLoggedOut" class="sn7-profile-login" hidden>
           <div class="sn7-profile-avatar" style="margin:0 auto 16px">✦</div>
@@ -277,15 +277,15 @@ body.sn7-modal-open{overflow:hidden}
             <h3>Plataformas</h3>
             <p>Gerencie as integrações da sua live e concentre os recursos do SN7 Core em um só painel.</p>
             <div class="sn7-profile-platforms">
-              <div class="sn7-platform-card"><div class="left"><span class="sn7-platform-icon">K</span><span><strong>Kick</strong><small>Conectado ao canal</small></span></div><span class="sn7-platform-status active">ATIVO</span></div>
-              <div class="sn7-platform-card"><div class="left"><span class="sn7-platform-icon">T</span><span><strong>Twitch</strong><small>Integração preparada</small></span></div><span class="sn7-platform-status">EM BREVE</span></div>
-              <div class="sn7-platform-card"><div class="left"><span class="sn7-platform-icon">▶</span><span><strong>YouTube</strong><small>Integração preparada</small></span></div><span class="sn7-platform-status">EM BREVE</span></div>
-              <div class="sn7-platform-card"><div class="left"><span class="sn7-platform-icon">♪</span><span><strong>TikTok</strong><small>Dependente de integração oficial</small></span></div><span class="sn7-platform-status">EM BREVE</span></div>
+              <div class="sn7-platform-card" id="sn7PlatformKick"><div class="left"><span class="sn7-platform-icon">K</span><span><strong>Kick</strong><small id="sn7KickPlatformText">Conectando…</small></span></div><span id="sn7KickPlatformStatus" class="sn7-platform-status active">ATIVO</span></div>
+              <div class="sn7-platform-card" id="sn7PlatformTwitch"><div class="left"><span class="sn7-platform-icon">T</span><span><strong>Twitch</strong><small id="sn7TwitchPlatformText">Verificando…</small></span></div><span id="sn7TwitchPlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><button id="sn7TwitchConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectTwitch()">Conectar</button></div>
+              <div class="sn7-platform-card" id="sn7PlatformYoutube"><div class="left"><span class="sn7-platform-icon">▶</span><span><strong>YouTube</strong><small id="sn7YoutubePlatformText">Verificando…</small></span></div><span id="sn7YoutubePlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><button id="sn7YoutubeConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectYoutube()">Conectar</button></div>
+              <div class="sn7-platform-card"><div class="left"><span class="sn7-platform-icon">♪</span><span><strong>TikTok</strong><small>Integração oficial de bot ainda não configurada</small></span></div><span class="sn7-platform-status">EM BREVE</span></div>
             </div>
           </div>
           <div class="sn7-profile-section">
             <h3>Bot do canal</h3>
-            <p>Ative ou desative a leitura dos comandos da sua live pela integração da Kick.</p>
+            <p>Ative ou desative o bot de cada plataforma conectada. O mesmo motor de comandos do SN7 Core é compartilhado entre os canais.</p>
             <div class="sn7-profile-bot">
               <div><strong id="sn7ProfileBotTitle">Verificando...</strong><span id="sn7ProfileBotDescription">Consultando o status atual.</span></div>
               <button id="sn7ProfileBotToggle" class="btn" type="button" disabled>Verificando...</button>
@@ -318,7 +318,7 @@ body.sn7-modal-open{overflow:hidden}
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
-<script src="/static/js/app.js?v=sn7-1.7.0"></script><script>
+<script src="/static/js/app.js?v=sn7-1.7.1"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -374,8 +374,24 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
     setAvatar(nav, initials, avatarUrl);
   }
   function bot(a){const on=!!a;q("sn7ProfileDot").classList.toggle("on",on);q("sn7ProfileStatus").textContent=on?"Bot ativo":"Bot desligado";q("sn7ProfileBotTitle").textContent=on?"🟢 Bot ligado":"⚪ Bot desligado";q("sn7ProfileBotDescription").textContent=on?"O SN7 Core está ouvindo os comandos da live.":"O bot não está ouvindo os comandos da live.";q("sn7ProfileBotToggle").textContent=on?"Desligar bot":"Ligar bot";q("sn7ProfileBotToggle").dataset.active=String(on);q("sn7ProfileBotToggle").disabled=false}
-  async function load(force=false){const b=q("sn7ProfileBotToggle");if(!b)return;if(window.__sn7ProfileLoadPromise&&!force)return window.__sn7ProfileLoadPromise;window.__sn7ProfileLoadPromise=(async()=>{b.disabled=true;b.textContent="Verificando...";msg("");try{const r=await fetch("/kick/me",{credentials:"same-origin",cache:"no-store"}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível consultar o perfil.");if(!d.authenticated||!d.user){out();return}user(d.user);bot(!!(d.bot&&d.bot.active)); await loadObs(false)}catch(e){out();msg(e.message||"Erro ao consultar o perfil.",true)}finally{b.disabled=false;window.__sn7ProfileLoadPromise=null}})();return window.__sn7ProfileLoadPromise}
+  function platformStatus(id,statusId,textId,connectId,data,label){const st=q(statusId),tx=q(textId),bt=q(connectId);if(!st||!tx)return;const on=!!data?.connected;const active=!!data?.active;st.textContent=on?(active?"BOT ATIVO":"CONECTADO"):"NÃO CONECTADO";st.classList.toggle("active",on);tx.textContent=on?((data.user?.display_name||data.user?.username||label)+ (active?" • bot ativo":" • bot desligado")):"Conta ainda não conectada";if(bt){bt.hidden=false;bt.disabled=false;bt.textContent=on?(active?"Desligar bot":"Ligar bot"):"Conectar";bt.onclick=on?()=>togglePlatform(label.toLowerCase()==="twitch"?"twitch":"youtube"):bt.onclick}}
+  async function loadPlatformStatus(){
+    if(!BROADCASTER_ID)return;
+    const jobs=[
+      fetch(`/twitch/${encodeURIComponent(BROADCASTER_ID)}/status`,{credentials:"same-origin",cache:"default"}).then(r=>r.json()).catch(()=>({ok:false})),
+      fetch(`/youtube/${encodeURIComponent(BROADCASTER_ID)}/status`,{credentials:"same-origin",cache:"default"}).then(r=>r.json()).catch(()=>({ok:false})),
+    ];
+    const [tw,yt]=await Promise.all(jobs);
+    platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",tw,"Twitch");
+    platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",yt,"YouTube");
+  }
+  async function load(force=false){const b=q("sn7ProfileBotToggle");if(!b)return;if(window.__sn7ProfileLoadPromise&&!force)return window.__sn7ProfileLoadPromise;const cache=window.__sn7ProfileCache;if(!force&&cache&&Date.now()-cache.time<10000){user(cache.data.user);bot(!!(cache.data.bot&&cache.data.bot.active));loadPlatformStatus();loadObs(false);return cache.promise||Promise.resolve()}window.__sn7ProfileLoadPromise=(async()=>{b.disabled=true;b.textContent="Verificando...";msg("");try{const requests=[fetch("/kick/me",{credentials:"same-origin",cache:force?"no-store":"default"}).then(r=>r.json()),loadObs(force),loadPlatformStatus()];const [d]=await Promise.all(requests);if(!d.ok)throw new Error(d.error||"Não foi possível consultar o perfil.");if(!d.authenticated||!d.user){out();return}user(d.user);bot(!!(d.bot&&d.bot.active));window.__sn7ProfileCache={time:Date.now(),data:d};}catch(e){out();msg(e.message||"Erro ao consultar o perfil.",true)}finally{b.disabled=false;window.__sn7ProfileLoadPromise=null}})();return window.__sn7ProfileLoadPromise}
+  window.sn7ConnectTwitch=function(){window.location.href="/twitch/login"};
+  window.sn7ConnectYoutube=function(){if(!BROADCASTER_ID)return;window.location.href="/youtube/login"};
   q("sn7ProfileBotToggle")?.addEventListener("click",async()=>{const b=q("sn7ProfileBotToggle"),cur=b.dataset.active==="true";b.disabled=true;b.textContent="Alterando...";msg("");try{const r=await fetch("/kick/bot/toggle",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({active:!cur})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível alterar o bot.");bot(!!d.active);msg(d.active?"Bot ligado com sucesso.":"Bot desligado com sucesso.")}catch(e){msg(e.message||"Erro ao alterar o bot.",true);load()}});
+  async function togglePlatform(provider){const id=provider==='twitch'?BROADCASTER_ID:BROADCASTER_ID;const status=await fetch(`/${provider}/${encodeURIComponent(id)}/status`,{credentials:"same-origin",cache:"no-store"}).then(r=>r.json()).catch(()=>({}));if(!status.connected){msg(`Conecte o ${provider==='twitch'?'Twitch':'YouTube'} primeiro.`,true);return}const desired=!status.active;try{const r=await fetch(`/${provider}/${encodeURIComponent(id)}/bot/toggle`,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({active:desired})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível alterar o bot.");msg(d.active?`✓ Bot do ${provider==='twitch'?'Twitch':'YouTube'} ligado.`:`Bot do ${provider==='twitch'?'Twitch':'YouTube'} desligado.`);await loadPlatformStatus()}catch(e){msg(e.message||"Erro ao alterar o bot.",true)}}
+  q("sn7TwitchPlatformStatus")?.addEventListener("click",()=>togglePlatform("twitch"));
+  q("sn7YoutubePlatformStatus")?.addEventListener("click",()=>togglePlatform("youtube"));
   async function loadObs(force=false){
     const state=q("sn7ObsState"), row=q("sn7ObsUrlRow"), url=q("sn7ObsUrl"), connect=q("sn7ObsConnect"), rotate=q("sn7ObsRotate");
     if(!state || !connect) return;
@@ -484,7 +500,7 @@ document.addEventListener("keydown", (event) => {
 });
 </script>
 <script src="/static/js/sn7-ui-fix.js"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.7.0"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.7.0"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.7.1"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.7.1"></script>
 </body>
 </html>

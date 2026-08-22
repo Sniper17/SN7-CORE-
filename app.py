@@ -9,6 +9,8 @@ from routes.settings import settings_bp
 from routes.kick import kick_bp
 from routes.music import music_bp
 from routes.obs import obs_bp
+from routes.twitch import twitch_bp
+from routes.youtube import youtube_bp
 import os
 import re
 
@@ -19,7 +21,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.7.0"
+SN7_VERSION = "1.7.1"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
@@ -30,6 +32,8 @@ app.register_blueprint(settings_bp, url_prefix="/api/settings")
 app.register_blueprint(kick_bp, url_prefix="/kick")
 app.register_blueprint(music_bp, url_prefix="/api/music")
 app.register_blueprint(obs_bp)
+app.register_blueprint(twitch_bp, url_prefix="/twitch")
+app.register_blueprint(youtube_bp, url_prefix="/youtube")
 
 
 @app.after_request
@@ -119,7 +123,9 @@ def api():
             "settings",
             "music",
             "obs",
-            "kick"
+            "kick",
+            "twitch",
+            "youtube"
         ]
     })
 

@@ -361,7 +361,7 @@ MUSIC_PROVIDERS = {
         "redirect_env": "YOUTUBE_REDIRECT_URI",
         "authorize": "https://accounts.google.com/o/oauth2/v2/auth",
         "token": "https://oauth2.googleapis.com/token",
-        "scope": "https://www.googleapis.com/auth/youtube.readonly",
+        "scope": "https://www.googleapis.com/auth/youtube.force-ssl",
     },
     "spotify": {
         "label": "Spotify",
@@ -468,6 +468,18 @@ def _save_music_connection(bid, provider, profile, token):
                     profile_url, avatar_url, token.get("access_token"), token.get("refresh_token"),
                     expires_at, str(token.get("scope") or "")
                 ),
+            )
+        if provider == "youtube":
+            cur.execute(
+                """INSERT INTO chat_connections
+                   (broadcaster_user_id,provider,external_user_id,username,display_name,profile_url,avatar_url,access_token,refresh_token,expires_at,scope,updated_at)
+                   VALUES (%s,'youtube',%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+                   ON CONFLICT (broadcaster_user_id,provider) DO UPDATE SET
+                     external_user_id=EXCLUDED.external_user_id, username=EXCLUDED.username, display_name=EXCLUDED.display_name,
+                     profile_url=EXCLUDED.profile_url, avatar_url=EXCLUDED.avatar_url, access_token=EXCLUDED.access_token,
+                     refresh_token=COALESCE(EXCLUDED.refresh_token,chat_connections.refresh_token), expires_at=EXCLUDED.expires_at,
+                     scope=EXCLUDED.scope, updated_at=NOW()""",
+                (int(bid), external_id, username, display_name, profile_url, avatar_url, token.get("access_token"), token.get("refresh_token"), expires_at, str(token.get("scope") or ""))
             )
         conn.commit()
     finally:
