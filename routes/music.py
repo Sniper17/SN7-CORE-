@@ -549,6 +549,15 @@ def connect_music_provider(broadcaster_id, provider):
 
     client_id = os.environ.get(cfg["client_id_env"], "").strip()
     client_secret = os.environ.get(cfg["client_secret_env"], "").strip()
+
+    print(
+        f"[MUSIC-OAUTH] {provider}: "
+        f"client_id={"OK" if client_id else "MISSING"}, "
+        f"client_secret={"OK" if client_secret else "MISSING"}, "
+        f"redirect_env={"OK" if os.environ.get(cfg["redirect_env"], "").strip() else "MISSING"}",
+        flush=True,
+    )
+
     if not client_id or not client_secret:
         missing = []
         if not client_id:
