@@ -1,7 +1,7 @@
 from urllib.parse import urlparse
-from core.database import get_conn
 import time
-from urllib.parse import urlparse
+
+from core.database import get_conn
 
 
 def _provider(url):
@@ -17,12 +17,25 @@ def _provider(url):
     return 'link'
 
 
+PLAYABLE_PROVIDERS = {'youtube', 'link'}
+DIRECT_AUDIO_EXTENSIONS = ('.mp3', '.m4a', '.aac', '.ogg', '.wav', '.opus')
+
+
+def _is_direct_audio_url(url):
+    path = urlparse(str(url or '').strip()).path.lower()
+    return path.endswith(DIRECT_AUDIO_EXTENSIONS)
+
+
 def add_from_chat(bid, query, user):
     query = str(query or '').strip()
     if not query:
         raise ValueError('Informe uma música ou link.')
     provider = _provider(query if query.startswith(('http://', 'https://')) else '')
     source_url = query if provider != 'unknown' else ''
+    if provider not in PLAYABLE_PROVIDERS:
+        raise ValueError('Esta fonte ainda não é compatível com o player do OBS. Use um link do YouTube ou um link direto de áudio.')
+    if provider == 'link' and not _is_direct_audio_url(source_url):
+        raise ValueError('Para links, use uma URL direta de áudio (.mp3, .m4a, .aac, .ogg, .wav ou .opus).')
     title = query
     artist = ''
     if not source_url and ' - ' in query:
@@ -36,6 +49,10 @@ def add_from_chat(bid, query, user):
             if provider == 'spotify' and not settings[1]: raise ValueError('Spotify está desativado para este canal.')
             if provider == 'soundcloud' and not settings[2]: raise ValueError('SoundCloud está desativado para este canal.')
             if source_url and not settings[3]: raise ValueError('Links estão desativados para este canal.')
+            cur.execute("SELECT COUNT(*) FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(bid),))
+            queued_count = int(cur.fetchone()[0] or 0)
+            if queued_count >= 100:
+                raise ValueError('A fila deste canal já atingiu o limite de 100 músicas.')
             cur.execute("SELECT COALESCE(MAX(position),0)+1 FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(bid),))
             position = int(cur.fetchone()[0] or 1)
             cur.execute("INSERT INTO music_queue(broadcaster_user_id,provider,title,artist,source_url,added_by,status,position) VALUES(%s,%s,%s,%s,%s,%s,'queued',%s) RETURNING id", (int(bid), provider, title[:200], artist[:160], source_url[:1000], str(user)[:80], position))

@@ -100,6 +100,9 @@ function activateTab(tab, options = {}) {
     if (button.dataset.tab === "profile" && typeof window.sn7LoadProfile === "function") {
       window.sn7LoadProfile();
     }
+    if (button.dataset.tab === "music" && typeof window.loadMusic === "function") {
+      window.loadMusic().catch(() => {});
+    }
   }
 
   const title = $("title");
@@ -912,8 +915,6 @@ document.addEventListener("DOMContentLoaded", () => {
       loadSettings(),
       loadCommands(),
       loadRanking(),
-      typeof loadMusic === "function" ? loadMusic() : Promise.resolve(),
-      typeof window.sn7LoadProfile === "function" ? window.sn7LoadProfile() : Promise.resolve(),
     ];
 
     const allReady = Promise.allSettled(bootTasks);
@@ -922,6 +923,9 @@ document.addEventListener("DOMContentLoaded", () => {
     Promise.race([allReady, maxBoot]).then(() => {
       sn7Booting = false;
       sn7HideBootLoader();
+      const activeTab = document.querySelector(".tab.active")?.id;
+      if (activeTab === "music" && typeof window.loadMusic === "function") window.loadMusic().catch(() => {});
+      if (activeTab === "profile" && typeof window.sn7LoadProfile === "function") window.sn7LoadProfile().catch(() => {});
       if (typeof window.sn7RestoreSavedModal === "function") {
         window.sn7RestoreSavedModal().catch(() => {});
       }

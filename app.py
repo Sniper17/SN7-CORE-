@@ -14,6 +14,13 @@ import re
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "change-me")
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+)
+
+SN7_VERSION = "1.7.0"
+SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
 app.register_blueprint(ranking_bp, url_prefix="/api/ranking")
@@ -23,6 +30,17 @@ app.register_blueprint(settings_bp, url_prefix="/api/settings")
 app.register_blueprint(kick_bp, url_prefix="/kick")
 app.register_blueprint(music_bp, url_prefix="/api/music")
 app.register_blueprint(obs_bp)
+
+
+@app.after_request
+def response_headers(response):
+    # Assets recebem cache longo porque o dashboard usa versões na URL.
+    if request.path.startswith("/static/"):
+        response.headers.setdefault("Cache-Control", SN7_STATIC_CACHE)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    return response
 
 
 @app.before_request
@@ -77,7 +95,7 @@ def health():
     return jsonify({
         "ok": True,
         "service": "SN7 Core API",
-        "version": "1.6.0",
+        "version": SN7_VERSION,
         "database_configured": bool(os.environ.get("DATABASE_URL")),
         "kick_webhook": True,
         "v_d": False
@@ -89,7 +107,7 @@ def api():
     return jsonify({
         "ok": True,
         "service": "SN7 Core API",
-        "version": "1.6.0",
+        "version": SN7_VERSION,
         "multi_streamer": True,
         "v_d": False,
         "database_configured": bool(os.environ.get("DATABASE_URL")),

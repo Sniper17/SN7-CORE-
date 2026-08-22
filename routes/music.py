@@ -39,90 +39,102 @@ def _settings(bid):
         conn.close()
 
 
-def _state(bid):
+def snapshot(bid):
+    """Build the player snapshot with a single DB connection."""
+    bid = int(bid)
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute('''
-                SELECT current_queue_id, is_playing, volume
-                FROM music_player_state WHERE broadcaster_user_id=%s
-            ''', (int(bid),))
-            row = cur.fetchone()
-            if not row:
-                cur.execute('''
-                    INSERT INTO music_player_state (broadcaster_user_id)
-                    VALUES (%s)
-                    ON CONFLICT (broadcaster_user_id) DO NOTHING
-                ''', (int(bid),))
-                conn.commit()
-                return {'current_queue_id': None, 'is_playing': False, 'volume': 80}
-            return {'current_queue_id': row[0], 'is_playing': bool(row[1]), 'volume': int(row[2])}
-    finally:
-        conn.close()
+            cur.execute(
+                """SELECT allow_youtube, allow_spotify, allow_soundcloud, allow_links, public_commands
+                   FROM music_settings WHERE broadcaster_user_id=%s""",
+                (bid,),
+            )
+            settings_row = cur.fetchone()
+            if not settings_row:
+                cur.execute(
+                    "INSERT INTO music_settings (broadcaster_user_id) VALUES (%s) ON CONFLICT (broadcaster_user_id) DO NOTHING",
+                    (bid,),
+                )
+                settings_row = (True, True, False, True, False)
 
+            settings = {
+                'allow_youtube': bool(settings_row[0]),
+                'allow_spotify': bool(settings_row[1]),
+                'allow_soundcloud': bool(settings_row[2]),
+                'allow_links': bool(settings_row[3]),
+                'public_commands': bool(settings_row[4]),
+            }
 
-def _queue(bid):
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute('''
-                SELECT id, provider, title, artist, source_url, added_by, status, position
-                FROM music_queue
-                WHERE broadcaster_user_id=%s AND status='queued'
-                ORDER BY position ASC, id ASC
-                LIMIT 100
-            ''', (int(bid),))
-            return [
-                {'id': r[0], 'provider': r[1], 'title': r[2], 'artist': r[3],
+            cur.execute(
+                "SELECT current_queue_id, is_playing, volume FROM music_player_state WHERE broadcaster_user_id=%s",
+                (bid,),
+            )
+            state_row = cur.fetchone()
+            if not state_row:
+                cur.execute(
+                    "INSERT INTO music_player_state (broadcaster_user_id) VALUES (%s) ON CONFLICT (broadcaster_user_id) DO NOTHING",
+                    (bid,),
+                )
+                state_row = (None, False, 80)
+
+            current_id = state_row[0]
+            if current_id:
+                cur.execute(
+                    "SELECT 1 FROM music_queue WHERE id=%s AND broadcaster_user_id=%s AND status='queued'",
+                    (current_id, bid),
+                )
+                if not cur.fetchone():
+                    current_id = None
+
+            if current_id is None:
+                cur.execute(
+                    "SELECT id FROM music_queue WHERE broadcaster_user_id=%s AND status='queued' ORDER BY position ASC,id ASC LIMIT 1",
+                    (bid,),
+                )
+                next_row = cur.fetchone()
+                current_id = next_row[0] if next_row else None
+                cur.execute(
+                    "UPDATE music_player_state SET current_queue_id=%s, updated_at=NOW() WHERE broadcaster_user_id=%s",
+                    (current_id, bid),
+                )
+
+            state = {
+                'current_queue_id': current_id,
+                'is_playing': bool(state_row[1]),
+                'volume': int(state_row[2]),
+            }
+
+            current = None
+            if current_id:
+                cur.execute(
+                    """SELECT id, provider, title, artist, source_url, added_by, status
+                       FROM music_queue WHERE id=%s AND broadcaster_user_id=%s""",
+                    (current_id, bid),
+                )
+                row = cur.fetchone()
+                if row:
+                    current = {
+                        'id': row[0], 'provider': row[1], 'title': row[2], 'artist': row[3] or '',
+                        'source_url': row[4] or '', 'added_by': row[5] or '', 'status': row[6],
+                    }
+
+            cur.execute(
+                """SELECT id, provider, title, artist, source_url, added_by, status, position
+                   FROM music_queue
+                   WHERE broadcaster_user_id=%s AND status='queued' AND id<>COALESCE(%s,0)
+                   ORDER BY position ASC,id ASC LIMIT 100""",
+                (bid, current_id),
+            )
+            queue = [
+                {'id': r[0], 'provider': r[1], 'title': r[2], 'artist': r[3] or '',
                  'source_url': r[4] or '', 'added_by': r[5] or '', 'status': r[6], 'position': r[7]}
                 for r in cur.fetchall()
             ]
-    finally:
-        conn.close()
-
-
-
-def _ensure_current(bid):
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT current_queue_id FROM music_player_state WHERE broadcaster_user_id=%s", (int(bid),))
-            row = cur.fetchone()
-            current_id = row[0] if row else None
-            if current_id:
-                cur.execute("SELECT 1 FROM music_queue WHERE id=%s AND broadcaster_user_id=%s AND status='queued'", (current_id, int(bid)))
-                if cur.fetchone():
-                    conn.commit()
-                    return current_id
-            cur.execute("SELECT id FROM music_queue WHERE broadcaster_user_id=%s AND status='queued' ORDER BY position ASC,id ASC LIMIT 1", (int(bid),))
-            nxt = cur.fetchone()
-            current_id = nxt[0] if nxt else None
-            cur.execute("UPDATE music_player_state SET current_queue_id=%s, updated_at=NOW() WHERE broadcaster_user_id=%s", (current_id, int(bid)))
         conn.commit()
-        return current_id
+        return {'ok': True, 'settings': settings, 'state': state, 'current': current, 'queue': queue}
     finally:
         conn.close()
-
-
-def snapshot(bid):
-    _ensure_current(bid)
-    state = _state(bid)
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            current = None
-            if state['current_queue_id']:
-                cur.execute('''
-                    SELECT id, provider, title, artist, source_url, added_by, status
-                    FROM music_queue WHERE id=%s AND broadcaster_user_id=%s
-                ''', (state['current_queue_id'], int(bid)))
-                r = cur.fetchone()
-                if r:
-                    current = {'id': r[0], 'provider': r[1], 'title': r[2], 'artist': r[3],
-                               'source_url': r[4] or '', 'added_by': r[5] or '', 'status': r[6]}
-    finally:
-        conn.close()
-    return {'ok': True, 'settings': _settings(bid), 'state': state, 'current': current, 'queue': _queue(bid)}
 
 
 @music_bp.get('/<int:broadcaster_id>')
@@ -201,6 +213,33 @@ def update_music_state(broadcaster_id):
     return jsonify(snapshot(broadcaster_id))
 
 
+DIRECT_AUDIO_EXTENSIONS = ('.mp3', '.m4a', '.aac', '.ogg', '.wav', '.opus')
+
+
+def _is_direct_audio_url(url):
+    from urllib.parse import urlparse
+    return urlparse(str(url or '').strip()).path.lower().endswith(DIRECT_AUDIO_EXTENSIONS)
+
+def _spotify_track_id(url):
+    value = str(url or '').strip()
+    if value.startswith('spotify:track:'):
+        track_id = value.split(':', 2)[2].strip()
+        return track_id if len(track_id) == 22 else None
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(value)
+        if parsed.netloc.lower() in {'open.spotify.com', 'play.spotify.com'}:
+            parts = [part for part in parsed.path.split('/') if part]
+            if len(parts) >= 2 and parts[0].lower() == 'track':
+                track_id = parts[1].split('?')[0].strip()
+                return track_id if len(track_id) == 22 else None
+    except Exception:
+        pass
+    return None
+
+
+
+
 @music_bp.post('/<int:broadcaster_id>/queue')
 def add_music(broadcaster_id):
     try:
@@ -219,18 +258,28 @@ def add_music(broadcaster_id):
         return jsonify({'ok': False, 'error': 'Nome da música ou artista muito longo.'}), 400
     if provider not in {'youtube', 'spotify', 'soundcloud', 'link', 'unknown'}:
         return jsonify({'ok': False, 'error': 'Fonte de música inválida.'}), 400
-    if provider == 'youtube' and not _settings(broadcaster_id)['allow_youtube']:
+    if provider in {'soundcloud', 'unknown'}:
+        return jsonify({'ok': False, 'error': 'Esta fonte ainda não é compatível com o player do OBS. Use YouTube, Spotify ou um link direto de áudio.'}), 422
+    if provider == 'spotify' and not _spotify_track_id(source_url):
+        return jsonify({'ok': False, 'error': 'Link do Spotify inválido. Use um link de faixa do Spotify.'}), 422
+    if provider == 'link' and not _is_direct_audio_url(source_url):
+        return jsonify({'ok': False, 'error': 'Para links, use uma URL direta de áudio (.mp3, .m4a, .aac, .ogg, .wav ou .opus).'}), 422
+    settings = _settings(broadcaster_id)
+    if provider == 'youtube' and not settings['allow_youtube']:
         return jsonify({'ok': False, 'error': 'YouTube está desativado nas fontes do canal.'}), 403
-    if provider == 'spotify' and not _settings(broadcaster_id)['allow_spotify']:
+    if provider == 'spotify' and not settings['allow_spotify']:
         return jsonify({'ok': False, 'error': 'Spotify está desativado nas fontes do canal.'}), 403
-    if provider == 'soundcloud' and not _settings(broadcaster_id)['allow_soundcloud']:
+    if provider == 'soundcloud' and not settings['allow_soundcloud']:
         return jsonify({'ok': False, 'error': 'SoundCloud está desativado nas fontes do canal.'}), 403
-    if source_url and not _settings(broadcaster_id)['allow_links']:
+    if source_url and not settings['allow_links']:
         return jsonify({'ok': False, 'error': 'Links estão desativados nas fontes do canal.'}), 403
 
     conn = get_conn()
     try:
         with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(broadcaster_id),))
+            if int(cur.fetchone()[0] or 0) >= 100:
+                return jsonify({'ok': False, 'error': 'A fila deste canal já atingiu o limite de 100 músicas.'}), 409
             cur.execute('SELECT COALESCE(MAX(position),0)+1 FROM music_queue WHERE broadcaster_user_id=%s AND status=\'queued\'', (int(broadcaster_id),))
             position = int(cur.fetchone()[0] or 1)
             cur.execute('''
@@ -321,7 +370,7 @@ MUSIC_PROVIDERS = {
         "redirect_env": "SPOTIFY_REDIRECT_URI",
         "authorize": "https://accounts.spotify.com/authorize",
         "token": "https://accounts.spotify.com/api/token",
-        "scope": "streaming user-read-private user-read-email",
+        "scope": "streaming user-read-private user-read-email user-read-playback-state user-modify-playback-state user-read-currently-playing",
     },
     "soundcloud": {
         "label": "SoundCloud",

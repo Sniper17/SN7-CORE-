@@ -1,6 +1,8 @@
 import base64
+import os
 import secrets
 import time
+from threading import Lock
 from urllib.parse import urlparse, parse_qs
 
 import requests
@@ -10,6 +12,10 @@ from core.database import get_conn
 from core.auth import require_session_broadcaster
 
 obs_bp = Blueprint('obs', __name__)
+_overlay_rate_lock = Lock()
+_overlay_rate = {}
+_OVERLAY_RATE_WINDOW = 10.0
+_OVERLAY_RATE_LIMIT = 20
 
 
 def _public_base_url():
@@ -56,6 +62,24 @@ def _save_connection(broadcaster_id, token):
         conn.commit()
     finally:
         conn.close()
+
+
+def _allow_overlay_request(token):
+    now = time.monotonic()
+    key = str(token or '').strip()
+    with _overlay_rate_lock:
+        timestamps = _overlay_rate.get(key, [])
+        cutoff = now - _OVERLAY_RATE_WINDOW
+        timestamps = [value for value in timestamps if value > cutoff]
+        if len(timestamps) >= _OVERLAY_RATE_LIMIT:
+            _overlay_rate[key] = timestamps
+            return False
+        timestamps.append(now)
+        _overlay_rate[key] = timestamps
+        if len(_overlay_rate) > 2048:
+            oldest = min(_overlay_rate, key=lambda item: _overlay_rate[item][-1] if _overlay_rate[item] else 0)
+            _overlay_rate.pop(oldest, None)
+    return True
 
 
 def _find_by_token(token):
@@ -157,6 +181,16 @@ def _skip(broadcaster_id):
                 (int(broadcaster_id),),
             )
             row = cur.fetchone()
+            if not row:
+                cur.execute(
+                    "INSERT INTO music_player_state (broadcaster_user_id) VALUES (%s) ON CONFLICT (broadcaster_user_id) DO NOTHING",
+                    (int(broadcaster_id),),
+                )
+                cur.execute(
+                    "SELECT current_queue_id FROM music_player_state WHERE broadcaster_user_id=%s FOR UPDATE",
+                    (int(broadcaster_id),),
+                )
+                row = cur.fetchone()
             current_id = row[0] if row else None
             if current_id:
                 cur.execute(
@@ -183,7 +217,7 @@ def _skip(broadcaster_id):
 
 
 def _spotify_refresh_if_needed(broadcaster_id):
-    """Refresh the Spotify token when possible and return a usable access token."""
+    """Return a usable Spotify access token, refreshing it when expired."""
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -196,6 +230,7 @@ def _spotify_refresh_if_needed(broadcaster_id):
             row = cur.fetchone()
     finally:
         conn.close()
+
     if not row:
         return None
 
@@ -206,12 +241,12 @@ def _spotify_refresh_if_needed(broadcaster_id):
     if not refresh_token:
         return access_token
 
-    client_id = __import__('os').environ.get('SPOTIFY_CLIENT_ID', '').strip()
-    client_secret = __import__('os').environ.get('SPOTIFY_CLIENT_SECRET', '').strip()
+    client_id = os.environ.get('SPOTIFY_CLIENT_ID', '').strip()
+    client_secret = os.environ.get('SPOTIFY_CLIENT_SECRET', '').strip()
     if not client_id or not client_secret:
         return access_token
 
-    basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+    basic = base64.b64encode(f'{client_id}:{client_secret}'.encode()).decode()
     try:
         response = requests.post(
             'https://accounts.spotify.com/api/token',
@@ -220,6 +255,8 @@ def _spotify_refresh_if_needed(broadcaster_id):
             timeout=12,
         )
         data = response.json()
+        if response.status_code >= 400:
+            return access_token
         new_token = data.get('access_token')
         if not new_token:
             return access_token
@@ -320,11 +357,13 @@ def rotate_obs(broadcaster_id):
 
 @obs_bp.get('/status/<token>')
 def overlay_status(token):
+    if not _allow_overlay_request(token):
+        return jsonify({'ok': False, 'error': 'Muitas solicitações. Aguarde alguns segundos.'}), 429
     conn = _find_by_token(token)
     if not conn:
         return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
     state, current, queue = _snapshot_for_obs(conn['broadcaster_user_id'])
-    return jsonify({
+    response = jsonify({
         'ok': True,
         'connected': True,
         'broadcaster_id': conn['broadcaster_user_id'],
@@ -333,43 +372,63 @@ def overlay_status(token):
         'queue': queue,
         'server_time': int(time.time()),
     })
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
 
 
 @obs_bp.post('/control/<token>/skip')
 def overlay_skip(token):
+    if not _allow_overlay_request(token):
+        return jsonify({'ok': False, 'error': 'Muitas solicitações. Aguarde alguns segundos.'}), 429
     conn = _find_by_token(token)
     if not conn:
         return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
     _skip(conn['broadcaster_user_id'])
     state, current, queue = _snapshot_for_obs(conn['broadcaster_user_id'])
-    return jsonify({'ok': True, 'state': state, 'current': current, 'queue': queue})
-
-
-@obs_bp.post('/control/<token>/playing')
-def overlay_playing(token):
-    conn = _find_by_token(token)
-    if not conn:
-        return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
-    data = request.get_json(silent=True) or {}
-    _set_playing(conn['broadcaster_user_id'], bool(data.get('is_playing')))
-    state, current, queue = _snapshot_for_obs(conn['broadcaster_user_id'])
-    return jsonify({'ok': True, 'state': state, 'current': current, 'queue': queue})
+    response = jsonify({'ok': True, 'state': state, 'current': current, 'queue': queue})
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
 
 
 @obs_bp.get('/spotify-token/<token>')
 def overlay_spotify_token(token):
+    if not _allow_overlay_request(token):
+        return jsonify({'ok': False, 'error': 'Muitas solicitações. Aguarde alguns segundos.'}), 429
     conn = _find_by_token(token)
     if not conn:
         return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
     access_token = _spotify_refresh_if_needed(conn['broadcaster_user_id'])
     if not access_token:
         return jsonify({'ok': False, 'error': 'Spotify não está conectado neste canal.'}), 404
-    return jsonify({'ok': True, 'access_token': access_token})
+    response = jsonify({'ok': True, 'access_token': access_token})
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
+
+
+@obs_bp.post('/control/<token>/playing')
+def overlay_playing(token):
+    if not _allow_overlay_request(token):
+        return jsonify({'ok': False, 'error': 'Muitas solicitações. Aguarde alguns segundos.'}), 429
+    conn = _find_by_token(token)
+    if not conn:
+        return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
+    data = request.get_json(silent=True) or {}
+    _set_playing(conn['broadcaster_user_id'], bool(data.get('is_playing')))
+    state, current, queue = _snapshot_for_obs(conn['broadcaster_user_id'])
+    response = jsonify({'ok': True, 'state': state, 'current': current, 'queue': queue})
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
+
 
 
 @obs_bp.get('/overlay/<token>')
 def obs_overlay(token):
     conn = _find_by_token(token)
     if not conn:
-        return render_template('overlay.html', invalid=True, token=''), 404
-    return render_template('overlay.html', invalid=False, token=token)
+        response = render_template('overlay.html', invalid=True, token='')
+        response.status_code = 404
+        response.headers['Cache-Control'] = 'no-store, max-age=0'
+        return response
+    response = render_template('overlay.html', invalid=False, token=token)
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response

@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=desktop2x6">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.7.0">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -180,7 +180,7 @@ body.sn7-modal-open{overflow:hidden}
         <div class="sn7-config-modal-card sn7-music-config-card" onclick="event.stopPropagation()">
           <button type="button" class="sn7-config-close" aria-label="Fechar" onclick="closeMusicConfig()">×</button>
           <h3>Fontes de música</h3>
-          <p>Escolha de onde o bot poderá aceitar músicas. A conta de cada plataforma é vinculada por autorização oficial. O SN7 nunca recebe sua senha.</p>
+          <p>Escolha as fontes que o bot poderá aceitar. O YouTube e links diretos são reproduzidos pelo player do OBS. Spotify e SoundCloud ficam disponíveis para conexão e metadados, mas não são usados como fonte de reprodução no OBS.</p>
           <div class="sn7-music-source-grid">
             <div class="sn7-source-card">
               <span class="sn7-source-icon" id="musicYoutubeAvatar"><span>▶</span></span>
@@ -190,19 +190,19 @@ body.sn7-modal-open{overflow:hidden}
             </div>
             <div class="sn7-source-card">
               <span class="sn7-source-icon" id="musicSpotifyAvatar"><span>●</span></span>
-              <span><strong>Spotify</strong><small id="musicSpotifyAccount">Verificando conexão…</small></span>
+              <span><strong>Spotify</strong><small id="musicSpotifyAccount">Conexão da conta</small></span>
               <span class="sn7-connection-status disconnected" id="musicSpotifyStatus">✕</span>
               <button type="button" class="sn7-source-action" id="musicSpotifyConnect" onclick="musicConnect('spotify')">Conectar</button>
             </div>
             <div class="sn7-source-card">
               <span class="sn7-source-icon" id="musicSoundcloudAvatar"><span>◉</span></span>
-              <span><strong>SoundCloud</strong><small id="musicSoundcloudAccount">Verificando conexão…</small></span>
+              <span><strong>SoundCloud</strong><small id="musicSoundcloudAccount">Conexão da conta</small></span>
               <span class="sn7-connection-status disconnected" id="musicSoundcloudStatus">✕</span>
               <button type="button" class="sn7-source-action" id="musicSoundcloudConnect" onclick="musicConnect('soundcloud')">Conectar</button>
             </div>
             <div class="sn7-source-card">
               <span class="sn7-source-icon">↗</span>
-              <span><strong>Links</strong><small>URLs diretas no chat</small></span>
+              <span><strong>Links</strong><small>URLs diretas de áudio</small></span>
               <label class="sn7-source-allow sn7-link-allow"><input id="musicAllowLinks" type="checkbox" checked><span class="sn7-checkbox-box" aria-hidden="true">✓</span><span>Aceitar links</span></label>
             </div>
           </div>
@@ -275,7 +275,7 @@ body.sn7-modal-open{overflow:hidden}
           </div>
           <div class="sn7-profile-section">
             <h3>Plataformas</h3>
-            <p>O SN7 Core está sendo preparado para operar a mesma live em várias plataformas, sem depender do StreamElements.</p>
+            <p>Gerencie as integrações da sua live e concentre os recursos do SN7 Core em um só painel.</p>
             <div class="sn7-profile-platforms">
               <div class="sn7-platform-card"><div class="left"><span class="sn7-platform-icon">K</span><span><strong>Kick</strong><small>Conectado ao canal</small></span></div><span class="sn7-platform-status active">ATIVO</span></div>
               <div class="sn7-platform-card"><div class="left"><span class="sn7-platform-icon">T</span><span><strong>Twitch</strong><small>Integração preparada</small></span></div><span class="sn7-platform-status">EM BREVE</span></div>
@@ -293,7 +293,7 @@ body.sn7-modal-open{overflow:hidden}
           </div>
           <div class="sn7-obs-card">
             <div class="sn7-obs-head">
-              <div><h3>OBS Studio</h3><p>Conecte o SN7 Core diretamente ao OBS usando uma Fonte de Navegador. Sem StreamElements.</p></div>
+              <div><h3>OBS Studio</h3><p>Conecte o SN7 Core diretamente ao OBS usando uma Fonte de Navegador.</p></div>
               <span id="sn7ObsState" class="sn7-obs-state">NÃO CONECTADO</span>
             </div>
             <div id="sn7ObsUrlRow" class="sn7-obs-url" hidden>
@@ -318,7 +318,7 @@ body.sn7-modal-open{overflow:hidden}
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
-<script src="/static/js/app.js?v=11"></script><script>
+<script src="/static/js/app.js?v=sn7-1.7.0"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -484,7 +484,7 @@ document.addEventListener("keydown", (event) => {
 });
 </script>
 <script src="/static/js/sn7-ui-fix.js"></script>
-<script src="/static/js/sn7-command-examples.js?v=2"></script>
-<script src="/static/js/sn7-performance-v4.js?v=4"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.7.0"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.7.0"></script>
 </body>
 </html>
