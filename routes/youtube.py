@@ -22,7 +22,8 @@ def _env(name, default=""):
     return os.environ.get(name, default).strip()
 
 def _redirect_uri():
-    configured = _env("YOUTUBE_REDIRECT_URI")
+    # OAuth do BOT é separado do OAuth usado pelo Music Player.
+    configured = _env("YOUTUBE_BOT_REDIRECT_URI")
     if configured:
         return configured
     return f"{_env('SN7_PUBLIC_URL', 'https://sn7-core.onrender.com').rstrip('/')}/youtube/callback"
@@ -117,7 +118,15 @@ def _youtube_profile(access_token):
         raise RuntimeError((data.get("error") or {}).get("message") or "YouTube não retornou o canal autenticado.")
     return data["items"][0]
 
-def _oauth_error(message, status=400):
+def _oauth_error(message, status=400, retry_url="/perfil"):
+    if "text/html" in str(request.headers.get("Accept") or ""):
+        safe = (str(message).replace("&", "&amp;").replace("<", "&lt;")
+                .replace(">", "&gt;").replace('"', "&quot;"))
+        retry = str(retry_url).replace("&", "&amp;").replace('"', "&quot;")
+        html = """<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>SN7 • YouTube</title>
+<style>body{margin:0;background:#0b0d12;color:#e8ebf2;font:16px system-ui;display:grid;place-items:center;min-height:100vh;padding:24px}main{max-width:520px;background:#121720;border:1px solid #2a3240;border-radius:18px;padding:24px}a{display:inline-block;margin:10px 8px 0 0;color:#fff;background:#1c2430;border:1px solid #354052;border-radius:10px;padding:10px 14px;text-decoration:none;font-weight:700}</style>
+<main><h2>Conexão do YouTube não concluída</h2><p>__MESSAGE__</p><a href="__RETRY__">Tentar novamente</a><a href="/?profile=1">Voltar ao perfil</a></main></html>"""
+        return html.replace("__MESSAGE__", safe).replace("__RETRY__", retry), status
     return jsonify({"ok": False, "error": message}), status
 
 @youtube_bp.get("/login")
@@ -126,9 +135,9 @@ def login():
     if bid is None:
         return _oauth_error("Entre com a Kick primeiro para vincular o YouTube ao mesmo canal SN7."), 401
     if not _configured():
-        return _oauth_error("YOUTUBE_CLIENT_ID/YOUTUBE_CLIENT_SECRET não configurados no Render."), 503
+        return _oauth_error("YOUTUBE_CLIENT_ID/YOUTUBE_CLIENT_SECRET não configurados no Render.", 503, "/?profile=1")
     state = secrets.token_urlsafe(32)
-    session["youtube_oauth"] = {"state": state, "broadcaster_id": int(bid)}
+    session["youtube_bot_oauth"] = {"state": state, "broadcaster_id": int(bid), "created_at": int(time.time())}
     params = {
         "client_id": _env("YOUTUBE_CLIENT_ID"), "redirect_uri": _redirect_uri(),
         "response_type": "code", "scope": "https://www.googleapis.com/auth/youtube.force-ssl",
@@ -138,9 +147,10 @@ def login():
 
 @youtube_bp.get("/callback")
 def callback():
-    state_data = session.pop("youtube_oauth", None)
-    if not state_data or request.args.get("state") != state_data.get("state"):
-        return _oauth_error("OAuth YouTube inválido ou expirado.", 400)
+    state_data = session.pop("youtube_bot_oauth", None)
+    state_age = int(time.time()) - int((state_data or {}).get("created_at") or 0)
+    if not state_data or state_age > 600 or not secrets.compare_digest(str(request.args.get("state") or ""), str(state_data.get("state") or "")):
+        return _oauth_error("A sessão do OAuth do YouTube expirou. Inicie a conexão novamente.", 400, "/youtube/login")
     if request.args.get("error"):
         return _oauth_error(request.args.get("error_description") or request.args.get("error"), 400)
     code = str(request.args.get("code") or "").strip()
