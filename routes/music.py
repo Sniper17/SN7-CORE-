@@ -321,7 +321,7 @@ MUSIC_PROVIDERS = {
         "redirect_env": "SPOTIFY_REDIRECT_URI",
         "authorize": "https://accounts.spotify.com/authorize",
         "token": "https://accounts.spotify.com/api/token",
-        "scope": "user-read-private",
+        "scope": "streaming user-read-private user-read-email",
     },
     "soundcloud": {
         "label": "SoundCloud",

@@ -51,9 +51,9 @@ def current_and_queue(bid):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute('SELECT s.current_queue_id,q.id,q.title,q.artist,q.provider FROM music_player_state s LEFT JOIN music_queue q ON q.id=s.current_queue_id AND q.status=\'queued\' WHERE s.broadcaster_user_id=%s', (int(bid),))
+            cur.execute('SELECT s.current_queue_id,q.id,q.title,q.artist,q.provider,q.source_url FROM music_player_state s LEFT JOIN music_queue q ON q.id=s.current_queue_id AND q.status=\'queued\' WHERE s.broadcaster_user_id=%s', (int(bid),))
             row = cur.fetchone()
-            current = {'id': row[1], 'title': row[2], 'artist': row[3], 'provider': row[4]} if row and row[1] else None
+            current = {'id': row[1], 'title': row[2], 'artist': row[3], 'provider': row[4], 'source_url': row[5] or ''} if row and row[1] else None
             cur.execute("SELECT id,title,artist,provider FROM music_queue WHERE broadcaster_user_id=%s AND status='queued' AND id<>COALESCE(%s,0) ORDER BY position,id LIMIT 20", (int(bid), row[0] if row else None))
             queue = [{'id': r[0], 'title': r[1], 'artist': r[2], 'provider': r[3]} for r in cur.fetchall()]
             return current, queue

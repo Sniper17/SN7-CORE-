@@ -1,5 +1,11 @@
+import base64
 import secrets
+import time
+from urllib.parse import urlparse, parse_qs
+
+import requests
 from flask import Blueprint, jsonify, render_template, request
+
 from core.database import get_conn
 from core.auth import require_session_broadcaster
 
@@ -17,7 +23,8 @@ def _get_connection(broadcaster_id):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT broadcaster_user_id, access_token, label, created_at, updated_at FROM obs_connections WHERE broadcaster_user_id=%s",
+                "SELECT broadcaster_user_id, access_token, label, created_at, updated_at "
+                "FROM obs_connections WHERE broadcaster_user_id=%s",
                 (int(broadcaster_id),),
             )
             row = cur.fetchone()
@@ -49,6 +56,208 @@ def _save_connection(broadcaster_id, token):
         conn.commit()
     finally:
         conn.close()
+
+
+def _find_by_token(token):
+    token = str(token or '').strip()
+    if not token or len(token) > 200:
+        return None
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT broadcaster_user_id, access_token, label FROM obs_connections WHERE access_token=%s",
+                (token,),
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+    return {
+        'broadcaster_user_id': int(row[0]),
+        'access_token': row[1],
+        'label': row[2] or 'SN7 Core',
+    }
+
+
+def _snapshot_for_obs(broadcaster_id):
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT s.current_queue_id, s.is_playing, s.volume,
+                           q.id, q.provider, q.title, q.artist, q.source_url, q.added_by, q.status
+                    FROM music_player_state s
+                    LEFT JOIN music_queue q
+                      ON q.id=s.current_queue_id
+                     AND q.broadcaster_user_id=s.broadcaster_user_id
+                    WHERE s.broadcaster_user_id=%s""",
+                (int(broadcaster_id),),
+            )
+            row = cur.fetchone()
+            state = {
+                'current_queue_id': row[0] if row else None,
+                'is_playing': bool(row[1]) if row else False,
+                'volume': int(row[2]) if row else 80,
+            }
+            current = None
+            if row and row[3]:
+                current = {
+                    'id': row[3],
+                    'provider': row[4] or 'unknown',
+                    'title': row[5] or '',
+                    'artist': row[6] or '',
+                    'source_url': row[7] or '',
+                    'added_by': row[8] or '',
+                    'status': row[9] or 'queued',
+                }
+            cur.execute(
+                """SELECT id, provider, title, artist, source_url, added_by, status, position
+                   FROM music_queue
+                   WHERE broadcaster_user_id=%s AND status='queued' AND id<>COALESCE(%s,0)
+                   ORDER BY position ASC,id ASC LIMIT 100""",
+                (int(broadcaster_id), state['current_queue_id']),
+            )
+            queue = [
+                {
+                    'id': r[0], 'provider': r[1], 'title': r[2], 'artist': r[3] or '',
+                    'source_url': r[4] or '', 'added_by': r[5] or '',
+                    'status': r[6], 'position': r[7],
+                }
+                for r in cur.fetchall()
+            ]
+            return state, current, queue
+    finally:
+        conn.close()
+
+
+def _set_playing(broadcaster_id, playing):
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO music_player_state (broadcaster_user_id,is_playing)
+                   VALUES (%s,%s)
+                   ON CONFLICT (broadcaster_user_id) DO UPDATE SET
+                     is_playing=EXCLUDED.is_playing, updated_at=NOW()""",
+                (int(broadcaster_id), bool(playing)),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _skip(broadcaster_id):
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT current_queue_id FROM music_player_state WHERE broadcaster_user_id=%s FOR UPDATE",
+                (int(broadcaster_id),),
+            )
+            row = cur.fetchone()
+            current_id = row[0] if row else None
+            if current_id:
+                cur.execute(
+                    "UPDATE music_queue SET status='played' WHERE id=%s AND broadcaster_user_id=%s",
+                    (current_id, int(broadcaster_id)),
+                )
+            cur.execute(
+                """SELECT id FROM music_queue
+                   WHERE broadcaster_user_id=%s AND status='queued'
+                   ORDER BY position ASC,id ASC LIMIT 1""",
+                (int(broadcaster_id),),
+            )
+            nxt = cur.fetchone()
+            next_id = nxt[0] if nxt else None
+            cur.execute(
+                """UPDATE music_player_state
+                   SET current_queue_id=%s, is_playing=%s, updated_at=NOW()
+                   WHERE broadcaster_user_id=%s""",
+                (next_id, bool(next_id), int(broadcaster_id)),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _spotify_refresh_if_needed(broadcaster_id):
+    """Refresh the Spotify token when possible and return a usable access token."""
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT access_token, refresh_token, expires_at
+                   FROM music_connections
+                   WHERE broadcaster_user_id=%s AND provider='spotify'""",
+                (int(broadcaster_id),),
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None
+
+    access_token, refresh_token, expires_at = row
+    now = int(time.time())
+    if access_token and (not expires_at or int(expires_at) > now + 60):
+        return access_token
+    if not refresh_token:
+        return access_token
+
+    client_id = __import__('os').environ.get('SPOTIFY_CLIENT_ID', '').strip()
+    client_secret = __import__('os').environ.get('SPOTIFY_CLIENT_SECRET', '').strip()
+    if not client_id or not client_secret:
+        return access_token
+
+    basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+    try:
+        response = requests.post(
+            'https://accounts.spotify.com/api/token',
+            data={'grant_type': 'refresh_token', 'refresh_token': refresh_token},
+            headers={'Authorization': f'Basic {basic}', 'Accept': 'application/json'},
+            timeout=12,
+        )
+        data = response.json()
+        new_token = data.get('access_token')
+        if not new_token:
+            return access_token
+        expires_in = int(data.get('expires_in') or 3600)
+        new_refresh = data.get('refresh_token') or refresh_token
+        conn = get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """UPDATE music_connections
+                       SET access_token=%s, refresh_token=%s, expires_at=%s, updated_at=NOW()
+                       WHERE broadcaster_user_id=%s AND provider='spotify'""",
+                    (new_token, new_refresh, now + expires_in, int(broadcaster_id)),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+        return new_token
+    except Exception:
+        return access_token
+
+
+def _youtube_id(url):
+    try:
+        parsed = urlparse(str(url or '').strip())
+        host = (parsed.netloc or '').lower()
+        if 'youtu.be' in host:
+            return parsed.path.strip('/').split('/')[0] or None
+        if 'youtube.com' in host:
+            if parsed.path == '/watch':
+                return parse_qs(parsed.query).get('v', [None])[0]
+            if parsed.path.startswith('/shorts/'):
+                return parsed.path.split('/')[2]
+            if parsed.path.startswith('/embed/'):
+                return parsed.path.split('/')[2]
+    except Exception:
+        pass
+    return None
 
 
 @obs_bp.get('/api/obs/<int:broadcaster_id>/connection')
@@ -114,33 +323,53 @@ def overlay_status(token):
     conn = _find_by_token(token)
     if not conn:
         return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
-    from core.music import current_and_queue
-    try:
-        current, queue = current_and_queue(conn['broadcaster_user_id'])
-    except Exception:
-        current, queue = None, []
-    return jsonify({'ok': True, 'connected': True, 'broadcaster_id': conn['broadcaster_user_id'], 'current': current, 'queue': queue})
+    state, current, queue = _snapshot_for_obs(conn['broadcaster_user_id'])
+    return jsonify({
+        'ok': True,
+        'connected': True,
+        'broadcaster_id': conn['broadcaster_user_id'],
+        'state': state,
+        'current': current,
+        'queue': queue,
+        'server_time': int(time.time()),
+    })
 
 
-def _find_by_token(token):
-    token = str(token or '').strip()
-    if not token or len(token) > 200:
-        return None
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT broadcaster_user_id, access_token, label FROM obs_connections WHERE access_token=%s", (token,))
-            row = cur.fetchone()
-    finally:
-        conn.close()
-    if not row:
-        return None
-    return {'broadcaster_user_id': int(row[0]), 'access_token': row[1], 'label': row[2] or 'SN7 Core'}
+@obs_bp.post('/control/<token>/skip')
+def overlay_skip(token):
+    conn = _find_by_token(token)
+    if not conn:
+        return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
+    _skip(conn['broadcaster_user_id'])
+    state, current, queue = _snapshot_for_obs(conn['broadcaster_user_id'])
+    return jsonify({'ok': True, 'state': state, 'current': current, 'queue': queue})
+
+
+@obs_bp.post('/control/<token>/playing')
+def overlay_playing(token):
+    conn = _find_by_token(token)
+    if not conn:
+        return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
+    data = request.get_json(silent=True) or {}
+    _set_playing(conn['broadcaster_user_id'], bool(data.get('is_playing')))
+    state, current, queue = _snapshot_for_obs(conn['broadcaster_user_id'])
+    return jsonify({'ok': True, 'state': state, 'current': current, 'queue': queue})
+
+
+@obs_bp.get('/spotify-token/<token>')
+def overlay_spotify_token(token):
+    conn = _find_by_token(token)
+    if not conn:
+        return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
+    access_token = _spotify_refresh_if_needed(conn['broadcaster_user_id'])
+    if not access_token:
+        return jsonify({'ok': False, 'error': 'Spotify não está conectado neste canal.'}), 404
+    return jsonify({'ok': True, 'access_token': access_token})
 
 
 @obs_bp.get('/overlay/<token>')
 def obs_overlay(token):
     conn = _find_by_token(token)
     if not conn:
-        return render_template('overlay.html', invalid=True), 404
+        return render_template('overlay.html', invalid=True, token=''), 404
     return render_template('overlay.html', invalid=False, token=token)
