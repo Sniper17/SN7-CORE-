@@ -1165,3 +1165,242 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(loadApostaSettings, 150);
   });
 })();
+
+/* SN7 MUSIC PLAYER V1 - isolated module */
+let sn7MusicData = null;
+let sn7MusicLoadPromise = null;
+let sn7MusicAudio = null;
+let sn7MusicProgressTimer = null;
+
+function musicApi(path, options = {}) {
+  return apiJson(`/api/music/${BROADCASTER_ID}${path}`, options);
+}
+
+function ensureMusicAudio() {
+  if (sn7MusicAudio) return sn7MusicAudio;
+  sn7MusicAudio = new Audio();
+  sn7MusicAudio.preload = "metadata";
+  sn7MusicAudio.addEventListener("timeupdate", musicRenderProgress);
+  sn7MusicAudio.addEventListener("loadedmetadata", musicRenderProgress);
+  sn7MusicAudio.addEventListener("ended", () => musicSkip(true));
+  sn7MusicAudio.addEventListener("play", () => musicRenderPlaying(true));
+  sn7MusicAudio.addEventListener("pause", () => musicRenderPlaying(false));
+  return sn7MusicAudio;
+}
+
+function musicFormatTime(value) {
+  const seconds = Math.max(0, Number(value) || 0);
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+function musicRenderPlaying(playing) {
+  const btn = $("sn7MusicPlay");
+  if (btn) btn.textContent = playing ? "⏸" : "▶";
+  if (sn7MusicData?.state) sn7MusicData.state.is_playing = playing;
+}
+
+function musicRenderProgress() {
+  const audio = sn7MusicAudio;
+  if (!audio) return;
+  const duration = Number(audio.duration) || 0;
+  const current = Number(audio.currentTime) || 0;
+  const bar = $("sn7MusicProgressBar");
+  if (bar) bar.style.width = duration ? `${Math.min(100, current / duration * 100)}%` : "0%";
+  if ($("sn7MusicElapsed")) $("sn7MusicElapsed").textContent = musicFormatTime(current);
+  if ($("sn7MusicDuration")) $("sn7MusicDuration").textContent = duration ? musicFormatTime(duration) : "—";
+}
+
+function musicRender(data) {
+  sn7MusicData = data || {settings:{}, state:{}, current:null, queue:[]};
+  const current = sn7MusicData.current;
+  const queue = Array.isArray(sn7MusicData.queue) ? sn7MusicData.queue : [];
+  const title = $("sn7MusicTitle");
+  const artist = $("sn7MusicArtist");
+  const source = $("sn7MusicSourceStatus");
+  const next = $("sn7MusicNext");
+  const art = $("sn7MusicArt");
+  const volume = $("sn7MusicVolume");
+
+  if (title) title.textContent = current?.title || "Nenhuma música";
+  if (artist) artist.textContent = current?.artist || (queue.length ? "Pronta para a próxima reprodução." : "A fila está pronta para receber músicas.");
+  if (art) art.textContent = current ? "♫" : "♪";
+  if (source) {
+    if (!current) source.textContent = "Player pronto";
+    else if (current.source_url) source.textContent = `Fonte: ${String(current.provider || "link").toUpperCase()}`;
+    else source.textContent = "Aguardando fonte de reprodução autorizada";
+  }
+  if (next) next.textContent = queue[0] ? `Próxima: ${queue[0].title}` : "Próxima: —";
+  if (volume && sn7MusicData.state) volume.value = Number(sn7MusicData.state.volume ?? 80);
+  musicRenderPlaying(Boolean(sn7MusicData.state?.is_playing));
+  renderMusicQueue(queue);
+
+  const audio = ensureMusicAudio();
+  const url = current?.source_url || "";
+  if (url && /^https?:\/\//i.test(url) && /\.(mp3|m4a|aac|ogg|wav|opus)(\?.*)?$/i.test(url)) {
+    if (audio.src !== url) {
+      audio.src = url;
+      audio.volume = Number((sn7MusicData.state?.volume ?? 80) / 100);
+    }
+  } else if (!url) {
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+  }
+  musicRenderProgress();
+}
+
+function renderMusicQueue(queue) {
+  const box = $("sn7MusicQueue");
+  if (!box) return;
+  if (!queue.length) {
+    box.innerHTML = `<div class="sn7-music-empty">Nenhuma música adicionada ainda.</div>`;
+    return;
+  }
+  box.innerHTML = queue.map((item, index) => `
+    <div class="sn7-music-row">
+      <span class="sn7-music-number">${index + 1}</span>
+      <div class="sn7-music-row-info"><strong>${esc(item.title)}</strong><small>${esc(item.artist || "Artista não informado")} · ${esc(item.added_by || "chat")}</small></div>
+      <span class="sn7-music-provider">${esc(item.provider || "link")}</span>
+      <button type="button" class="sn7-music-remove" onclick="removeMusicItem(${Number(item.id)})" aria-label="Remover música">×</button>
+    </div>`).join("");
+}
+
+async function loadMusic() {
+  if (sn7MusicLoadPromise) return sn7MusicLoadPromise;
+  sn7MusicLoadPromise = musicApi("").then((data) => {
+    musicRender(data);
+    return data;
+  }).catch((error) => {
+    const source = $("sn7MusicSourceStatus");
+    if (source) source.textContent = `⚠ ${error.message}`;
+    throw error;
+  }).finally(() => { sn7MusicLoadPromise = null; });
+  return sn7MusicLoadPromise;
+}
+
+async function musicTogglePlay() {
+  const current = sn7MusicData?.current;
+  if (!current) return;
+  const audio = ensureMusicAudio();
+  if (audio.src) {
+    try {
+      if (audio.paused) await audio.play(); else audio.pause();
+    } catch (_) {
+      const source = $("sn7MusicSourceStatus");
+      if (source) source.textContent = "O navegador bloqueou a reprodução automática. Toque novamente para iniciar.";
+    }
+  } else {
+    const next = !Boolean(sn7MusicData?.state?.is_playing);
+    try {
+      const data = await musicApi("/state", {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({is_playing:next})});
+      musicRender(data);
+    } catch (error) {
+      const source = $("sn7MusicSourceStatus");
+      if (source) source.textContent = `⚠ ${error.message}`;
+    }
+  }
+}
+
+async function musicSetVolume(value) {
+  const volume = Math.max(0, Math.min(100, Number(value) || 0));
+  const audio = ensureMusicAudio();
+  audio.volume = volume / 100;
+  try {
+    const data = await musicApi("/state", {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({volume})});
+    sn7MusicData = data;
+  } catch (_) {}
+}
+
+async function musicSkip(fromAudio = false) {
+  const current = sn7MusicData?.current;
+  if (!current) return;
+  const audio = ensureMusicAudio();
+  audio.pause();
+  audio.removeAttribute("src");
+  audio.load();
+  const queue = Array.isArray(sn7MusicData.queue) ? sn7MusicData.queue : [];
+  const next = queue[0];
+  if (!next) {
+    try {
+      const data = await musicApi("/state", {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({is_playing:false})});
+      musicRender(data);
+    } catch (_) {}
+    return;
+  }
+  try {
+    const data = await musicApi("/skip", {method:"POST"});
+    musicRender(data);
+    const source = $("sn7MusicSourceStatus");
+    if (source && data.current) source.textContent = `Próxima: ${data.current.title}`;
+  } catch (error) {
+    const source = $("sn7MusicSourceStatus");
+    if (source) source.textContent = `⚠ ${error.message}`;
+  }
+}
+
+async function musicPrevious() {
+  const source = $("sn7MusicSourceStatus");
+  if (source) source.textContent = "Anterior ficará disponível quando o histórico de reprodução for ativado.";
+}
+
+async function removeMusicItem(id) {
+  if (!Number.isInteger(Number(id))) return;
+  try { musicRender(await musicApi(`/queue/${Number(id)}/remove`, {method:"POST"})); }
+  catch (error) { if ($("sn7MusicSourceStatus")) $("sn7MusicSourceStatus").textContent = `⚠ ${error.message}`; }
+}
+
+async function clearMusicQueue() {
+  if (!confirm("Limpar todas as músicas que estão na fila?")) return;
+  try { musicRender(await musicApi("/queue/clear", {method:"POST"})); }
+  catch (error) { if ($("sn7MusicSourceStatus")) $("sn7MusicSourceStatus").textContent = `⚠ ${error.message}`; }
+}
+
+function openMusicConfig() {
+  const modal = $("sn7MusicConfig");
+  if (!modal) return;
+  modal.removeAttribute("hidden");
+  document.body.classList.add("sn7-modal-open");
+  loadMusic().then(() => {
+    const s = sn7MusicData?.settings || {};
+    if ($("musicAllowYoutube")) $("musicAllowYoutube").checked = s.allow_youtube !== false;
+    if ($("musicAllowSpotify")) $("musicAllowSpotify").checked = s.allow_spotify !== false;
+    if ($("musicAllowSoundcloud")) $("musicAllowSoundcloud").checked = s.allow_soundcloud === true;
+    if ($("musicAllowLinks")) $("musicAllowLinks").checked = s.allow_links !== false;
+  }).catch(() => {});
+}
+
+function closeMusicConfig(event) {
+  if (event && event.target !== event.currentTarget) return;
+  const modal = $("sn7MusicConfig");
+  if (!modal) return;
+  modal.setAttribute("hidden", "");
+  document.body.classList.remove("sn7-modal-open");
+}
+
+async function saveMusicConfig() {
+  const msg = $("musicConfigMsg");
+  if (msg) { msg.textContent = "Salvando..."; msg.className = "sn7-save-message"; }
+  try {
+    const data = await musicApi("/settings", {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({
+      allow_youtube: $("musicAllowYoutube")?.checked,
+      allow_spotify: $("musicAllowSpotify")?.checked,
+      allow_soundcloud: $("musicAllowSoundcloud")?.checked,
+      allow_links: $("musicAllowLinks")?.checked,
+    })});
+    musicRender(data);
+    if (msg) { msg.textContent = "Configuração salva."; msg.className = "sn7-save-message success"; }
+    setTimeout(closeMusicConfig, 550);
+  } catch (error) {
+    if (msg) { msg.textContent = `⚠ ${error.message}`; msg.className = "sn7-save-message error"; }
+  }
+}
+
+// Carrega o módulo somente quando a aba é aberta, preservando o boot rápido do Core.
+(function setupMusicTabLoader(){
+  document.querySelectorAll('nav button[data-tab="minigames"]').forEach((button) => {
+    button.addEventListener("click", () => loadMusic().catch(() => {}));
+  });
+  if (document.querySelector('section#minigames.active')) loadMusic().catch(() => {});
+})();

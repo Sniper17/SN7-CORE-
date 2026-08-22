@@ -118,7 +118,45 @@ body.sn7-modal-open{overflow:hidden}
     </section>
 
     <section id="minigames" class="tab">
-      <div class="panel empty-panel"><div class="empty-icon">▣</div><h3>Módulo em preparação</h3><p>Esta área já está separada no painel para receber equipamentos, custos e configurações dos Mini Games, incluindo o Assalto ao Banco.</p></div>
+      <div class="sn7-music-shell">
+        <div class="sn7-music-player" id="sn7MusicPlayer" onclick="if(event.target.closest('button,input')) return; openMusicConfig()" title="Clique para configurar as fontes de música">
+          <div class="sn7-music-topline"><span class="sn7-music-kicker">MUSIC PLAYER</span><button type="button" class="sn7-music-config" onclick="openMusicConfig()" aria-label="Configurar fontes de música">⚙</button></div>
+          <div class="sn7-music-main">
+            <div class="sn7-music-art" id="sn7MusicArt">♪</div>
+            <div class="sn7-music-info"><span class="sn7-music-label">TOCANDO AGORA</span><strong id="sn7MusicTitle">Nenhuma música</strong><span id="sn7MusicArtist">A fila está pronta para receber músicas.</span></div>
+          </div>
+          <div class="sn7-music-progress"><span id="sn7MusicProgressBar"></span></div>
+          <div class="sn7-music-times"><span id="sn7MusicElapsed">0:00</span><span id="sn7MusicDuration">—</span></div>
+          <div class="sn7-music-controls">
+            <button type="button" onclick="musicPrevious()" aria-label="Anterior">↶</button>
+            <button type="button" class="primary" id="sn7MusicPlay" onclick="musicTogglePlay()" aria-label="Reproduzir ou pausar">▶</button>
+            <button type="button" onclick="musicSkip()" aria-label="Próxima">↷</button>
+            <label class="sn7-music-volume" aria-label="Volume">🔊<input id="sn7MusicVolume" type="range" min="0" max="100" value="80" oninput="musicSetVolume(this.value)"></label>
+          </div>
+          <div class="sn7-music-footer"><span id="sn7MusicSourceStatus">Player pronto</span><span id="sn7MusicNext">Próxima: —</span></div>
+        </div>
+
+        <div class="sn7-music-queue-panel">
+          <div class="sn7-music-queue-head"><div><span class="sn7-music-kicker">FILA</span><h3>Próximas músicas</h3></div><button type="button" class="sn7-subtle" onclick="clearMusicQueue()">Limpar fila</button></div>
+          <div id="sn7MusicQueue" class="sn7-music-queue"><div class="sn7-music-empty">Nenhuma música adicionada ainda.</div></div>
+        </div>
+      </div>
+
+      <div id="sn7MusicConfig" class="sn7-config-modal" hidden onclick="closeMusicConfig(event)">
+        <div class="sn7-config-modal-card sn7-music-config-card" onclick="event.stopPropagation()">
+          <button type="button" class="sn7-config-close" aria-label="Fechar" onclick="closeMusicConfig()">×</button>
+          <h3>Fontes de música</h3>
+          <p>Escolha de onde o bot poderá aceitar músicas. A conta de cada plataforma será conectada por autorização oficial quando a integração estiver disponível.</p>
+          <div class="sn7-music-source-grid">
+            <label class="sn7-source-card"><span class="sn7-source-icon">▶</span><span><strong>YouTube</strong><small>Busca e links</small></span><input id="musicAllowYoutube" type="checkbox" checked></label>
+            <label class="sn7-source-card"><span class="sn7-source-icon">●</span><span><strong>Spotify</strong><small>Busca e links</small></span><input id="musicAllowSpotify" type="checkbox" checked></label>
+            <label class="sn7-source-card"><span class="sn7-source-icon">◉</span><span><strong>SoundCloud</strong><small>Preparado para integração</small></span><input id="musicAllowSoundcloud" type="checkbox"></label>
+            <label class="sn7-source-card"><span class="sn7-source-icon">↗</span><span><strong>Links</strong><small>Aceitar URLs no chat</small></span><input id="musicAllowLinks" type="checkbox" checked></label>
+          </div>
+          <div class="sn7-music-security-note"><span>🔐</span><div><strong>Login seguro</strong><small>O SN7 não pede nem armazena sua senha. As contas serão vinculadas por OAuth oficial e os tokens ficarão somente no backend.</small></div></div>
+          <div class="save-row"><p id="musicConfigMsg"></p><button type="button" class="btn" onclick="saveMusicConfig()">Salvar alterações</button></div>
+        </div>
+      </div>
     </section>
 
     <section id="commands" class="tab"></section>
@@ -183,7 +221,7 @@ body.sn7-modal-open{overflow:hidden}
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
-<script src="/static/js/app.js?v=6"></script><script>
+<script src="/static/js/app.js?v=7"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);

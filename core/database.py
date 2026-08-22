@@ -115,6 +115,39 @@ CREATE TABLE IF NOT EXISTS command_aliases (
 
 CREATE INDEX IF NOT EXISTS idx_command_configs_channel ON command_configs(broadcaster_user_id,category,enabled);
 CREATE INDEX IF NOT EXISTS idx_command_aliases_channel ON command_aliases(broadcaster_user_id,alias);
+
+
+CREATE TABLE IF NOT EXISTS music_settings (
+    broadcaster_user_id BIGINT PRIMARY KEY,
+    allow_youtube BOOLEAN NOT NULL DEFAULT TRUE,
+    allow_spotify BOOLEAN NOT NULL DEFAULT TRUE,
+    allow_soundcloud BOOLEAN NOT NULL DEFAULT FALSE,
+    allow_links BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS music_queue (
+    id BIGSERIAL PRIMARY KEY,
+    broadcaster_user_id BIGINT NOT NULL,
+    provider TEXT NOT NULL DEFAULT 'unknown',
+    title TEXT NOT NULL,
+    artist TEXT NOT NULL DEFAULT '',
+    source_url TEXT NOT NULL DEFAULT '',
+    added_by TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'queued',
+    position INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_music_queue_channel ON music_queue(broadcaster_user_id,status,position,id);
+
+CREATE TABLE IF NOT EXISTS music_player_state (
+    broadcaster_user_id BIGINT PRIMARY KEY,
+    current_queue_id BIGINT,
+    is_playing BOOLEAN NOT NULL DEFAULT FALSE,
+    volume INTEGER NOT NULL DEFAULT 80 CHECK (volume BETWEEN 0 AND 100),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 """
 
 def get_conn():

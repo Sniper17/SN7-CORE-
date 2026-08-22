@@ -906,6 +906,65 @@ def _process_chat(payload):
         currency = str(ch["currency_name"])
         emoji = str(ch["currency_emoji"])
 
+        if key in {"addmusic", "skipmusic", "musicqueue", "nowplaying", "pausemusic", "resumemusic", "clearmusic"}:
+            from core.music import add_from_chat, clear_queue, current_and_queue, set_playing, skip_current
+
+            if key == "addmusic":
+                query = " ".join(args).strip()
+                if not query:
+                    _send_chat(bid, f"🎵 Use {cfg['command']} artista - música ou envie um link.")
+                    return
+                try:
+                    item, position = add_from_chat(bid, query, user)
+                    response = _render_response(cfg["response"], {
+                        "user": _mention(user),
+                        "music": item["title"],
+                        "queue_position": position
+                    })
+                    _send_chat(bid, response)
+                except ValueError as exc:
+                    _send_chat(bid, f"❌ {exc}")
+                return
+
+            if key == "skipmusic":
+                current = skip_current(bid)
+                _send_chat(bid, _render_response(cfg["response"], {
+                    "music": current["title"] if current else "nenhuma música"
+                }))
+                return
+
+            if key == "musicqueue":
+                current, queue = current_and_queue(bid)
+                parts = []
+                if current:
+                    parts.append(f"▶ {current['title']}")
+                for i, item in enumerate(queue[:4], 1):
+                    parts.append(f"{i}. {item['title']}")
+                queue_text = "🎵 Fila vazia." if not parts else "🎵 " + " • ".join(parts)
+                _send_chat(bid, _render_response(cfg["response"], {"queue": queue_text}))
+                return
+
+            if key == "nowplaying":
+                current, _ = current_and_queue(bid)
+                music_text = current["title"] if current else "nenhuma música tocando"
+                _send_chat(bid, _render_response(cfg["response"], {"music": music_text}))
+                return
+
+            if key == "pausemusic":
+                set_playing(bid, False)
+                _send_chat(bid, cfg["response"] or "⏸️ Música pausada.")
+                return
+
+            if key == "resumemusic":
+                set_playing(bid, True)
+                _send_chat(bid, cfg["response"] or "▶️ Música retomada.")
+                return
+
+            if key == "clearmusic":
+                clear_queue(bid)
+                _send_chat(bid, cfg["response"] or "🧹 Fila de músicas limpa.")
+                return
+
         if key == "points":
             _send_chat(bid, _render_response(cfg["response"], _format_balance(bid, user)))
             return
