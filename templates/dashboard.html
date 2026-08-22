@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=desktop2x3">
+<link rel="stylesheet" href="/static/css/style.css?v=desktop2x4">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -119,26 +119,60 @@ body.sn7-modal-open{overflow:hidden}
 
     <section id="minigames" class="tab">
       <div class="sn7-music-shell">
-        <div class="sn7-music-player" id="sn7MusicPlayer" onclick="if(event.target.closest('button,input')) return; openMusicConfig()" title="Clique para configurar as fontes de música">
-          <div class="sn7-music-topline"><span class="sn7-music-kicker">MUSIC PLAYER</span><button type="button" class="sn7-music-config" onclick="openMusicConfig()" aria-label="Configurar fontes de música">⚙</button></div>
-          <div class="sn7-music-main">
-            <div class="sn7-music-art" id="sn7MusicArt">♪</div>
-            <div class="sn7-music-info"><span class="sn7-music-label">TOCANDO AGORA</span><strong id="sn7MusicTitle">Nenhuma música</strong><span id="sn7MusicArtist">A fila está pronta para receber músicas.</span></div>
+        <div class="sn7-music-player" id="sn7MusicPlayer">
+          <div class="sn7-music-topline">
+            <span class="sn7-music-kicker">MUSIC PLAYER</span>
+            <button type="button" class="sn7-music-config" onclick="openMusicConfig()" aria-label="Configurar fontes de música">⚙</button>
           </div>
-          <div class="sn7-music-progress"><span id="sn7MusicProgressBar"></span></div>
-          <div class="sn7-music-times"><span id="sn7MusicElapsed">0:00</span><span id="sn7MusicDuration">—</span></div>
-          <div class="sn7-music-controls">
-            <button type="button" onclick="musicPrevious()" aria-label="Anterior">↶</button>
-            <button type="button" class="primary" id="sn7MusicPlay" onclick="musicTogglePlay()" aria-label="Reproduzir ou pausar">▶</button>
-            <button type="button" onclick="musicSkip()" aria-label="Próxima">↷</button>
-            <label class="sn7-music-volume" aria-label="Volume">🔊<input id="sn7MusicVolume" type="range" min="0" max="100" value="80" oninput="musicSetVolume(this.value)"></label>
-          </div>
-          <div class="sn7-music-footer"><span id="sn7MusicSourceStatus">Player pronto</span><span id="sn7MusicNext">Próxima: —</span></div>
-        </div>
 
-        <div class="sn7-music-queue-panel">
-          <div class="sn7-music-queue-head"><div><span class="sn7-music-kicker">FILA</span><h3>Próximas músicas</h3></div><button type="button" class="sn7-subtle" onclick="clearMusicQueue()">Limpar fila</button></div>
-          <div id="sn7MusicQueue" class="sn7-music-queue"><div class="sn7-music-empty">Nenhuma música adicionada ainda.</div></div>
+          <div class="sn7-music-main">
+            <div class="sn7-music-art" id="sn7MusicArt" aria-hidden="true">♪</div>
+            <div class="sn7-music-info">
+              <span class="sn7-music-label">TOCANDO AGORA</span>
+              <strong id="sn7MusicTitle">Nenhuma música</strong>
+              <span id="sn7MusicArtist">A fila está pronta para receber músicas.</span>
+            </div>
+          </div>
+
+          <div class="sn7-music-progress" aria-hidden="true"><span id="sn7MusicProgressBar"></span></div>
+          <div class="sn7-music-times"><span id="sn7MusicElapsed">0:00</span><span id="sn7MusicDuration">—</span></div>
+
+          <div class="sn7-music-controls" aria-label="Controles do player">
+            <button type="button" class="sn7-music-btn" onclick="musicPrevious()" aria-label="Anterior">↶</button>
+            <button type="button" class="sn7-music-btn primary" id="sn7MusicPlay" onclick="musicTogglePlay()" aria-label="Reproduzir ou pausar">▶</button>
+            <button type="button" class="sn7-music-btn" onclick="musicSkip()" aria-label="Próxima">↷</button>
+
+            <div class="sn7-music-volume" aria-label="Controle de volume">
+              <span id="sn7MusicVolumeIcon" aria-hidden="true">🔊</span>
+              <button type="button" class="sn7-volume-btn" onclick="musicChangeVolume(-10)" aria-label="Diminuir volume">−</button>
+              <span class="sn7-volume-value" id="sn7MusicVolumeValue">80</span>
+              <button type="button" class="sn7-volume-btn" onclick="musicChangeVolume(10)" aria-label="Aumentar volume">+</button>
+            </div>
+          </div>
+
+          <div class="sn7-music-bottom">
+            <span id="sn7MusicSourceStatus">Player pronto</span>
+            <button type="button" class="sn7-music-queue-toggle" id="sn7MusicQueueToggle" onclick="openMusicQueue()" aria-label="Abrir fila de músicas">
+              ☷ <span>FILA</span><b id="sn7MusicQueueCount">0</b>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="sn7MusicQueueModal" class="sn7-config-modal" hidden onclick="closeMusicQueue(event)">
+        <div class="sn7-config-modal-card sn7-music-queue-card" onclick="event.stopPropagation()">
+          <button type="button" class="sn7-config-close" aria-label="Fechar fila" onclick="closeMusicQueue()">×</button>
+          <div class="sn7-music-queue-modal-head">
+            <div>
+              <span class="sn7-music-kicker">FILA DE MÚSICAS</span>
+              <h3>Próximas músicas</h3>
+            </div>
+            <button type="button" class="sn7-subtle sn7-queue-clear" onclick="clearMusicQueue()">Limpar fila</button>
+          </div>
+          <div id="sn7MusicQueue" class="sn7-music-queue">
+            <div class="sn7-music-empty">Nenhuma música adicionada ainda.</div>
+          </div>
+          <div id="sn7MusicQueueMessage" class="sn7-music-queue-message" hidden></div>
         </div>
       </div>
 
@@ -221,7 +255,7 @@ body.sn7-modal-open{overflow:hidden}
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
-<script src="/static/js/app.js?v=7"></script><script>
+<script src="/static/js/app.js?v=8"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);

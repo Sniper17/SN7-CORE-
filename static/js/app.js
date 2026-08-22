@@ -896,24 +896,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // A interface aparece imediatamente, mas o loader permanece cobrindo a tela
-  // enquanto os dados principais são preparados em paralelo. Assim o painel
-  // abre rápido sem mostrar cards vazios durante alguns segundos.
-  requestAnimationFrame(async () => {
-    try {
-      await Promise.allSettled([
-        loadSettings(),
-        loadCommands(),
-        loadRanking(),
-      ]);
+  // Boot rápido: tudo que alimenta as abas começa em paralelo. O loader tem
+  // no máximo 3s; se o Render demorar, a interface aparece e as respostas
+  // continuam chegando em segundo plano, sem bloquear a navegação.
+  requestAnimationFrame(() => {
+    const bootTasks = [
+      loadSettings(),
+      loadCommands(),
+      loadRanking(),
+      typeof loadMusic === "function" ? loadMusic() : Promise.resolve(),
+      typeof window.sn7LoadProfile === "function" ? window.sn7LoadProfile() : Promise.resolve(),
+    ];
 
-      if (typeof window.sn7RestoreSavedModal === "function") {
-        await window.sn7RestoreSavedModal();
-      }
-    } finally {
+    const allReady = Promise.allSettled(bootTasks);
+    const maxBoot = new Promise((resolve) => setTimeout(resolve, 3000));
+
+    Promise.race([allReady, maxBoot]).then(() => {
       sn7Booting = false;
       sn7HideBootLoader();
-    }
+      if (typeof window.sn7RestoreSavedModal === "function") {
+        window.sn7RestoreSavedModal().catch(() => {});
+      }
+    });
   });
 });
 
@@ -1166,11 +1170,11 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 })();
 
-/* SN7 MUSIC PLAYER V1 - isolated module */
+/* SN7 MUSIC PLAYER V2 - compacto e leve */
 let sn7MusicData = null;
 let sn7MusicLoadPromise = null;
 let sn7MusicAudio = null;
-let sn7MusicProgressTimer = null;
+let sn7MusicVolumeSaveTimer = null;
 
 function musicApi(path, options = {}) {
   return apiJson(`/api/music/${BROADCASTER_ID}${path}`, options);
@@ -1197,7 +1201,10 @@ function musicFormatTime(value) {
 
 function musicRenderPlaying(playing) {
   const btn = $("sn7MusicPlay");
-  if (btn) btn.textContent = playing ? "⏸" : "▶";
+  if (btn) {
+    btn.textContent = playing ? "⏸" : "▶";
+    btn.setAttribute("aria-label", playing ? "Pausar" : "Reproduzir");
+  }
   if (sn7MusicData?.state) sn7MusicData.state.is_playing = playing;
 }
 
@@ -1212,6 +1219,17 @@ function musicRenderProgress() {
   if ($("sn7MusicDuration")) $("sn7MusicDuration").textContent = duration ? musicFormatTime(duration) : "—";
 }
 
+function musicRenderVolume(value) {
+  const volume = Math.max(0, Math.min(100, Number(value) || 0));
+  if ($("sn7MusicVolumeValue")) $("sn7MusicVolumeValue").textContent = String(volume);
+  const icon = $("sn7MusicVolumeIcon");
+  if (icon) icon.textContent = volume === 0 ? "🔇" : volume <= 30 ? "🔈" : volume <= 70 ? "🔉" : "🔊";
+  document.querySelectorAll(".sn7-volume-btn").forEach((button) => {
+    const label = button.getAttribute("aria-label") || "";
+    button.disabled = (volume === 0 && label.includes("Diminuir")) || (volume === 100 && label.includes("Aumentar"));
+  });
+}
+
 function musicRender(data) {
   sn7MusicData = data || {settings:{}, state:{}, current:null, queue:[]};
   const current = sn7MusicData.current;
@@ -1219,9 +1237,8 @@ function musicRender(data) {
   const title = $("sn7MusicTitle");
   const artist = $("sn7MusicArtist");
   const source = $("sn7MusicSourceStatus");
-  const next = $("sn7MusicNext");
   const art = $("sn7MusicArt");
-  const volume = $("sn7MusicVolume");
+  const volume = Number(sn7MusicData.state?.volume ?? 80);
 
   if (title) title.textContent = current?.title || "Nenhuma música";
   if (artist) artist.textContent = current?.artist || (queue.length ? "Pronta para a próxima reprodução." : "A fila está pronta para receber músicas.");
@@ -1231,8 +1248,11 @@ function musicRender(data) {
     else if (current.source_url) source.textContent = `Fonte: ${String(current.provider || "link").toUpperCase()}`;
     else source.textContent = "Aguardando fonte de reprodução autorizada";
   }
-  if (next) next.textContent = queue[0] ? `Próxima: ${queue[0].title}` : "Próxima: —";
-  if (volume && sn7MusicData.state) volume.value = Number(sn7MusicData.state.volume ?? 80);
+
+  const count = $("sn7MusicQueueCount");
+  if (count) count.textContent = String(queue.length);
+
+  musicRenderVolume(volume);
   musicRenderPlaying(Boolean(sn7MusicData.state?.is_playing));
   renderMusicQueue(queue);
 
@@ -1241,12 +1261,14 @@ function musicRender(data) {
   if (url && /^https?:\/\//i.test(url) && /\.(mp3|m4a|aac|ogg|wav|opus)(\?.*)?$/i.test(url)) {
     if (audio.src !== url) {
       audio.src = url;
-      audio.volume = Number((sn7MusicData.state?.volume ?? 80) / 100);
+      audio.volume = volume / 100;
     }
   } else if (!url) {
     audio.pause();
     audio.removeAttribute("src");
     audio.load();
+  } else {
+    audio.volume = volume / 100;
   }
   musicRenderProgress();
 }
@@ -1261,9 +1283,12 @@ function renderMusicQueue(queue) {
   box.innerHTML = queue.map((item, index) => `
     <div class="sn7-music-row">
       <span class="sn7-music-number">${index + 1}</span>
-      <div class="sn7-music-row-info"><strong>${esc(item.title)}</strong><small>${esc(item.artist || "Artista não informado")} · ${esc(item.added_by || "chat")}</small></div>
+      <div class="sn7-music-row-info">
+        <strong>${esc(item.title)}</strong>
+        <small>${esc(item.artist || "Artista não informado")} · ${esc(item.added_by || "chat")}</small>
+      </div>
       <span class="sn7-music-provider">${esc(item.provider || "link")}</span>
-      <button type="button" class="sn7-music-remove" onclick="removeMusicItem(${Number(item.id)})" aria-label="Remover música">×</button>
+      <button type="button" class="sn7-music-remove" onclick="removeMusicItem(${Number(item.id)})" aria-label="Remover ${esc(item.title)}">×</button>
     </div>`).join("");
 }
 
@@ -1274,7 +1299,7 @@ async function loadMusic() {
     return data;
   }).catch((error) => {
     const source = $("sn7MusicSourceStatus");
-    if (source) source.textContent = `⚠ ${error.message}`;
+    if (source) source.textContent = "⚠ Não foi possível carregar o player";
     throw error;
   }).finally(() => { sn7MusicLoadPromise = null; });
   return sn7MusicLoadPromise;
@@ -1286,31 +1311,48 @@ async function musicTogglePlay() {
   const audio = ensureMusicAudio();
   if (audio.src) {
     try {
-      if (audio.paused) await audio.play(); else audio.pause();
+      if (audio.paused) await audio.play();
+      else audio.pause();
     } catch (_) {
       const source = $("sn7MusicSourceStatus");
-      if (source) source.textContent = "O navegador bloqueou a reprodução automática. Toque novamente para iniciar.";
+      if (source) source.textContent = "Toque novamente para iniciar a reprodução.";
     }
   } else {
     const next = !Boolean(sn7MusicData?.state?.is_playing);
     try {
-      const data = await musicApi("/state", {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({is_playing:next})});
+      const data = await musicApi("/state", {
+        method:"PATCH",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({is_playing:next})
+      });
       musicRender(data);
     } catch (error) {
       const source = $("sn7MusicSourceStatus");
-      if (source) source.textContent = `⚠ ${error.message}`;
+      if (source) source.textContent = "⚠ Não foi possível alterar o player";
     }
   }
 }
 
-async function musicSetVolume(value) {
-  const volume = Math.max(0, Math.min(100, Number(value) || 0));
+function musicChangeVolume(delta) {
+  const current = Number(sn7MusicData?.state?.volume ?? 80);
+  const volume = Math.max(0, Math.min(100, Math.round((current + Number(delta)) / 10) * 10));
+  if (sn7MusicData?.state) sn7MusicData.state.volume = volume;
   const audio = ensureMusicAudio();
   audio.volume = volume / 100;
-  try {
-    const data = await musicApi("/state", {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({volume})});
-    sn7MusicData = data;
-  } catch (_) {}
+  musicRenderVolume(volume);
+
+  clearTimeout(sn7MusicVolumeSaveTimer);
+  sn7MusicVolumeSaveTimer = setTimeout(async () => {
+    try {
+      const data = await musicApi("/state", {
+        method:"PATCH",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({volume})
+      });
+      sn7MusicData = data;
+      musicRenderVolume(Number(data.state?.volume ?? volume));
+    } catch (_) {}
+  }, 180);
 }
 
 async function musicSkip(fromAudio = false) {
@@ -1320,41 +1362,92 @@ async function musicSkip(fromAudio = false) {
   audio.pause();
   audio.removeAttribute("src");
   audio.load();
+
   const queue = Array.isArray(sn7MusicData.queue) ? sn7MusicData.queue : [];
-  const next = queue[0];
-  if (!next) {
+  if (!queue.length) {
     try {
-      const data = await musicApi("/state", {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({is_playing:false})});
-      musicRender(data);
+      musicRender(await musicApi("/state", {
+        method:"PATCH",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({is_playing:false})
+      }));
     } catch (_) {}
     return;
   }
+
   try {
     const data = await musicApi("/skip", {method:"POST"});
     musicRender(data);
     const source = $("sn7MusicSourceStatus");
     if (source && data.current) source.textContent = `Próxima: ${data.current.title}`;
-  } catch (error) {
+  } catch (_) {
     const source = $("sn7MusicSourceStatus");
-    if (source) source.textContent = `⚠ ${error.message}`;
+    if (source) source.textContent = "⚠ Não foi possível avançar a fila";
   }
 }
 
-async function musicPrevious() {
+function musicPrevious() {
   const source = $("sn7MusicSourceStatus");
-  if (source) source.textContent = "Anterior ficará disponível quando o histórico de reprodução for ativado.";
+  if (source) source.textContent = "Histórico de reprodução ainda não está disponível.";
 }
 
 async function removeMusicItem(id) {
   if (!Number.isInteger(Number(id))) return;
-  try { musicRender(await musicApi(`/queue/${Number(id)}/remove`, {method:"POST"})); }
-  catch (error) { if ($("sn7MusicSourceStatus")) $("sn7MusicSourceStatus").textContent = `⚠ ${error.message}`; }
+  const button = document.querySelector(`.sn7-music-remove[onclick*="${Number(id)}"]`);
+  if (button) {
+    button.disabled = true;
+    button.textContent = "…";
+  }
+  try {
+    musicRender(await musicApi(`/queue/${Number(id)}/remove`, {method:"POST"}));
+  } catch (_) {
+    const msg = $("sn7MusicQueueMessage");
+    if (msg) {
+      msg.textContent = "Não foi possível remover a música.";
+      msg.hidden = false;
+      setTimeout(() => { msg.hidden = true; }, 2200);
+    }
+  }
 }
 
 async function clearMusicQueue() {
   if (!confirm("Limpar todas as músicas que estão na fila?")) return;
-  try { musicRender(await musicApi("/queue/clear", {method:"POST"})); }
-  catch (error) { if ($("sn7MusicSourceStatus")) $("sn7MusicSourceStatus").textContent = `⚠ ${error.message}`; }
+  const button = document.querySelector(".sn7-queue-clear");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Limpando...";
+  }
+  try {
+    musicRender(await musicApi("/queue/clear", {method:"POST"}));
+  } catch (_) {
+    const msg = $("sn7MusicQueueMessage");
+    if (msg) {
+      msg.textContent = "Não foi possível limpar a fila.";
+      msg.hidden = false;
+      setTimeout(() => { msg.hidden = true; }, 2200);
+    }
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Limpar fila";
+    }
+  }
+}
+
+function openMusicQueue() {
+  const modal = $("sn7MusicQueueModal");
+  if (!modal) return;
+  modal.removeAttribute("hidden");
+  document.body.classList.add("sn7-modal-open");
+  loadMusic().catch(() => {});
+}
+
+function closeMusicQueue(event) {
+  if (event && event.target !== event.currentTarget) return;
+  const modal = $("sn7MusicQueueModal");
+  if (!modal) return;
+  modal.setAttribute("hidden", "");
+  document.body.classList.remove("sn7-modal-open");
 }
 
 function openMusicConfig() {
@@ -1383,21 +1476,25 @@ async function saveMusicConfig() {
   const msg = $("musicConfigMsg");
   if (msg) { msg.textContent = "Salvando..."; msg.className = "sn7-save-message"; }
   try {
-    const data = await musicApi("/settings", {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({
-      allow_youtube: $("musicAllowYoutube")?.checked,
-      allow_spotify: $("musicAllowSpotify")?.checked,
-      allow_soundcloud: $("musicAllowSoundcloud")?.checked,
-      allow_links: $("musicAllowLinks")?.checked,
-    })});
+    const data = await musicApi("/settings", {
+      method:"PATCH",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        allow_youtube: $("musicAllowYoutube")?.checked,
+        allow_spotify: $("musicAllowSpotify")?.checked,
+        allow_soundcloud: $("musicAllowSoundcloud")?.checked,
+        allow_links: $("musicAllowLinks")?.checked,
+      })
+    });
     musicRender(data);
-    if (msg) { msg.textContent = "Configuração salva."; msg.className = "sn7-save-message success"; }
+    if (msg) { msg.textContent = "✓ Configuração salva."; msg.className = "sn7-save-message success"; }
     setTimeout(closeMusicConfig, 550);
   } catch (error) {
     if (msg) { msg.textContent = `⚠ ${error.message}`; msg.className = "sn7-save-message error"; }
   }
 }
 
-// Carrega o módulo somente quando a aba é aberta, preservando o boot rápido do Core.
+/* O player é pré-carregado junto do boot, mas não cria áudio/rede de mídia até necessário. */
 (function setupMusicTabLoader(){
   document.querySelectorAll('nav button[data-tab="minigames"]').forEach((button) => {
     button.addEventListener("click", () => loadMusic().catch(() => {}));

@@ -495,21 +495,105 @@ nav button.active::after{content:""!important;position:absolute!important;inset:
   font-size:12px;
 }
 
-/* SN7 MUSIC PLAYER V1 */
-.sn7-music-shell{width:100%;max-width:980px}
-.sn7-music-player{position:relative;overflow:hidden;padding:24px;border:1px solid #2b3340;border-radius:22px;background:radial-gradient(circle at 80% 0%,rgba(124,92,255,.13),transparent 34%),linear-gradient(145deg,#151a23,#0f131a);box-shadow:0 20px 55px rgba(0,0,0,.22)}
-.sn7-music-player:before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.035),transparent 38%);pointer-events:none}
-.sn7-music-topline,.sn7-music-footer,.sn7-music-times,.sn7-music-queue-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.sn7-music-kicker{font-size:10px;letter-spacing:2px;font-weight:900;color:#858fa1}
-.sn7-music-config{width:42px;height:42px;border:1px solid #303846;border-radius:12px;background:#181e28;color:#aeb6c5;cursor:pointer;font-size:18px}
-.sn7-music-config:hover{color:#fff;background:#1d2430}
-.sn7-music-main{display:flex;align-items:center;gap:18px;padding:28px 0 24px}
-.sn7-music-art{width:82px;height:82px;flex:0 0 82px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(145deg,#262d3a,#151a22);border:1px solid #343d4d;color:#c4baff;font-size:34px;box-shadow:inset 0 1px rgba(255,255,255,.04)}
-.sn7-music-info{min-width:0}.sn7-music-label{display:block;font-size:9px;letter-spacing:1.7px;color:#7e8798;font-weight:800;margin-bottom:6px}.sn7-music-info strong{display:block;font-size:22px;line-height:1.2;overflow-wrap:anywhere}.sn7-music-info>span:last-child{display:block;color:#929bac;font-size:13px;margin-top:6px;overflow-wrap:anywhere}
-.sn7-music-progress{height:5px;background:#252b36;border-radius:999px;overflow:hidden}.sn7-music-progress span{display:block;height:100%;width:0;background:#b7abff;border-radius:inherit;transition:width .2s linear}
-.sn7-music-times{font-size:10px;color:#717b8d;margin-top:7px}
-.sn7-music-controls{display:flex;align-items:center;justify-content:center;gap:13px;padding:19px 0 13px}.sn7-music-controls>button{width:42px;height:42px;border:1px solid #303846;border-radius:50%;background:#181e28;color:#dce1e9;cursor:pointer;font-size:18px}.sn7-music-controls>button:hover{background:#202734}.sn7-music-controls>button.primary{width:54px;height:54px;background:#fff;color:#10131a;border-color:#fff;font-size:19px}.sn7-music-volume{display:flex;align-items:center;gap:7px;margin-left:9px;color:#9099a9;font-size:14px}.sn7-music-volume input{width:88px;accent-color:#b7abff}
-.sn7-music-footer{font-size:11px;color:#788294;padding-top:7px;border-top:1px solid rgba(255,255,255,.06)}
-.sn7-music-queue-panel{margin-top:18px;padding:18px;border:1px solid var(--border);border-radius:16px;background:var(--panel)}.sn7-music-queue-head{align-items:flex-end;margin-bottom:8px}.sn7-music-queue-head h3{margin:4px 0 0;font-size:17px}.sn7-music-queue{display:grid;gap:7px}.sn7-music-empty{padding:20px 6px;color:var(--muted);font-size:12px}.sn7-music-row{display:flex;align-items:center;gap:11px;padding:11px 10px;border:1px solid transparent;border-radius:12px}.sn7-music-row:hover{background:#151a22;border-color:#252c37}.sn7-music-number{width:25px;color:#697386;font-size:11px;text-align:center}.sn7-music-row-info{min-width:0;flex:1}.sn7-music-row-info strong{display:block;font-size:13px;overflow-wrap:anywhere}.sn7-music-row-info small{display:block;color:var(--muted);font-size:11px;margin-top:3px;overflow-wrap:anywhere}.sn7-music-provider{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:#798396}.sn7-music-remove{border:0;background:transparent;color:#7f899a;cursor:pointer;padding:8px}.sn7-music-remove:hover{color:#ff9ca6}
-.sn7-music-source-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}.sn7-source-card{display:flex!important;align-items:center;gap:10px;margin:0!important;padding:13px;border:1px solid var(--border);border-radius:12px;background:#0d1117;cursor:pointer}.sn7-source-card:hover{border-color:#384152;background:#121720}.sn7-source-icon{width:34px;height:34px;border-radius:9px;background:#181e28;display:grid;place-items:center;color:#b7abff;font-weight:800;flex:0 0 34px}.sn7-source-card span:nth-child(2){min-width:0;flex:1}.sn7-source-card strong{display:block;font-size:13px}.sn7-source-card small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.sn7-source-card input{width:18px;height:18px;margin:0;accent-color:#b7abff}.sn7-music-security-note{display:flex;gap:10px;margin-top:14px;padding:12px;border:1px solid #29313e;border-radius:11px;background:#0d1117;color:#aeb6c5}.sn7-music-security-note>span{font-size:16px}.sn7-music-security-note strong{display:block;font-size:12px;color:#e5e9ef}.sn7-music-security-note small{display:block;font-size:10px;line-height:1.5;margin-top:3px;color:#7f899a}
-@media(max-width:600px){.sn7-music-player{padding:18px;border-radius:18px}.sn7-music-main{gap:13px;padding:23px 0 20px}.sn7-music-art{width:68px;height:68px;flex-basis:68px;border-radius:15px;font-size:28px}.sn7-music-info strong{font-size:18px}.sn7-music-source-grid{grid-template-columns:1fr}.sn7-music-volume{margin-left:2px}.sn7-music-volume input{width:70px}.sn7-music-footer{align-items:flex-start;flex-direction:column;gap:5px}}
+/* SN7 MUSIC PLAYER V2 - compacto, mobile-first e sem dependências */
+.sn7-music-shell{width:100%;max-width:720px}
+.sn7-music-player{
+  position:relative;overflow:hidden;width:100%;padding:15px 16px;
+  border:1px solid #2b3340;border-radius:17px;
+  background:linear-gradient(145deg,#151a23,#0f131a);
+  box-shadow:0 12px 32px rgba(0,0,0,.18)
+}
+.sn7-music-topline,.sn7-music-bottom,.sn7-music-times{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sn7-music-kicker{font-size:9px;letter-spacing:1.8px;font-weight:900;color:#858fa1}
+.sn7-music-config{
+  width:34px;height:34px;border:1px solid #303846;border-radius:10px;
+  background:#181e28;color:#aeb6c5;cursor:pointer;font-size:16px;
+  transition:transform .12s ease,background .12s ease,border-color .12s ease
+}
+.sn7-music-main{display:flex;align-items:center;gap:12px;padding:13px 0 11px}
+.sn7-music-art{
+  width:48px;height:48px;flex:0 0 48px;border-radius:12px;display:grid;place-items:center;
+  background:linear-gradient(145deg,#262d3a,#151a22);border:1px solid #343d4d;
+  color:#c4baff;font-size:21px
+}
+.sn7-music-info{min-width:0;flex:1}
+.sn7-music-label{display:block;font-size:8px;letter-spacing:1.5px;color:#7e8798;font-weight:800;margin-bottom:3px}
+.sn7-music-info strong{display:block;font-size:15px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sn7-music-info>span:last-child{display:block;color:#929bac;font-size:11px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sn7-music-progress{height:3px;background:#252b36;border-radius:999px;overflow:hidden}
+.sn7-music-progress span{display:block;height:100%;width:0;background:#b7abff;border-radius:inherit;transition:width .18s linear}
+.sn7-music-times{font-size:9px;color:#717b8d;margin-top:5px}
+.sn7-music-controls{display:flex;align-items:center;justify-content:center;gap:9px;padding:10px 0 9px}
+.sn7-music-btn,.sn7-volume-btn{
+  width:36px;height:36px;border:1px solid #303846;border-radius:50%;
+  background:#181e28;color:#dce1e9;cursor:pointer;font-size:16px;
+  display:grid;place-items:center;transition:transform .12s ease,background .12s ease,border-color .12s ease,opacity .12s ease;
+  -webkit-tap-highlight-color:transparent
+}
+.sn7-music-btn.primary{width:44px;height:44px;background:#fff;color:#10131a;border-color:#fff;font-size:17px}
+.sn7-music-btn:active,.sn7-volume-btn:active,.sn7-music-config:active,.sn7-music-queue-toggle:active,.sn7-subtle:active{transform:scale(.92)}
+.sn7-music-btn:hover,.sn7-volume-btn:hover,.sn7-music-config:hover{background:#202734;border-color:#3b4555}
+.sn7-music-btn.primary:hover{background:#eef0f4;border-color:#eef0f4}
+.sn7-music-volume{display:flex;align-items:center;gap:5px;margin-left:5px;color:#9099a9;font-size:12px}
+.sn7-volume-value{min-width:22px;text-align:center;color:#e2e6ed;font-size:11px;font-weight:800}
+.sn7-volume-btn{width:29px;height:29px;border-radius:9px;font-size:17px}
+.sn7-music-bottom{padding-top:8px;border-top:1px solid rgba(255,255,255,.06);font-size:10px;color:#788294;min-width:0}
+.sn7-music-bottom>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sn7-music-queue-toggle{
+  display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;
+  border:1px solid #303846;border-radius:9px;background:#151b24;color:#aeb6c5;
+  padding:7px 9px;font-size:10px;font-weight:800;cursor:pointer;
+  transition:transform .12s ease,background .12s ease,border-color .12s ease;
+  -webkit-tap-highlight-color:transparent
+}
+.sn7-music-queue-toggle:hover{background:#1c2330;border-color:#3b4555;color:#fff}
+.sn7-music-queue-toggle b{color:#c4baff;font-size:10px}
+.sn7-music-queue-card{max-width:560px!important}
+.sn7-music-queue-modal-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}
+.sn7-music-queue-modal-head h3{margin:3px 0 0;font-size:18px}
+.sn7-queue-clear{white-space:nowrap}
+.sn7-music-queue{display:grid;gap:5px}
+.sn7-music-empty{padding:20px 6px;color:var(--muted);font-size:12px;text-align:center}
+.sn7-music-row{
+  display:flex;align-items:center;gap:9px;padding:9px 7px;
+  border:1px solid transparent;border-radius:11px;transition:background .12s ease,border-color .12s ease
+}
+.sn7-music-row:hover{background:#151a22;border-color:#252c37}
+.sn7-music-number{width:22px;color:#697386;font-size:10px;text-align:center;flex:0 0 22px}
+.sn7-music-row-info{min-width:0;flex:1}
+.sn7-music-row-info strong{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sn7-music-row-info small{display:block;color:var(--muted);font-size:10px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sn7-music-provider{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:#798396;flex:0 0 auto}
+.sn7-music-remove{
+  width:32px;height:32px;border:1px solid transparent;border-radius:9px;background:transparent;
+  color:#7f899a;cursor:pointer;padding:0;font-size:17px;display:grid;place-items:center;
+  transition:transform .12s ease,background .12s ease,color .12s ease
+}
+.sn7-music-remove:hover{color:#ff9ca6;background:rgba(255,90,105,.08);border-color:rgba(255,90,105,.15)}
+.sn7-music-remove:active{transform:scale(.88)}
+.sn7-music-queue-message{margin-top:8px;font-size:11px;color:#ff9ca6}
+.sn7-music-source-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+.sn7-source-card{display:flex!important;align-items:center;gap:10px;margin:0!important;padding:13px;border:1px solid var(--border);border-radius:12px;background:#0d1117;cursor:pointer}
+.sn7-source-card:hover{border-color:#384152;background:#121720}
+.sn7-source-icon{width:34px;height:34px;border-radius:9px;background:#181e28;display:grid;place-items:center;color:#b7abff;font-weight:800;flex:0 0 34px}
+.sn7-source-card span:nth-child(2){min-width:0;flex:1}
+.sn7-source-card strong{display:block;font-size:13px}
+.sn7-source-card small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.sn7-source-card input{width:18px;height:18px;margin:0;accent-color:#b7abff}
+.sn7-music-security-note{display:flex;gap:10px;margin-top:14px;padding:12px;border:1px solid #29313e;border-radius:11px;background:#0d1117;color:#aeb6c5}
+.sn7-music-security-note>span{font-size:16px}
+.sn7-music-security-note strong{display:block;font-size:12px;color:#e5e9ef}
+.sn7-music-security-note small{display:block;font-size:10px;line-height:1.5;margin-top:3px;color:#7f899a}
+@media(max-width:600px){
+  .sn7-music-player{padding:13px 14px;border-radius:15px}
+  .sn7-music-main{gap:10px;padding:11px 0 9px}
+  .sn7-music-art{width:48px;height:48px;flex-basis:48px}
+  .sn7-music-info strong{font-size:14px}
+  .sn7-music-controls{gap:7px}
+  .sn7-music-volume{margin-left:2px;gap:4px}
+  .sn7-volume-btn{width:28px;height:28px}
+  .sn7-music-queue-modal-head{align-items:flex-start}
+  .sn7-music-queue-modal-head .sn7-subtle{padding:8px 9px}
+  .sn7-music-row{padding:8px 4px}
+  .sn7-music-provider{display:none}
+}
