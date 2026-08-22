@@ -438,6 +438,7 @@ def _music_connections(bid):
             "display_name": "",
             "username": "",
             "profile_url": "",
+            "avatar_url": "",
             "expires_at": 0,
         }
         for provider in MUSIC_PROVIDERS
@@ -508,6 +509,17 @@ def _fetch_profile(provider, access_token):
         data = response.json()
         if response.status_code >= 400:
             raise RuntimeError(data.get("error", {}).get("message") or "Spotify recusou o acesso.")
+
+        # Normaliza a foto do perfil do Spotify para o mesmo campo usado
+        # pelo YouTube/SoundCloud e pelo painel.
+        images = data.get("images") or []
+        avatar_url = ""
+        if isinstance(images, list):
+            for image in images:
+                if isinstance(image, dict) and image.get("url"):
+                    avatar_url = str(image["url"]).strip()
+                    break
+        data["avatar_url"] = avatar_url
         return data
 
     if provider == "soundcloud":
