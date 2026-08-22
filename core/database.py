@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS music_settings (
     allow_spotify BOOLEAN NOT NULL DEFAULT TRUE,
     allow_soundcloud BOOLEAN NOT NULL DEFAULT FALSE,
     allow_links BOOLEAN NOT NULL DEFAULT TRUE,
+    public_commands BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -148,6 +149,29 @@ CREATE TABLE IF NOT EXISTS music_player_state (
     volume INTEGER NOT NULL DEFAULT 80 CHECK (volume BETWEEN 0 AND 100),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS music_connections (
+    id BIGSERIAL PRIMARY KEY,
+    broadcaster_user_id BIGINT NOT NULL,
+    provider TEXT NOT NULL,
+    external_user_id TEXT NOT NULL DEFAULT '',
+    username TEXT NOT NULL DEFAULT '',
+    display_name TEXT NOT NULL DEFAULT '',
+    profile_url TEXT NOT NULL DEFAULT '',
+    access_token TEXT NOT NULL,
+    refresh_token TEXT,
+    expires_at BIGINT NOT NULL DEFAULT 0,
+    scope TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (broadcaster_user_id, provider)
+);
+CREATE INDEX IF NOT EXISTS idx_music_connections_channel
+    ON music_connections(broadcaster_user_id, provider);
+
+-- Safe migrations for databases created before Music OAuth/public controls.
+ALTER TABLE music_settings
+    ADD COLUMN IF NOT EXISTS public_commands BOOLEAN NOT NULL DEFAULT FALSE;
 """
 
 def get_conn():

@@ -332,8 +332,8 @@ def _provider_config(provider):
 def _oauth_redirect_uri(provider):
     cfg = _provider_config(provider)
     configured = os.environ.get(cfg["redirect_env"], "").strip() if cfg else ""
-    if configured:
-        return configured
+    if configured.startswith("https://") and "/api/music/callback/" in configured:
+        return configured.rstrip("/")
     public_url = os.environ.get("SN7_PUBLIC_URL", "https://sn7-core.onrender.com").strip().rstrip("/")
     return f"{public_url}/api/music/callback/{provider}"
 
@@ -550,8 +550,13 @@ def connect_music_provider(broadcaster_id, provider):
     client_id = os.environ.get(cfg["client_id_env"], "").strip()
     client_secret = os.environ.get(cfg["client_secret_env"], "").strip()
     if not client_id or not client_secret:
+        missing = []
+        if not client_id:
+            missing.append(cfg["client_id_env"])
+        if not client_secret:
+            missing.append(cfg["client_secret_env"])
         return _music_oauth_error(
-            f"{cfg['label']} ainda não está configurado no Render. Defina {cfg['client_id_env']} e {cfg['client_secret_env']}.",
+            f"{cfg['label']} ainda não está configurado no Render. Variável(veis) ausente(s): {', '.join(missing)}.",
             503,
         )
 
