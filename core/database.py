@@ -117,6 +117,18 @@ CREATE INDEX IF NOT EXISTS idx_command_configs_channel ON command_configs(broadc
 CREATE INDEX IF NOT EXISTS idx_command_aliases_channel ON command_aliases(broadcaster_user_id,alias);
 
 
+CREATE TABLE IF NOT EXISTS obs_connections (
+    id BIGSERIAL PRIMARY KEY,
+    broadcaster_user_id BIGINT UNIQUE NOT NULL,
+    access_token TEXT UNIQUE NOT NULL,
+    label TEXT NOT NULL DEFAULT 'SN7 Core',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_obs_connections_channel
+ON obs_connections(broadcaster_user_id);
+
 CREATE TABLE IF NOT EXISTS music_settings (
     broadcaster_user_id BIGINT PRIMARY KEY,
     allow_youtube BOOLEAN NOT NULL DEFAULT TRUE,

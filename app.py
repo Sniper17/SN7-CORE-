@@ -8,6 +8,7 @@ from routes.commands import commands_bp
 from routes.settings import settings_bp
 from routes.kick import kick_bp
 from routes.music import music_bp
+from routes.obs import obs_bp
 import os
 import re
 
@@ -21,11 +22,12 @@ app.register_blueprint(commands_bp, url_prefix="/api/commands")
 app.register_blueprint(settings_bp, url_prefix="/api/settings")
 app.register_blueprint(kick_bp, url_prefix="/kick")
 app.register_blueprint(music_bp, url_prefix="/api/music")
+app.register_blueprint(obs_bp)
 
 
 @app.before_request
 def enforce_session_channel():
-    match = re.match(r"^/api/(economy|ranking|duel|commands|settings|music)/(\d+)(?:/|$)", request.path)
+    match = re.match(r"^/api/(economy|ranking|duel|commands|settings|music|obs)/(\d+)(?:/|$)", request.path)
     if not match:
         return None
     try:
@@ -98,6 +100,7 @@ def api():
             "commands",
             "settings",
             "music",
+            "obs",
             "kick"
         ]
     })
