@@ -639,7 +639,7 @@ nav button.active::after{content:""!important;position:absolute!important;inset:
 .sn7-music-public-box strong{display:block;font-size:12px;color:#e5e9ef}
 .sn7-music-public-box small{display:block;color:#7f899a;font-size:10px;line-height:1.45;margin-top:3px}
 .sn7-public-toggle{display:flex!important;align-items:center;gap:6px!important;margin:0!important;white-space:nowrap!important;color:#aeb6c5!important;font-size:10px!important}
-.sn7-public-toggle input{width:18px!important;height:18px!important;margin:0!important;accent-color:#b7abff}
+.sn7-public-toggle input{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 body.sn7-modal-open{overflow:hidden!important;overscroll-behavior:none!important}
 .sn7-config-modal{
   height:100svh!important;min-height:100svh!important;
@@ -666,13 +666,13 @@ body.sn7-modal-open{overflow:hidden!important;overscroll-behavior:none!important
 /* SN7 MUSIC V4 - status visual e permissões sem ruído */
 .sn7-source-card .sn7-source-allow:not(.sn7-link-allow){display:none!important}
 .sn7-link-allow{grid-column:2 / span 2!important;grid-row:2!important}
-.sn7-link-allow input,.sn7-public-toggle input{
+.sn7-link-allow input{
   appearance:none!important;-webkit-appearance:none!important;
   width:18px!important;height:18px!important;border:1px solid #303846!important;
   border-radius:6px!important;background:#0b0f15!important;display:grid!important;place-items:center!important;
 }
-.sn7-link-allow input:checked,.sn7-public-toggle input:checked{border-color:#2d6947!important;background:#10251a!important}
-.sn7-link-allow input:checked::after,.sn7-public-toggle input:checked::after{content:"✓";color:#72e5a0;font-size:12px;font-weight:900;line-height:1}
+.sn7-link-allow input:checked{border-color:#2d6947!important;background:#10251a!important}
+.sn7-link-allow input:checked::after{content:"✓";color:#72e5a0;font-size:12px;font-weight:900;line-height:1}
 .sn7-toggle-status{width:25px;height:25px;border-radius:7px;display:grid;place-items:center;border:1px solid #303846;background:#0b0f15;color:#ff9ca6;font-size:14px;font-weight:900}
 .sn7-toggle-status.connected{color:#72e5a0;border-color:#2d6947;background:#10251a}
 .sn7-toggle-status.disconnected{color:#ff9ca6;border-color:#5d3038;background:#211015}
