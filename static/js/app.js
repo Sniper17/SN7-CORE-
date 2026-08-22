@@ -368,8 +368,15 @@ function renderCommands() {
 }
 
 let commandsLoadPromise = null;
+let commandsLoadedAt = 0;
+const COMMAND_CACHE_TTL = 30000;
 
-async function loadCommands() {
+async function loadCommands(force = false) {
+  if (!force && commandCache.length && (Date.now() - commandsLoadedAt) < COMMAND_CACHE_TTL) {
+    buildCommandCatalog();
+    renderCommands();
+    return commandCache;
+  }
   if (commandsLoadPromise) return commandsLoadPromise;
 
   commandsLoadPromise = (async () => {
@@ -382,6 +389,7 @@ async function loadCommands() {
     try {
       const data = await apiJson(`/api/commands/${BROADCASTER_ID}`);
       commandCache = Array.isArray(data.commands) ? data.commands : [];
+      commandsLoadedAt = Date.now();
       renderCommands();
       return commandCache;
     } catch (error) {
@@ -655,7 +663,7 @@ async function addAlias(encodedKey) {
       body: JSON.stringify({ alias }),
     });
     document.querySelector(".sn7-command-modal")?.remove();
-    await loadCommands();
+    await loadCommands(true);
     openCommand(encodedKey);
   } catch (error) {
     alert(error.message);
@@ -673,7 +681,7 @@ async function removeAlias(encodedKey, encodedAlias) {
       body: JSON.stringify({ alias: decodeURIComponent(encodedAlias) }),
     });
     document.querySelector(".sn7-command-modal")?.remove();
-    await loadCommands();
+    await loadCommands(true);
     openCommand(encodedKey);
   } catch (error) {
     alert(error.message);
@@ -870,7 +878,7 @@ async function saveSettings() {
     renderCommands();
     setMessage("✓ Alterações salvas.", true);
     setSaveMessage("rewardsMsg", "✓ Alterações salvas.", true);
-    await loadCommands();
+    await loadCommands(true);
     return true;
   } catch (error) {
     setMessage(`⚠ ${error.message}`, false);
@@ -983,7 +991,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const key = id.slice(8);
         if (key && key !== "new") {
           if (!commandCache.length) {
-            await loadCommands();
+            await loadCommands(true);
           }
           const encoded = encodeURIComponent(key);
           setTimeout(() => openCommand(encoded), 80);
@@ -1033,7 +1041,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (typeof apiJson !== "function" || typeof BROADCASTER_ID === "undefined") return;
       const commands = Array.isArray(commandCache) && commandCache.length
         ? commandCache
-        : await loadCommands();
+        : await loadCommands(true);
       const cmd = (commands || []).find((x) => x.command_key === "duel");
 
       const savedCommand = String(cmd?.command || "").trim();
@@ -1130,7 +1138,7 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({command, response})
       });
-      await loadCommands();
+      await loadCommands(true);
       if ($("apostaCardCommand")) $("apostaCardCommand").textContent = command;
       setSaveMessage("apostaMsg", "✓ Alterações salvas.", true);
       if ($("apostaMsg")) $("apostaMsg").textContent = "✓ Alterações salvas.";
@@ -1176,8 +1184,18 @@ let sn7MusicLoadPromise = null;
 let sn7MusicAudio = null;
 let sn7MusicVolumeSaveTimer = null;
 
+function musicHasChannel() {
+  return typeof BROADCASTER_ID !== "undefined" && BROADCASTER_ID !== null && BROADCASTER_ID !== "";
+}
+
 function musicApi(path, options = {}) {
+  if (!musicHasChannel()) throw new Error("Conecte sua conta Kick para editar o player.");
   return apiJson(`/api/music/${BROADCASTER_ID}${path}`, options);
+}
+
+function musicConnectionsApi() {
+  if (!musicHasChannel()) throw new Error("Conecte sua conta Kick para vincular plataformas.");
+  return apiJson(`/api/music/${BROADCASTER_ID}/connections`);
 }
 
 function ensureMusicAudio() {
@@ -1228,6 +1246,94 @@ function musicRenderVolume(value) {
     const label = button.getAttribute("aria-label") || "";
     button.disabled = (volume === 0 && label.includes("Diminuir")) || (volume === 100 && label.includes("Aumentar"));
   });
+}
+
+function musicRenderConnections(data) {
+  const connections = data?.connections || {};
+  const providers = [
+    ["youtube", "Youtube"],
+    ["spotify", "Spotify"],
+    ["soundcloud", "Soundcloud"],
+  ];
+
+  providers.forEach(([provider, key]) => {
+    const item = connections[provider] || {};
+    const status = $(`music${key}Status`);
+    const account = $(`music${key}Account`);
+    const button = $(`music${key}Connect`);
+    if (status) {
+      status.classList.toggle("connected", !!item.connected);
+      status.classList.toggle("disconnected", !item.connected);
+      status.textContent = item.connected ? "✓" : "✕";
+    }
+    if (account) {
+      account.textContent = item.connected
+        ? (item.display_name || item.username || "Conta conectada")
+        : (item.configured ? "Conta não conectada" : "OAuth ainda não configurado");
+    }
+    if (button) {
+      button.textContent = item.connected ? "Desconectar" : (item.configured ? "Conectar" : "Configurar");
+      button.classList.toggle("ghost", !item.configured && !item.connected);
+      button.disabled = !item.configured && !item.connected;
+      button.dataset.connected = item.connected ? "1" : "0";
+    }
+  });
+}
+
+async function loadMusicConnections() {
+  if (!musicHasChannel()) {
+    musicRenderConnections({connections:{
+      youtube:{configured:false,connected:false},
+      spotify:{configured:false,connected:false},
+      soundcloud:{configured:false,connected:false}
+    }});
+    return null;
+  }
+  try {
+    const data = await musicConnectionsApi();
+    musicRenderConnections(data);
+    return data;
+  } catch (error) {
+    const msg = $("musicConfigMsg");
+    if (msg) {
+      msg.textContent = `⚠ ${error.message}`;
+      msg.className = "sn7-save-message error";
+    }
+    throw error;
+  }
+}
+
+function musicConnect(provider) {
+  if (!musicHasChannel()) {
+    const msg = $("musicConfigMsg");
+    if (msg) {
+      msg.textContent = "Faça login com a Kick para conectar plataformas.";
+      msg.className = "sn7-save-message error";
+    }
+    return;
+  }
+  const button = $(`music${String(provider).charAt(0).toUpperCase() + String(provider).slice(1)}Connect`);
+  if (button?.dataset.connected === "1") {
+    musicDisconnect(provider);
+    return;
+  }
+  window.location.href = `/api/music/${BROADCASTER_ID}/connect/${encodeURIComponent(provider)}`;
+}
+
+async function musicDisconnect(provider) {
+  if (!musicHasChannel()) return;
+  const label = provider === "youtube" ? "YouTube" : provider === "spotify" ? "Spotify" : "SoundCloud";
+  if (!confirm(`Desconectar ${label} do SN7?`)) return;
+  try {
+    const data = await apiJson(`/api/music/${BROADCASTER_ID}/disconnect/${encodeURIComponent(provider)}`, {method:"POST"});
+    musicRenderConnections(data);
+  } catch (error) {
+    const msg = $("musicConfigMsg");
+    if (msg) {
+      msg.textContent = `⚠ ${error.message}`;
+      msg.className = "sn7-save-message error";
+    }
+  }
 }
 
 function musicRender(data) {
@@ -1293,6 +1399,23 @@ function renderMusicQueue(queue) {
 }
 
 async function loadMusic() {
+  if (!musicHasChannel()) {
+    const data = {
+      ok: true,
+      settings: {
+        allow_youtube: true,
+        allow_spotify: true,
+        allow_soundcloud: false,
+        allow_links: true,
+        public_commands: false
+      },
+      state: {current_queue_id:null,is_playing:false,volume:80},
+      current: null,
+      queue: []
+    };
+    musicRender(data);
+    return data;
+  }
   if (sn7MusicLoadPromise) return sn7MusicLoadPromise;
   sn7MusicLoadPromise = musicApi("").then((data) => {
     musicRender(data);
@@ -1437,6 +1560,7 @@ async function clearMusicQueue() {
 function openMusicQueue() {
   const modal = $("sn7MusicQueueModal");
   if (!modal) return;
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
   modal.removeAttribute("hidden");
   document.body.classList.add("sn7-modal-open");
   loadMusic().catch(() => {});
@@ -1453,6 +1577,7 @@ function closeMusicQueue(event) {
 function openMusicConfig() {
   const modal = $("sn7MusicConfig");
   if (!modal) return;
+  if (modal.parentElement !== document.body) document.body.appendChild(modal);
   modal.removeAttribute("hidden");
   document.body.classList.add("sn7-modal-open");
   loadMusic().then(() => {
@@ -1461,7 +1586,9 @@ function openMusicConfig() {
     if ($("musicAllowSpotify")) $("musicAllowSpotify").checked = s.allow_spotify !== false;
     if ($("musicAllowSoundcloud")) $("musicAllowSoundcloud").checked = s.allow_soundcloud === true;
     if ($("musicAllowLinks")) $("musicAllowLinks").checked = s.allow_links !== false;
+    if ($("musicPublicCommands")) $("musicPublicCommands").checked = s.public_commands === true;
   }).catch(() => {});
+  loadMusicConnections().catch(() => {});
 }
 
 function closeMusicConfig(event) {
@@ -1500,4 +1627,23 @@ async function saveMusicConfig() {
     button.addEventListener("click", () => loadMusic().catch(() => {}));
   });
   if (document.querySelector('section#minigames.active')) loadMusic().catch(() => {});
+  const params = new URLSearchParams(window.location.search);
+  const connected = params.get("music_connected");
+  if (connected) {
+    setTimeout(() => {
+      if (typeof activateTab === "function") activateTab("minigames");
+      openMusicConfig();
+      const msg = $("musicConfigMsg");
+      if (msg) {
+        const label = connected === "youtube" ? "YouTube" : connected === "spotify" ? "Spotify" : "SoundCloud";
+        msg.textContent = `✓ ${label} conectado com sucesso.`;
+        msg.className = "sn7-save-message success";
+      }
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("music_connected");
+        history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+      } catch (_) {}
+    }, 120);
+  }
 })();

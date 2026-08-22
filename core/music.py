@@ -1,5 +1,6 @@
 from urllib.parse import urlparse
 from core.database import get_conn
+import time
 
 
 def _provider(url):
@@ -97,3 +98,33 @@ def clear_queue(bid):
         conn.commit()
     finally:
         conn.close()
+
+
+_public_commands_cache = {}
+_PUBLIC_COMMANDS_CACHE_TTL = 30
+
+
+def public_commands_enabled(bid):
+    bid = int(bid)
+    now = time.time()
+    cached = _public_commands_cache.get(bid)
+    if cached and now - cached[0] < _PUBLIC_COMMANDS_CACHE_TTL:
+        return bool(cached[1])
+
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT public_commands FROM music_settings WHERE broadcaster_user_id=%s",
+                (bid,),
+            )
+            row = cur.fetchone()
+            value = bool(row[0]) if row else False
+            _public_commands_cache[bid] = (now, value)
+            return value
+    finally:
+        conn.close()
+
+
+def set_public_commands_cache(bid, value):
+    _public_commands_cache[int(bid)] = (time.time(), bool(value))

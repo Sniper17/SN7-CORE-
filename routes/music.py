@@ -1,5 +1,14 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, redirect
 from core.database import get_conn
+from core.auth import require_session_broadcaster
+from core.music import set_public_commands_cache
+import os
+import time
+import secrets
+import base64
+import hashlib
+from urllib.parse import urlencode
+import requests
 
 music_bp = Blueprint('music', __name__)
 
@@ -9,7 +18,7 @@ def _settings(bid):
     try:
         with conn.cursor() as cur:
             cur.execute('''
-                SELECT allow_youtube, allow_spotify, allow_soundcloud, allow_links
+                SELECT allow_youtube, allow_spotify, allow_soundcloud, allow_links, public_commands
                 FROM music_settings WHERE broadcaster_user_id=%s
             ''', (int(bid),))
             row = cur.fetchone()
@@ -20,10 +29,11 @@ def _settings(bid):
                     ON CONFLICT (broadcaster_user_id) DO NOTHING
                 ''', (int(bid),))
                 conn.commit()
-                return {'allow_youtube': True, 'allow_spotify': True, 'allow_soundcloud': False, 'allow_links': True}
+                return {'allow_youtube': True, 'allow_spotify': True, 'allow_soundcloud': False, 'allow_links': True, 'public_commands': False}
             return {
                 'allow_youtube': bool(row[0]), 'allow_spotify': bool(row[1]),
-                'allow_soundcloud': bool(row[2]), 'allow_links': bool(row[3])
+                'allow_soundcloud': bool(row[2]), 'allow_links': bool(row[3]),
+                'public_commands': bool(row[4])
             }
     finally:
         conn.close()
@@ -127,7 +137,7 @@ def get_music(broadcaster_id):
 @music_bp.patch('/<int:broadcaster_id>/settings')
 def update_music_settings(broadcaster_id):
     data = request.get_json(silent=True) or {}
-    allowed = {'allow_youtube', 'allow_spotify', 'allow_soundcloud', 'allow_links'}
+    allowed = {'allow_youtube', 'allow_spotify', 'allow_soundcloud', 'allow_links', 'public_commands'}
     values = {k: bool(data[k]) for k in allowed if k in data}
     if not values:
         return jsonify({'ok': False, 'error': 'Nenhuma configuração válida foi enviada.'}), 400
@@ -142,6 +152,8 @@ def update_music_settings(broadcaster_id):
             cur.execute(f'UPDATE music_settings SET {sets}, updated_at=NOW() WHERE broadcaster_user_id=%s',
                         [*values.values(), int(broadcaster_id)])
         conn.commit()
+        if 'public_commands' in values:
+            set_public_commands_cache(broadcaster_id, values['public_commands'])
     finally:
         conn.close()
     return jsonify(snapshot(broadcaster_id))
@@ -253,3 +265,351 @@ def clear_music(broadcaster_id):
     finally:
         conn.close()
     return jsonify(snapshot(broadcaster_id))
+
+
+# ---------------------------------------------------------------------------
+# SN7 MUSIC OAUTH
+# ---------------------------------------------------------------------------
+MUSIC_PROVIDERS = {
+    "youtube": {
+        "label": "YouTube",
+        "client_id_env": "YOUTUBE_CLIENT_ID",
+        "client_secret_env": "YOUTUBE_CLIENT_SECRET",
+        "redirect_env": "YOUTUBE_REDIRECT_URI",
+        "authorize": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token": "https://oauth2.googleapis.com/token",
+        "scope": "https://www.googleapis.com/auth/youtube.readonly",
+    },
+    "spotify": {
+        "label": "Spotify",
+        "client_id_env": "SPOTIFY_CLIENT_ID",
+        "client_secret_env": "SPOTIFY_CLIENT_SECRET",
+        "redirect_env": "SPOTIFY_REDIRECT_URI",
+        "authorize": "https://accounts.spotify.com/authorize",
+        "token": "https://accounts.spotify.com/api/token",
+        "scope": "user-read-private",
+    },
+    "soundcloud": {
+        "label": "SoundCloud",
+        "client_id_env": "SOUNDCLOUD_CLIENT_ID",
+        "client_secret_env": "SOUNDCLOUD_CLIENT_SECRET",
+        "redirect_env": "SOUNDCLOUD_REDIRECT_URI",
+        "authorize": "https://secure.soundcloud.com/authorize",
+        "token": "https://secure.soundcloud.com/oauth/token",
+        "scope": "",
+    },
+}
+
+
+def _provider_config(provider):
+    return MUSIC_PROVIDERS.get(str(provider or "").lower())
+
+
+def _oauth_redirect_uri(provider, broadcaster_id):
+    cfg = _provider_config(provider)
+    configured = os.environ.get(cfg["redirect_env"], "").strip() if cfg else ""
+    if configured:
+        return configured
+    proto = request.headers.get("X-Forwarded-Proto", request.scheme)
+    return f"{proto}://{request.host}/api/music/{int(broadcaster_id)}/callback/{provider}"
+
+
+def _pkce_pair():
+    verifier = secrets.token_urlsafe(64)
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode("ascii")).digest()
+    ).rstrip(b"=").decode("ascii")
+    return verifier, challenge
+
+
+def _music_oauth_error(message, status=400):
+    return jsonify({"ok": False, "error": message}), status
+
+
+def _save_music_connection(bid, provider, profile, token):
+    now = int(time.time())
+    expires_in = int(token.get("expires_in") or 0)
+    expires_at = now + expires_in if expires_in else 0
+    profile = profile or {}
+    external_id = str(profile.get("id") or profile.get("sub") or profile.get("urn") or "")
+    username = str(profile.get("username") or profile.get("login") or "").strip()
+    display_name = str(
+        profile.get("display_name")
+        or profile.get("name")
+        or profile.get("title")
+        or username
+        or "Conta conectada"
+    ).strip()
+    profile_url = str(
+        profile.get("profile_url")
+        or profile.get("external_urls", {}).get("spotify")
+        or profile.get("permalink_url")
+        or ""
+    ).strip()
+
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO music_connections
+                    (broadcaster_user_id,provider,external_user_id,username,display_name,
+                     profile_url,access_token,refresh_token,expires_at,scope,updated_at)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+                ON CONFLICT (broadcaster_user_id,provider) DO UPDATE SET
+                    external_user_id=EXCLUDED.external_user_id,
+                    username=EXCLUDED.username,
+                    display_name=EXCLUDED.display_name,
+                    profile_url=EXCLUDED.profile_url,
+                    access_token=EXCLUDED.access_token,
+                    refresh_token=COALESCE(EXCLUDED.refresh_token,music_connections.refresh_token),
+                    expires_at=EXCLUDED.expires_at,
+                    scope=EXCLUDED.scope,
+                    updated_at=NOW()
+                """,
+                (
+                    int(bid), provider, external_id, username, display_name,
+                    profile_url, token.get("access_token"), token.get("refresh_token"),
+                    expires_at, str(token.get("scope") or "")
+                ),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _music_connections(bid):
+    configured = {
+        provider: bool(os.environ.get(cfg["client_id_env"], "").strip()
+                       and os.environ.get(cfg["client_secret_env"], "").strip())
+        for provider, cfg in MUSIC_PROVIDERS.items()
+    }
+    result = {
+        provider: {
+            "configured": configured[provider],
+            "connected": False,
+            "display_name": "",
+            "username": "",
+            "profile_url": "",
+            "expires_at": 0,
+        }
+        for provider in MUSIC_PROVIDERS
+    }
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT provider,display_name,username,profile_url,expires_at
+                FROM music_connections
+                WHERE broadcaster_user_id=%s
+                """,
+                (int(bid),),
+            )
+            for provider, display_name, username, profile_url, expires_at in cur.fetchall():
+                if provider not in result:
+                    continue
+                result[provider].update({
+                    "connected": True,
+                    "display_name": display_name or "",
+                    "username": username or "",
+                    "profile_url": profile_url or "",
+                    "expires_at": int(expires_at or 0),
+                })
+    finally:
+        conn.close()
+    return result
+
+
+def _fetch_profile(provider, access_token):
+    headers = {"Accept": "application/json"}
+    if provider == "youtube":
+        response = requests.get(
+            "https://www.googleapis.com/youtube/v3/channels",
+            params={"part": "snippet", "mine": "true", "maxResults": 1},
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=12,
+        )
+        data = response.json()
+        if response.status_code >= 400:
+            raise RuntimeError(data.get("error", {}).get("message") or "YouTube recusou o acesso.")
+        item = (data.get("items") or [None])[0]
+        if not item:
+            raise RuntimeError("A conta Google não possui um canal do YouTube disponível.")
+        snippet = item.get("snippet") or {}
+        return {
+            "id": item.get("id"),
+            "name": snippet.get("title"),
+            "profile_url": f"https://www.youtube.com/channel/{item.get('id')}",
+        }
+
+    if provider == "spotify":
+        response = requests.get(
+            "https://api.spotify.com/v1/me",
+            headers={"Authorization": f"Bearer {access_token}", **headers},
+            timeout=12,
+        )
+        data = response.json()
+        if response.status_code >= 400:
+            raise RuntimeError(data.get("error", {}).get("message") or "Spotify recusou o acesso.")
+        return data
+
+    if provider == "soundcloud":
+        response = requests.get(
+            "https://api.soundcloud.com/me",
+            headers={"Authorization": f"OAuth {access_token}", **headers},
+            timeout=12,
+        )
+        data = response.json()
+        if response.status_code >= 400:
+            raise RuntimeError(data.get("message") or data.get("error") or "SoundCloud recusou o acesso.")
+        return data
+
+    raise RuntimeError("Provedor não suportado.")
+
+
+def _exchange_music_code(provider, code, verifier, redirect_uri):
+    cfg = _provider_config(provider)
+    client_id = os.environ.get(cfg["client_id_env"], "").strip()
+    client_secret = os.environ.get(cfg["client_secret_env"], "").strip()
+    payload = {
+        "grant_type": "authorization_code",
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+        "code": code,
+    }
+    if verifier and provider in {"spotify", "soundcloud"}:
+        payload["code_verifier"] = verifier
+
+    headers = {"Accept": "application/json"}
+    if provider == "spotify":
+        from base64 import b64encode
+        headers["Authorization"] = "Basic " + b64encode(
+            f"{client_id}:{client_secret}".encode()
+        ).decode()
+        payload.pop("client_secret", None)
+
+    response = requests.post(cfg["token"], data=payload, headers=headers, timeout=15)
+    data = response.json()
+    if response.status_code >= 400 or not data.get("access_token"):
+        detail = data.get("error_description") or data.get("error") or "troca do código recusada"
+        raise RuntimeError(f"{cfg['label']}: {detail}")
+    return data
+
+
+@music_bp.get("/<int:broadcaster_id>/connections")
+def get_music_connections(broadcaster_id):
+    try:
+        return jsonify({"ok": True, "connections": _music_connections(broadcaster_id)})
+    except Exception as exc:
+        print(f"[MUSIC-OAUTH] status erro: {exc}", flush=True)
+        return jsonify({"ok": False, "error": "Não foi possível consultar as conexões."}), 500
+
+
+@music_bp.get("/<int:broadcaster_id>/connect/<provider>")
+def connect_music_provider(broadcaster_id, provider):
+    provider = str(provider or "").lower()
+    cfg = _provider_config(provider)
+    if not cfg:
+        return _music_oauth_error("Plataforma não suportada.", 404)
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return _music_oauth_error(str(exc), 401)
+
+    client_id = os.environ.get(cfg["client_id_env"], "").strip()
+    client_secret = os.environ.get(cfg["client_secret_env"], "").strip()
+    if not client_id or not client_secret:
+        return _music_oauth_error(
+            f"{cfg['label']} ainda não está configurado no Render. Defina {cfg['client_id_env']} e {cfg['client_secret_env']}.",
+            503,
+        )
+
+    state = secrets.token_urlsafe(32)
+    verifier, challenge = _pkce_pair()
+    session_key = f"music_oauth_{provider}"
+    session[session_key] = {
+        "state": state,
+        "verifier": verifier,
+        "broadcaster_id": int(broadcaster_id),
+    }
+
+    redirect_uri = _oauth_redirect_uri(provider, broadcaster_id)
+    params = {
+        "response_type": "code",
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "state": state,
+    }
+    if cfg["scope"]:
+        params["scope"] = cfg["scope"]
+
+    if provider == "youtube":
+        params.update({
+            "access_type": "offline",
+            "include_granted_scopes": "true",
+            "prompt": "consent",
+        })
+    elif provider == "spotify":
+        params.update({
+            "show_dialog": "true",
+        })
+    elif provider == "soundcloud":
+        params.update({
+            "code_challenge_method": "S256",
+            "code_challenge": challenge,
+        })
+
+    return redirect(f"{cfg['authorize']}?{urlencode(params)}")
+
+
+@music_bp.get("/<int:broadcaster_id>/callback/<provider>")
+def music_provider_callback(broadcaster_id, provider):
+    provider = str(provider or "").lower()
+    cfg = _provider_config(provider)
+    if not cfg:
+        return _music_oauth_error("Plataforma não suportada.", 404)
+
+    state_data = session.pop(f"music_oauth_{provider}", None)
+    if not state_data or int(state_data.get("broadcaster_id") or 0) != int(broadcaster_id):
+        return _music_oauth_error("OAuth inválido ou expirado.", 400)
+    if request.args.get("state") != state_data.get("state"):
+        return _music_oauth_error("OAuth state inválido.", 400)
+    if request.args.get("error"):
+        return _music_oauth_error(
+            f"{cfg['label']}: {request.args.get('error_description') or request.args.get('error')}",
+            400,
+        )
+    code = str(request.args.get("code") or "").strip()
+    if not code:
+        return _music_oauth_error("O provedor não retornou o código de autorização.", 400)
+
+    try:
+        require_session_broadcaster(broadcaster_id)
+        redirect_uri = _oauth_redirect_uri(provider, broadcaster_id)
+        token = _exchange_music_code(provider, code, state_data.get("verifier"), redirect_uri)
+        profile = _fetch_profile(provider, token["access_token"])
+        _save_music_connection(broadcaster_id, provider, profile, token)
+        return redirect("/dashboard?music_connected=" + provider)
+    except Exception as exc:
+        print(f"[MUSIC-OAUTH] callback {provider} falhou: {exc}", flush=True)
+        return _music_oauth_error(f"Não foi possível conectar ao {cfg['label']}: {exc}", 502)
+
+
+@music_bp.post("/<int:broadcaster_id>/disconnect/<provider>")
+def disconnect_music_provider(broadcaster_id, provider):
+    provider = str(provider or "").lower()
+    if provider not in MUSIC_PROVIDERS:
+        return _music_oauth_error("Plataforma não suportada.", 404)
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM music_connections WHERE broadcaster_user_id=%s AND provider=%s",
+                (int(broadcaster_id), provider),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+    return jsonify({"ok": True, "connections": _music_connections(broadcaster_id)})
