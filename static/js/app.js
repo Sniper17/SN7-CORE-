@@ -1183,6 +1183,8 @@ let sn7MusicData = null;
 let sn7MusicLoadPromise = null;
 let sn7MusicAudio = null;
 let sn7MusicVolumeSaveTimer = null;
+let sn7MusicConnectionsData = null;
+let sn7MusicConnectionsPromise = null;
 
 function musicHasChannel() {
   return typeof BROADCASTER_ID !== "undefined" && BROADCASTER_ID !== null && BROADCASTER_ID !== "";
@@ -1248,8 +1250,35 @@ function musicRenderVolume(value) {
   });
 }
 
+function musicRenderConnectionsLoading() {
+  const providers = [
+    ["youtube", "Youtube"],
+    ["spotify", "Spotify"],
+    ["soundcloud", "Soundcloud"],
+  ];
+  providers.forEach(([provider, key]) => {
+    const status = $(`music${key}Status`);
+    const account = $(`music${key}Account`);
+    const button = $(`music${key}Connect`);
+    if (status) {
+      status.classList.remove("connected", "disconnected");
+      status.classList.add("neutral");
+      status.textContent = "…";
+      status.setAttribute("aria-label", "Verificando conexão");
+    }
+    if (account) account.textContent = "Verificando conexão…";
+    if (button) {
+      button.textContent = "Verificando…";
+      button.disabled = true;
+      button.dataset.connected = "0";
+      button.dataset.configured = "0";
+    }
+  });
+}
+
 function musicRenderConnections(data) {
   const connections = data?.connections || {};
+  sn7MusicConnectionsData = data || null;
   const providers = [
     ["youtube", "Youtube"],
     ["spotify", "Spotify"],
@@ -1261,15 +1290,25 @@ function musicRenderConnections(data) {
     const status = $(`music${key}Status`);
     const account = $(`music${key}Account`);
     const button = $(`music${key}Connect`);
+    const avatar = $(`music${key}Avatar`);
+    const fallback = provider === "youtube" ? "▶" : provider === "spotify" ? "●" : "◉";
     if (status) {
+      status.classList.remove("neutral");
       status.classList.toggle("connected", !!item.connected);
       status.classList.toggle("disconnected", !item.connected);
       status.textContent = item.connected ? "✓" : "✕";
+      status.setAttribute("aria-label", item.connected ? "Conta conectada" : "Conta desconectada");
     }
     if (account) {
       account.textContent = item.connected
         ? (item.display_name || item.username || "Conta conectada")
         : (item.configured ? "Conta não conectada" : "OAuth ainda não configurado");
+    }
+    if (avatar) {
+      avatar.classList.toggle("has-avatar", !!item.avatar_url);
+      avatar.innerHTML = item.avatar_url
+        ? `<img src="${String(item.avatar_url).replace(/"/g, "&quot;")}" alt="" loading="lazy">`
+        : `<span>${fallback}</span>`;
     }
     if (button) {
       button.textContent = item.connected ? "Desconectar" : "Conectar";
@@ -1283,27 +1322,38 @@ function musicRenderConnections(data) {
   musicRenderToggleFeedback();
 }
 
-async function loadMusicConnections() {
+async function loadMusicConnections(force = false) {
   if (!musicHasChannel()) {
-    musicRenderConnections({connections:{
+    const data = {connections:{
       youtube:{configured:false,connected:false},
       spotify:{configured:false,connected:false},
       soundcloud:{configured:false,connected:false}
-    }});
-    return null;
-  }
-  try {
-    const data = await musicConnectionsApi();
+    }};
     musicRenderConnections(data);
     return data;
-  } catch (error) {
-    const msg = $("musicConfigMsg");
-    if (msg) {
-      msg.textContent = `⚠ ${error.message}`;
-      msg.className = "sn7-save-message error";
-    }
-    throw error;
   }
+  if (!force && sn7MusicConnectionsData) {
+    musicRenderConnections(sn7MusicConnectionsData);
+    return sn7MusicConnectionsData;
+  }
+  if (!sn7MusicConnectionsPromise) {
+    sn7MusicConnectionsPromise = musicConnectionsApi()
+      .then((data) => {
+        sn7MusicConnectionsData = data;
+        musicRenderConnections(data);
+        return data;
+      })
+      .catch((error) => {
+        sn7MusicConnectionsPromise = null;
+        const msg = $("musicConfigMsg");
+        if (msg) {
+          msg.textContent = `⚠ ${error.message}`;
+          msg.className = "sn7-save-message error";
+        }
+        throw error;
+      });
+  }
+  return sn7MusicConnectionsPromise;
 }
 
 function musicConnect(provider) {
@@ -1346,6 +1396,7 @@ async function musicDisconnect(provider) {
   try {
     const data = await apiJson(`/api/music/${BROADCASTER_ID}/disconnect/${encodeURIComponent(provider)}`, {method:"POST"});
     musicRenderConnections(data);
+    sn7MusicConnectionsPromise = Promise.resolve(data);
   } catch (error) {
     const msg = $("musicConfigMsg");
     if (msg) {
@@ -1599,6 +1650,7 @@ function openMusicConfig() {
   if (modal.parentElement !== document.body) document.body.appendChild(modal);
   modal.removeAttribute("hidden");
   document.body.classList.add("sn7-modal-open");
+  if (!sn7MusicConnectionsData) musicRenderConnectionsLoading();
   loadMusic().then(() => {
     const s = sn7MusicData?.settings || {};
     if ($("musicAllowYoutube")) $("musicAllowYoutube").checked = s.allow_youtube !== false;
@@ -1621,11 +1673,8 @@ function closeMusicConfig(event) {
 
 function musicRenderToggleFeedback() {
   const link = $("musicAllowLinks");
-  const linkStatus = $("musicLinksStatus");
-  if (link && linkStatus) {
-    linkStatus.textContent = link.checked ? "✓" : "✕";
-    linkStatus.classList.toggle("connected", link.checked);
-    linkStatus.classList.toggle("disconnected", !link.checked);
+  if (link) {
+    link.classList.toggle("is-enabled", link.checked);
   }
   const pub = $("musicPublicCommands");
   const pubStatus = $("musicPublicStatus");
@@ -1657,9 +1706,18 @@ async function saveMusicConfig() {
         public_commands: $("musicPublicCommands")?.checked,
       })
     });
-    musicRender(data);
+    if (data?.settings) {
+      sn7MusicData = sn7MusicData || {settings:{}, state:{}, current:null, queue:[]};
+      sn7MusicData.settings = data.settings;
+      if ($("musicAllowYoutube")) $("musicAllowYoutube").checked = data.settings.allow_youtube !== false;
+      if ($("musicAllowSpotify")) $("musicAllowSpotify").checked = data.settings.allow_spotify !== false;
+      if ($("musicAllowSoundcloud")) $("musicAllowSoundcloud").checked = data.settings.allow_soundcloud === true;
+      if ($("musicAllowLinks")) $("musicAllowLinks").checked = data.settings.allow_links !== false;
+      if ($("musicPublicCommands")) $("musicPublicCommands").checked = data.settings.public_commands === true;
+      musicRenderToggleFeedback();
+    }
     if (msg) { msg.textContent = "✓ Configuração salva."; msg.className = "sn7-save-message success"; }
-    setTimeout(closeMusicConfig, 550);
+    setTimeout(closeMusicConfig, 350);
   } catch (error) {
     if (msg) { msg.textContent = `⚠ ${error.message}`; msg.className = "sn7-save-message error"; }
   }
@@ -1671,6 +1729,8 @@ async function saveMusicConfig() {
     button.addEventListener("click", () => loadMusic().catch(() => {}));
   });
   if (document.querySelector('section#minigames.active')) loadMusic().catch(() => {});
+  // Prefetch the lightweight connection status so opening the modal feels instant.
+  if (musicHasChannel()) loadMusicConnections().catch(() => {});
   const params = new URLSearchParams(window.location.search);
   const connected = params.get("music_connected");
   const oauthError = params.get("music_error");

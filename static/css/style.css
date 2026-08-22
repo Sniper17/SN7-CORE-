@@ -576,6 +576,8 @@ nav button.active::after{content:""!important;position:absolute!important;inset:
 .sn7-source-card{display:flex!important;align-items:center;gap:10px;margin:0!important;padding:13px;border:1px solid var(--border);border-radius:12px;background:#0d1117;cursor:pointer}
 .sn7-source-card:hover{border-color:#384152;background:#121720}
 .sn7-source-icon{width:34px;height:34px;border-radius:9px;background:#181e28;display:grid;place-items:center;color:#b7abff;font-weight:800;flex:0 0 34px}
+.sn7-source-icon.has-avatar{overflow:hidden;padding:0;background:#181e28}
+.sn7-source-icon.has-avatar img{width:100%;height:100%;display:block;object-fit:cover;border-radius:inherit}
 .sn7-source-card span:nth-child(2){min-width:0;flex:1}
 .sn7-source-card strong{display:block;font-size:13px}
 .sn7-source-card small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
@@ -671,14 +673,17 @@ body.sn7-modal-open{overflow:hidden!important;overscroll-behavior:none!important
 
 /* SN7 MUSIC V4 - status visual e permissões sem ruído */
 .sn7-source-card .sn7-source-allow:not(.sn7-link-allow){display:none!important}
-.sn7-link-allow{grid-column:2 / span 2!important;grid-row:2!important}
+.sn7-link-allow{grid-column:3 / span 2!important;grid-row:1!important;justify-self:end!important}
+.sn7-link-allow{display:inline-flex!important;align-items:center!important;gap:7px!important}
 .sn7-link-allow input{
   appearance:none!important;-webkit-appearance:none!important;
-  width:18px!important;height:18px!important;border:1px solid #303846!important;
-  border-radius:6px!important;background:#0b0f15!important;display:grid!important;place-items:center!important;
+  width:25px!important;height:25px!important;flex:0 0 25px!important;
+  margin:0!important;border:1px solid #303846!important;border-radius:7px!important;
+  background:#0b0f15!important;display:grid!important;place-items:center!important;
+  position:relative!important;
 }
 .sn7-link-allow input:checked{border-color:#2d6947!important;background:#10251a!important}
-.sn7-link-allow input:checked::after{content:"✓";color:#72e5a0;font-size:12px;font-weight:900;line-height:1}
+.sn7-link-allow input:checked::after{content:"✓";color:#72e5a0;font-size:14px;font-weight:900;line-height:1}
 .sn7-toggle-status{width:25px;height:25px;border-radius:7px;display:grid;place-items:center;border:1px solid #303846;background:#0b0f15;color:#ff9ca6;font-size:14px;font-weight:900}
 .sn7-toggle-status.connected{color:#72e5a0;border-color:#2d6947;background:#10251a}
 .sn7-toggle-status.disconnected{color:#ff9ca6;border-color:#5d3038;background:#211015}

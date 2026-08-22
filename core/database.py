@@ -158,6 +158,7 @@ CREATE TABLE IF NOT EXISTS music_connections (
     username TEXT NOT NULL DEFAULT '',
     display_name TEXT NOT NULL DEFAULT '',
     profile_url TEXT NOT NULL DEFAULT '',
+    avatar_url TEXT NOT NULL DEFAULT '',
     access_token TEXT NOT NULL,
     refresh_token TEXT,
     expires_at BIGINT NOT NULL DEFAULT 0,
@@ -191,6 +192,7 @@ def init_db():
         try:
             with conn.cursor() as cur:
                 cur.execute(SCHEMA)
+                cur.execute("ALTER TABLE music_connections ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT ''")
                 cur.execute("ALTER TABLE kick_connections ADD COLUMN IF NOT EXISTS profile_picture_url TEXT NOT NULL DEFAULT ''")
                 ensure_point_rewards_table(conn)
                 cur.execute("""

@@ -160,7 +160,17 @@ def update_music_settings(broadcaster_id):
             set_public_commands_cache(broadcaster_id, values['public_commands'])
     finally:
         conn.close()
-    return jsonify(snapshot(broadcaster_id))
+
+    # Do not rebuild the full player snapshot just to save these settings.
+    # Returning the saved values keeps the dashboard response lightweight.
+    saved_settings = {
+        'allow_youtube': bool(values.get('allow_youtube', True)),
+        'allow_spotify': bool(values.get('allow_spotify', True)),
+        'allow_soundcloud': bool(values.get('allow_soundcloud', False)),
+        'allow_links': bool(values.get('allow_links', True)),
+        'public_commands': bool(values.get('public_commands', False)),
+    }
+    return jsonify({'ok': True, 'settings': saved_settings})
 
 
 @music_bp.patch('/<int:broadcaster_id>/state')
@@ -375,6 +385,13 @@ def _save_music_connection(bid, provider, profile, token):
         or profile.get("permalink_url")
         or ""
     ).strip()
+    images = profile.get("images") or []
+    avatar_url = str(
+        profile.get("avatar_url")
+        or (images[0].get("url") if isinstance(images, list) and images and isinstance(images[0], dict) else "")
+        or profile.get("thumbnail_url")
+        or ""
+    ).strip()
 
     conn = get_conn()
     try:
@@ -383,13 +400,14 @@ def _save_music_connection(bid, provider, profile, token):
                 """
                 INSERT INTO music_connections
                     (broadcaster_user_id,provider,external_user_id,username,display_name,
-                     profile_url,access_token,refresh_token,expires_at,scope,updated_at)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+                     profile_url,avatar_url,access_token,refresh_token,expires_at,scope,updated_at)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
                 ON CONFLICT (broadcaster_user_id,provider) DO UPDATE SET
                     external_user_id=EXCLUDED.external_user_id,
                     username=EXCLUDED.username,
                     display_name=EXCLUDED.display_name,
                     profile_url=EXCLUDED.profile_url,
+                    avatar_url=EXCLUDED.avatar_url,
                     access_token=EXCLUDED.access_token,
                     refresh_token=COALESCE(EXCLUDED.refresh_token,music_connections.refresh_token),
                     expires_at=EXCLUDED.expires_at,
@@ -398,7 +416,7 @@ def _save_music_connection(bid, provider, profile, token):
                 """,
                 (
                     int(bid), provider, external_id, username, display_name,
-                    profile_url, token.get("access_token"), token.get("refresh_token"),
+                    profile_url, avatar_url, token.get("access_token"), token.get("refresh_token"),
                     expires_at, str(token.get("scope") or "")
                 ),
             )
@@ -429,13 +447,13 @@ def _music_connections(bid):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT provider,display_name,username,profile_url,expires_at
+                SELECT provider,display_name,username,profile_url,avatar_url,expires_at
                 FROM music_connections
                 WHERE broadcaster_user_id=%s
                 """,
                 (int(bid),),
             )
-            for provider, display_name, username, profile_url, expires_at in cur.fetchall():
+            for provider, display_name, username, profile_url, avatar_url, expires_at in cur.fetchall():
                 if provider not in result:
                     continue
                 result[provider].update({
@@ -443,6 +461,7 @@ def _music_connections(bid):
                     "display_name": display_name or "",
                     "username": username or "",
                     "profile_url": profile_url or "",
+                    "avatar_url": avatar_url or "",
                     "expires_at": int(expires_at or 0),
                 })
     finally:
@@ -466,10 +485,18 @@ def _fetch_profile(provider, access_token):
         if not item:
             raise RuntimeError("A conta Google não possui um canal do YouTube disponível.")
         snippet = item.get("snippet") or {}
+        thumbnails = snippet.get("thumbnails") or {}
+        avatar_url = ""
+        for size in ("high", "medium", "default"):
+            candidate = thumbnails.get(size) or {}
+            if candidate.get("url"):
+                avatar_url = str(candidate["url"]).strip()
+                break
         return {
             "id": item.get("id"),
             "name": snippet.get("title"),
             "profile_url": f"https://www.youtube.com/channel/{item.get('id')}",
+            "avatar_url": avatar_url,
         }
 
     if provider == "spotify":
