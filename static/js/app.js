@@ -1222,7 +1222,10 @@ function musicFormatTime(value) {
 function musicRenderPlaying(playing) {
   const btn = $("sn7MusicPlay");
   if (btn) {
-    btn.textContent = playing ? "⏸" : "▶";
+    btn.classList.toggle("is-playing", !!playing);
+    btn.innerHTML = playing
+      ? '<span class="sn7-pause-icon" aria-hidden="true"><i></i><i></i></span>'
+      : '<span class="sn7-play-icon" aria-hidden="true"></span>';
     btn.setAttribute("aria-label", playing ? "Pausar" : "Reproduzir");
   }
   if (sn7MusicData?.state) sn7MusicData.state.is_playing = playing;
@@ -1243,7 +1246,12 @@ function musicRenderVolume(value) {
   const volume = Math.max(0, Math.min(100, Number(value) || 0));
   if ($("sn7MusicVolumeValue")) $("sn7MusicVolumeValue").textContent = String(volume);
   const icon = $("sn7MusicVolumeIcon");
-  if (icon) icon.textContent = volume === 0 ? "🔇" : volume <= 30 ? "🔈" : volume <= 70 ? "🔉" : "🔊";
+  if (icon) {
+    icon.classList.toggle("is-muted", volume === 0);
+    icon.classList.toggle("is-low", volume > 0 && volume <= 30);
+    icon.classList.toggle("is-medium", volume > 30 && volume <= 70);
+    icon.classList.toggle("is-high", volume > 70);
+  }
   document.querySelectorAll(".sn7-volume-btn").forEach((button) => {
     const label = button.getAttribute("aria-label") || "";
     button.disabled = (volume === 0 && label.includes("Diminuir")) || (volume === 100 && label.includes("Aumentar"));

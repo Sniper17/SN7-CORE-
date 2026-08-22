@@ -689,3 +689,212 @@ body.sn7-modal-open{overflow:hidden!important;overscroll-behavior:none!important
 .sn7-toggle-status.disconnected{color:#ff9ca6;border-color:#5d3038;background:#211015}
 .sn7-public-toggle{cursor:pointer}
 .sn7-public-toggle:active{transform:scale(.98)}
+
+
+/* SN7 MUSIC V5 - controles monocromáticos, toque discreto e status perfeitamente centralizado */
+.sn7-music-btn,
+.sn7-volume-btn,
+.sn7-music-config,
+.sn7-music-queue-toggle,
+.sn7-source-card,
+.sn7-source-action,
+.sn7-link-allow,
+.sn7-public-toggle,
+.sn7-config-close,
+.sn7-config-modal button,
+.sn7-config-modal label {
+  -webkit-tap-highlight-color: transparent !important;
+  tap-highlight-color: transparent !important;
+}
+
+.sn7-music-btn.primary {
+  position: relative;
+  overflow: hidden;
+}
+.sn7-play-icon,
+.sn7-pause-icon {
+  display:block;
+  width:18px;
+  height:18px;
+  position:relative;
+  flex:0 0 18px;
+}
+.sn7-play-icon {
+  width:0;
+  height:0;
+  margin-left:3px;
+  border-top:9px solid transparent;
+  border-bottom:9px solid transparent;
+  border-left:14px solid currentColor;
+}
+.sn7-pause-icon {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+}
+.sn7-pause-icon i {
+  display:block;
+  width:4px;
+  height:15px;
+  border-radius:1.5px;
+  background:currentColor;
+}
+.sn7-music-btn.primary.is-playing .sn7-pause-icon i {
+  background:#171a20;
+}
+.sn7-music-btn.primary .sn7-play-icon {
+  color:#11141a;
+}
+.sn7-music-btn.primary:active,
+.sn7-music-btn.primary:focus-visible {
+  transform:none;
+}
+.sn7-music-btn:active,
+.sn7-volume-btn:active,
+.sn7-music-config:active,
+.sn7-music-queue-toggle:active,
+.sn7-subtle:active {
+  transform:scale(.965);
+  background:inherit;
+}
+
+/* Ícone de volume sem emoji: mantém a mesma linguagem visual do player. */
+.sn7-volume-icon {
+  position:relative;
+  display:inline-block;
+  width:17px;
+  height:17px;
+  flex:0 0 17px;
+  color:#aeb6c5;
+}
+.sn7-volume-icon::before {
+  content:"";
+  position:absolute;
+  left:1px;
+  top:6px;
+  width:5px;
+  height:6px;
+  border-radius:1px;
+  background:currentColor;
+}
+.sn7-volume-icon::after {
+  content:"";
+  position:absolute;
+  left:4px;
+  top:4px;
+  width:7px;
+  height:9px;
+  background:currentColor;
+  clip-path:polygon(0 35%,45% 0,45% 100%,0 65%);
+}
+.sn7-volume-icon {
+  background:radial-gradient(circle at 67% 50%, transparent 0 4px, currentColor 4.5px 5.5px, transparent 6px 100%);
+}
+.sn7-volume-icon.is-muted { color:#70798a; }
+.sn7-volume-icon.is-muted::before { opacity:.7; }
+.sn7-volume-icon.is-muted::after { opacity:.7; }
+.sn7-volume-icon.is-muted { background:none; }
+.sn7-volume-icon.is-muted {
+  overflow:hidden;
+}
+.sn7-volume-icon.is-muted span { display:none; }
+
+/* Remove o flash azul nativo do Android/Chrome sem eliminar o foco de teclado. */
+html, body, button, input, label, a, select, textarea {
+  -webkit-tap-highlight-color: transparent !important;
+}
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+label:focus:not(:focus-visible) {
+  outline:none !important;
+  box-shadow:none !important;
+}
+
+/* ✓ fica matematicamente centralizado dentro do quadrado. */
+.sn7-link-allow input {
+  position:relative !important;
+  display:block !important;
+  box-sizing:border-box !important;
+  overflow:hidden !important;
+  text-indent:0 !important;
+  line-height:1 !important;
+}
+.sn7-link-allow input:checked::after {
+  content:"✓" !important;
+  position:absolute !important;
+  inset:0 !important;
+  display:grid !important;
+  place-items:center !important;
+  width:auto !important;
+  height:auto !important;
+  margin:0 !important;
+  padding:0 !important;
+  color:#72e5a0 !important;
+  font-size:15px !important;
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif !important;
+  font-weight:900 !important;
+  line-height:1 !important;
+  transform:none !important;
+}
+.sn7-link-allow:active { transform:none !important; }
+.sn7-source-card:active {
+  transform:scale(.995) !important;
+  border-color:#303846 !important;
+  background:#0d1117 !important;
+}
+.sn7-source-action:active {
+  transform:scale(.985) !important;
+}
+.sn7-config-modal-card button:active,
+.sn7-config-modal-card label:active {
+  filter:none !important;
+  box-shadow:none !important;
+}
+
+
+/* Checkbox de Links: estrutura própria para o ✓ nunca depender do alinhamento nativo do input. */
+.sn7-link-allow {
+  position:relative !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  gap:7px !important;
+  min-width:0 !important;
+}
+.sn7-link-allow input {
+  position:absolute !important;
+  width:1px !important;
+  height:1px !important;
+  padding:0 !important;
+  margin:-1px !important;
+  overflow:hidden !important;
+  clip:rect(0,0,0,0) !important;
+  white-space:nowrap !important;
+  border:0 !important;
+}
+.sn7-checkbox-box {
+  width:25px !important;
+  height:25px !important;
+  flex:0 0 25px !important;
+  box-sizing:border-box !important;
+  display:grid !important;
+  place-items:center !important;
+  border:1px solid #303846 !important;
+  border-radius:7px !important;
+  background:#0b0f15 !important;
+  color:transparent !important;
+  font:900 15px/1 system-ui,-apple-system,"Segoe UI",sans-serif !important;
+  transition:background .14s ease,border-color .14s ease,color .14s ease,transform .12s ease !important;
+}
+.sn7-link-allow input:checked + .sn7-checkbox-box {
+  border-color:#2d6947 !important;
+  background:#10251a !important;
+  color:#72e5a0 !important;
+}
+.sn7-link-allow:active .sn7-checkbox-box {
+  transform:scale(.98) !important;
+}
+.sn7-link-allow > span:last-child {
+  white-space:nowrap !important;
+}

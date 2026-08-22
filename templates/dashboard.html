@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=desktop2x4">
+<link rel="stylesheet" href="/static/css/style.css?v=desktop2x5">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -139,11 +139,11 @@ body.sn7-modal-open{overflow:hidden}
 
           <div class="sn7-music-controls" aria-label="Controles do player">
             <button type="button" class="sn7-music-btn" onclick="musicPrevious()" aria-label="Anterior">↶</button>
-            <button type="button" class="sn7-music-btn primary" id="sn7MusicPlay" onclick="musicTogglePlay()" aria-label="Reproduzir ou pausar">▶</button>
+            <button type="button" class="sn7-music-btn primary" id="sn7MusicPlay" onclick="musicTogglePlay()" aria-label="Reproduzir ou pausar"><span class="sn7-play-icon" aria-hidden="true"></span></button>
             <button type="button" class="sn7-music-btn" onclick="musicSkip()" aria-label="Próxima">↷</button>
 
             <div class="sn7-music-volume" aria-label="Controle de volume">
-              <span id="sn7MusicVolumeIcon" aria-hidden="true">🔊</span>
+              <span id="sn7MusicVolumeIcon" class="sn7-volume-icon is-high" aria-hidden="true"></span>
               <button type="button" class="sn7-volume-btn" onclick="musicChangeVolume(-10)" aria-label="Diminuir volume">−</button>
               <span class="sn7-volume-value" id="sn7MusicVolumeValue">80</span>
               <button type="button" class="sn7-volume-btn" onclick="musicChangeVolume(10)" aria-label="Aumentar volume">+</button>
@@ -203,7 +203,7 @@ body.sn7-modal-open{overflow:hidden}
             <div class="sn7-source-card">
               <span class="sn7-source-icon">↗</span>
               <span><strong>Links</strong><small>URLs diretas no chat</small></span>
-              <label class="sn7-source-allow sn7-link-allow"><input id="musicAllowLinks" type="checkbox" checked><span>Aceitar links</span></label>
+              <label class="sn7-source-allow sn7-link-allow"><input id="musicAllowLinks" type="checkbox" checked><span class="sn7-checkbox-box" aria-hidden="true">✓</span><span>Aceitar links</span></label>
             </div>
           </div>
           <div class="sn7-music-future-note">TikTok será adicionado à mesma área de conexões quando a integração oficial estiver pronta.</div>
@@ -279,7 +279,7 @@ body.sn7-modal-open{overflow:hidden}
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
-<script src="/static/js/app.js?v=9"></script><script>
+<script src="/static/js/app.js?v=10"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
