@@ -329,13 +329,15 @@ def _provider_config(provider):
     return MUSIC_PROVIDERS.get(str(provider or "").lower())
 
 
-def _oauth_redirect_uri(provider, broadcaster_id):
+def _oauth_redirect_uri(provider):
+    # OAuth providers require an exact, registered redirect URI. Keep one
+    # stable callback per provider so the same SN7 app works for every channel.
     cfg = _provider_config(provider)
     configured = os.environ.get(cfg["redirect_env"], "").strip() if cfg else ""
     if configured:
         return configured
-    proto = request.headers.get("X-Forwarded-Proto", request.scheme)
-    return f"{proto}://{request.host}/api/music/{int(broadcaster_id)}/callback/{provider}"
+    public_url = os.environ.get("SN7_PUBLIC_URL", "https://sn7-core.onrender.com").strip().rstrip("/")
+    return f"{public_url}/api/music/callback/{provider}"
 
 
 def _pkce_pair():
@@ -564,7 +566,7 @@ def connect_music_provider(broadcaster_id, provider):
         "broadcaster_id": int(broadcaster_id),
     }
 
-    redirect_uri = _oauth_redirect_uri(provider, broadcaster_id)
+    redirect_uri = _oauth_redirect_uri(provider)
     params = {
         "response_type": "code",
         "client_id": client_id,
@@ -593,15 +595,16 @@ def connect_music_provider(broadcaster_id, provider):
     return redirect(f"{cfg['authorize']}?{urlencode(params)}")
 
 
-@music_bp.get("/<int:broadcaster_id>/callback/<provider>")
-def music_provider_callback(broadcaster_id, provider):
+@music_bp.get("/callback/<provider>")
+def music_provider_callback(provider):
     provider = str(provider or "").lower()
     cfg = _provider_config(provider)
     if not cfg:
         return _music_oauth_error("Plataforma não suportada.", 404)
 
     state_data = session.pop(f"music_oauth_{provider}", None)
-    if not state_data or int(state_data.get("broadcaster_id") or 0) != int(broadcaster_id):
+    broadcaster_id = int(state_data.get("broadcaster_id") or 0) if state_data else 0
+    if not state_data or broadcaster_id <= 0:
         return _music_oauth_error("OAuth inválido ou expirado.", 400)
     if request.args.get("state") != state_data.get("state"):
         return _music_oauth_error("OAuth state inválido.", 400)
@@ -616,7 +619,7 @@ def music_provider_callback(broadcaster_id, provider):
 
     try:
         require_session_broadcaster(broadcaster_id)
-        redirect_uri = _oauth_redirect_uri(provider, broadcaster_id)
+        redirect_uri = _oauth_redirect_uri(provider)
         token = _exchange_music_code(provider, code, state_data.get("verifier"), redirect_uri)
         profile = _fetch_profile(provider, token["access_token"])
         _save_music_connection(broadcaster_id, provider, profile, token)

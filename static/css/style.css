@@ -631,7 +631,6 @@ nav button.active::after{content:""!important;position:absolute!important;inset:
 }
 .sn7-source-action:hover{background:#202734!important;border-color:#3b4555!important}
 .sn7-source-action:active{transform:scale(.94)}
-.sn7-source-action.ghost{color:#697386!important;cursor:default!important;background:#11151d!important}
 .sn7-music-public-box{
   display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;
   padding:12px;border:1px solid var(--border);border-radius:11px;background:#0d1117;
