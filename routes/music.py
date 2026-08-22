@@ -136,6 +136,10 @@ def get_music(broadcaster_id):
 
 @music_bp.patch('/<int:broadcaster_id>/settings')
 def update_music_settings(broadcaster_id):
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 401
     data = request.get_json(silent=True) or {}
     allowed = {'allow_youtube', 'allow_spotify', 'allow_soundcloud', 'allow_links', 'public_commands'}
     values = {k: bool(data[k]) for k in allowed if k in data}
@@ -161,6 +165,10 @@ def update_music_settings(broadcaster_id):
 
 @music_bp.patch('/<int:broadcaster_id>/state')
 def update_music_state(broadcaster_id):
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 401
     data = request.get_json(silent=True) or {}
     sets, vals = [], []
     if 'is_playing' in data:
@@ -185,6 +193,10 @@ def update_music_state(broadcaster_id):
 
 @music_bp.post('/<int:broadcaster_id>/queue')
 def add_music(broadcaster_id):
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 401
     data = request.get_json(silent=True) or {}
     title = str(data.get('title') or '').strip()
     artist = str(data.get('artist') or '').strip()
@@ -224,6 +236,10 @@ def add_music(broadcaster_id):
 
 @music_bp.post('/<int:broadcaster_id>/queue/<int:item_id>/remove')
 def remove_music(broadcaster_id, item_id):
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 401
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -237,6 +253,10 @@ def remove_music(broadcaster_id, item_id):
 
 @music_bp.post('/<int:broadcaster_id>/skip')
 def skip_music(broadcaster_id):
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 401
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -257,6 +277,10 @@ def skip_music(broadcaster_id):
 
 @music_bp.post('/<int:broadcaster_id>/queue/clear')
 def clear_music(broadcaster_id):
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 401
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -323,6 +347,11 @@ def _pkce_pair():
 
 
 def _music_oauth_error(message, status=400):
+    if "text/html" in str(request.headers.get("Accept") or ""):
+        safe = str(message).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace('"',"&quot;")
+        return f'''<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>SN7 • Conexão</title>
+<style>body{{margin:0;background:#0b0d12;color:#e8ebf2;font:16px system-ui;display:grid;place-items:center;min-height:100vh;padding:24px}}main{{max-width:520px;background:#121720;border:1px solid #2a3240;border-radius:18px;padding:24px}}a{{display:inline-block;margin-top:18px;color:#fff;background:#1c2430;border:1px solid #354052;border-radius:10px;padding:10px 14px;text-decoration:none;font-weight:700}}</style>
+<main><h2>Conexão não iniciada</h2><p>{safe}</p><a href="/dashboard">Voltar ao painel</a></main></html>''', status
     return jsonify({"ok": False, "error": message}), status
 
 
@@ -599,6 +628,10 @@ def music_provider_callback(broadcaster_id, provider):
 
 @music_bp.post("/<int:broadcaster_id>/disconnect/<provider>")
 def disconnect_music_provider(broadcaster_id, provider):
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return _music_oauth_error(str(exc), 401)
     provider = str(provider or "").lower()
     if provider not in MUSIC_PROVIDERS:
         return _music_oauth_error("Plataforma não suportada.", 404)

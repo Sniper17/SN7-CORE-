@@ -662,3 +662,19 @@ body.sn7-modal-open{overflow:hidden!important;overscroll-behavior:none!important
 }
 
 .sn7-music-future-note{margin-top:9px;color:#697386;font-size:9px;line-height:1.45}
+
+/* SN7 MUSIC V4 - status visual e permissões sem ruído */
+.sn7-source-card .sn7-source-allow:not(.sn7-link-allow){display:none!important}
+.sn7-link-allow{grid-column:2 / span 2!important;grid-row:2!important}
+.sn7-link-allow input,.sn7-public-toggle input{
+  appearance:none!important;-webkit-appearance:none!important;
+  width:18px!important;height:18px!important;border:1px solid #303846!important;
+  border-radius:6px!important;background:#0b0f15!important;display:grid!important;place-items:center!important;
+}
+.sn7-link-allow input:checked,.sn7-public-toggle input:checked{border-color:#2d6947!important;background:#10251a!important}
+.sn7-link-allow input:checked::after,.sn7-public-toggle input:checked::after{content:"✓";color:#72e5a0;font-size:12px;font-weight:900;line-height:1}
+.sn7-toggle-status{width:25px;height:25px;border-radius:7px;display:grid;place-items:center;border:1px solid #303846;background:#0b0f15;color:#ff9ca6;font-size:14px;font-weight:900}
+.sn7-toggle-status.connected{color:#72e5a0;border-color:#2d6947;background:#10251a}
+.sn7-toggle-status.disconnected{color:#ff9ca6;border-color:#5d3038;background:#211015}
+.sn7-public-toggle{cursor:pointer}
+.sn7-public-toggle:active{transform:scale(.98)}

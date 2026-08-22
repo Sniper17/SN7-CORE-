@@ -1,6 +1,7 @@
 from urllib.parse import urlparse
 from core.database import get_conn
 import time
+from urllib.parse import urlparse
 
 
 def _provider(url):

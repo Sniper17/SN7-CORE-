@@ -1272,12 +1272,15 @@ function musicRenderConnections(data) {
         : (item.configured ? "Conta não conectada" : "OAuth ainda não configurado");
     }
     if (button) {
-      button.textContent = item.connected ? "Desconectar" : (item.configured ? "Conectar" : "Configurar");
-      button.classList.toggle("ghost", !item.configured && !item.connected);
-      button.disabled = !item.configured && !item.connected;
+      button.textContent = item.connected ? "Desconectar" : "Conectar";
+      button.classList.remove("ghost");
+      button.disabled = false;
       button.dataset.connected = item.connected ? "1" : "0";
+      button.dataset.configured = item.configured ? "1" : "0";
     }
   });
+
+  musicRenderToggleFeedback();
 }
 
 async function loadMusicConnections() {
@@ -1315,6 +1318,15 @@ function musicConnect(provider) {
   const button = $(`music${String(provider).charAt(0).toUpperCase() + String(provider).slice(1)}Connect`);
   if (button?.dataset.connected === "1") {
     musicDisconnect(provider);
+    return;
+  }
+  if (button?.dataset.configured !== "1") {
+    const labels = {youtube:"YouTube", spotify:"Spotify", soundcloud:"SoundCloud"};
+    const msg = $("musicConfigMsg");
+    if (msg) {
+      msg.textContent = `⚠ ${labels[provider] || provider} ainda não foi configurado no Render.`;
+      msg.className = "sn7-save-message error";
+    }
     return;
   }
   window.location.href = `/api/music/${BROADCASTER_ID}/connect/${encodeURIComponent(provider)}`;
@@ -1587,6 +1599,7 @@ function openMusicConfig() {
     if ($("musicAllowSoundcloud")) $("musicAllowSoundcloud").checked = s.allow_soundcloud === true;
     if ($("musicAllowLinks")) $("musicAllowLinks").checked = s.allow_links !== false;
     if ($("musicPublicCommands")) $("musicPublicCommands").checked = s.public_commands === true;
+    musicRenderToggleFeedback();
   }).catch(() => {});
   loadMusicConnections().catch(() => {});
 }
@@ -1598,6 +1611,29 @@ function closeMusicConfig(event) {
   modal.setAttribute("hidden", "");
   document.body.classList.remove("sn7-modal-open");
 }
+
+function musicRenderToggleFeedback() {
+  const link = $("musicAllowLinks");
+  const linkStatus = $("musicLinksStatus");
+  if (link && linkStatus) {
+    linkStatus.textContent = link.checked ? "✓" : "✕";
+    linkStatus.classList.toggle("connected", link.checked);
+    linkStatus.classList.toggle("disconnected", !link.checked);
+  }
+  const pub = $("musicPublicCommands");
+  const pubStatus = $("musicPublicStatus");
+  if (pub && pubStatus) {
+    pubStatus.textContent = pub.checked ? "✓" : "✕";
+    pubStatus.classList.toggle("connected", pub.checked);
+    pubStatus.classList.toggle("disconnected", !pub.checked);
+  }
+}
+
+document.addEventListener("change", (event) => {
+  if (event.target?.id === "musicAllowLinks" || event.target?.id === "musicPublicCommands") {
+    musicRenderToggleFeedback();
+  }
+});
 
 async function saveMusicConfig() {
   const msg = $("musicConfigMsg");
@@ -1611,6 +1647,7 @@ async function saveMusicConfig() {
         allow_spotify: $("musicAllowSpotify")?.checked,
         allow_soundcloud: $("musicAllowSoundcloud")?.checked,
         allow_links: $("musicAllowLinks")?.checked,
+        public_commands: $("musicPublicCommands")?.checked,
       })
     });
     musicRender(data);
