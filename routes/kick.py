@@ -1441,9 +1441,9 @@ def _process_webhook(payload, event_type):
             print(f"[SN7-REWARDS] {username} +{bonus} por {amount} KICK(s)", flush=True)
 
 
-def _session_broadcaster_id():
+def _session_broadcaster_id(validate=True):
     try:
-        value = get_session_broadcaster_id()
+        value = get_session_broadcaster_id(validate=validate)
         return int(value) if value is not None else None
     except (TypeError, ValueError):
         return None
@@ -1529,7 +1529,9 @@ def _save_username(broadcaster_id, username):
 
 @kick_bp.get("/me")
 def me():
-    bid = _session_broadcaster_id()
+    # /kick/me é somente leitura do perfil da sessão; não exige uma consulta
+    # adicional ao banco para validar algo que já veio do OAuth.
+    bid = _session_broadcaster_id(validate=False)
     if bid is None:
         return jsonify({"ok": True, "authenticated": False, "user": None, "bot": {"active": False}})
     cached = _profile_cache.get(int(bid))
@@ -1538,11 +1540,24 @@ def me():
     # /kick/me nunca renova token nem chama a API externa. Isso mantém a primeira
     # pintura rápida mesmo quando o access_token está expirado. A atualização de
     # nome/foto, quando necessária, acontece em /kick/profile/refresh.
-    conn = _get_connection(bid)
-    if not conn or not conn.get("access_token"):
+    try:
+        conn = _get_connection(bid)
+    except Exception as exc:
+        # O perfil já autenticado pode continuar sendo exibido pelo snapshot da
+        # sessão mesmo se o PostgreSQL estiver em cold start ou temporariamente
+        # indisponível. O erro não deve transformar a tela em logout.
+        print(f"[KICK-PROFILE] leitura do banco falhou: {exc}", flush=True)
+        conn = None
+
+    snapshot = session.get("kick_profile")
+    if isinstance(snapshot, dict) and int(snapshot.get("id") or 0) == int(bid):
+        username = str(snapshot.get("username") or "Kick").strip()
+        profile_picture_url = str(snapshot.get("profile_picture_url") or "").strip()
+    elif conn:
+        username = str(conn.get("username") or "Kick").strip()
+        profile_picture_url = str(conn.get("profile_picture_url") or "").strip()
+    else:
         return jsonify({"ok": True, "authenticated": False, "user": None, "bot": {"active": False}})
-    username=str(conn.get("username") or "Kick").strip()
-    profile_picture_url=str(conn.get("profile_picture_url") or "").strip()
 
     # /kick/me é crítico para a primeira pintura do Perfil.
     # Não bloqueia esperando uma chamada externa só para saber se o bot está ativo.
@@ -1552,6 +1567,7 @@ def me():
         "user": {"id": int(bid), "username": username, "profile_picture_url": profile_picture_url},
         "bot": {"active": False},
     }
+    session["kick_profile"] = result["user"]
     _profile_cache[int(bid)] = (time.time(), result)
     return jsonify(result)
 
@@ -1571,6 +1587,7 @@ def profile_refresh():
         avatar = str(user.get("profile_picture") or user.get("profile_picture_url") or user.get("profile_pic") or user.get("avatar_url") or conn.get("profile_picture_url") or "").strip()
         if username: _save_username(bid, username)
         if avatar: _save_profile_picture(bid, avatar)
+        session["kick_profile"] = {"id": int(bid), "username": username, "profile_picture_url": avatar}
         result = {"ok": True, "authenticated": True, "user": {"id": int(bid), "username": username, "profile_picture_url": avatar}}
         _profile_cache[int(bid)] = (time.time(), result)
         return jsonify(result)
@@ -1626,6 +1643,7 @@ def logout():
     session.pop("kick_oauth_state", None)
     session.pop("kick_code_verifier", None)
     session.pop("kick_oauth_next", None)
+    session.pop("kick_profile", None)
     return jsonify({"ok": True})
 
 
@@ -1678,6 +1696,11 @@ def callback():
 
         # Login e ativação do bot são ações separadas.
         session["kick_broadcaster_id"] = broadcaster_id
+        session["kick_profile"] = {
+            "id": int(broadcaster_id),
+            "username": str(user.get("username") or user.get("slug") or user.get("channel_slug") or user.get("name") or user.get("display_name") or "Kick").strip(),
+            "profile_picture_url": str(user.get("profile_picture") or user.get("profile_picture_url") or user.get("profile_pic") or user.get("avatar_url") or "").strip(),
+        }
         session.permanent = True
         session.pop("kick_oauth_next", None)
 

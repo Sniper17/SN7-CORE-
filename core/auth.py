@@ -2,7 +2,7 @@ from flask import g, session
 from core.database import get_conn
 
 
-def get_session_broadcaster_id():
+def get_session_broadcaster_id(validate=True):
     # Evita duas consultas idênticas ao PostgreSQL no mesmo request
     # (por exemplo, ao renderizar / e /dashboard).
     if hasattr(g, "sn7_session_broadcaster_id"):
@@ -12,18 +12,25 @@ def get_session_broadcaster_id():
     if raw is None:
         g.sn7_session_broadcaster_id = None
         return None
+
     try:
         broadcaster_id = int(raw)
     except (TypeError, ValueError):
         g.sn7_session_broadcaster_id = None
         return None
 
+    # O dashboard pode obter o ID da sessão sem consultar o banco.
+    # Importante: não colocar esse ID não validado no cache de g.
+    if not validate:
+        return broadcaster_id
+
     try:
         conn = get_conn()
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT 1 FROM kick_connections WHERE broadcaster_user_id=%s LIMIT 1",
+                    "SELECT 1 FROM kick_connections "
+                    "WHERE broadcaster_user_id=%s LIMIT 1",
                     (broadcaster_id,),
                 )
                 if not cur.fetchone():

@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.7.7">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.8.0">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -71,7 +71,7 @@ body.sn7-modal-open{overflow:hidden}
       <button type="button" data-tab="commands"><span>⌘</span> Comandos</button>
       <button type="button" data-tab="profile"><span id="sn7NavProfileIcon" class="sn7-nav-profile-icon">◉</span> Perfil</button>
     </nav>
-    <div class="sidebar-footer">SN7 CORE <span>v1.6</span></div>
+    <div class="sidebar-footer">SN7 CORE <span>v1.8.0</span></div>
   </aside>
 
   <main>
@@ -236,6 +236,7 @@ body.sn7-modal-open{overflow:hidden}
           .sn7-platform-card{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;border:1px solid var(--border);border-radius:14px;background:#0f131a}
           .sn7-platform-card .left{display:flex;align-items:center;gap:10px;min-width:0}
           .sn7-platform-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:#1a202b;font-weight:800;font-size:13px;flex:0 0 34px}
+          .sn7-platform-icon img{width:100%;height:100%;border-radius:10px;object-fit:cover;display:block}
           .sn7-platform-card strong{display:block;font-size:13px}.sn7-platform-card small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
           .sn7-platform-status{font-size:10px;font-weight:800;padding:5px 8px;border-radius:999px;background:#151a22;color:#8f98a8;border:1px solid var(--border);white-space:nowrap}
           .sn7-platform-status.active{color:#55d98b;border-color:#2c6548;background:#102219}
@@ -277,9 +278,8 @@ body.sn7-modal-open{overflow:hidden}
             <h3>Plataformas</h3>
             <p>Gerencie as integrações da sua live e concentre os recursos do SN7 Core em um só painel.</p>
             <div class="sn7-profile-platforms">
-              <div class="sn7-platform-card" id="sn7PlatformKick"><div class="left"><span class="sn7-platform-icon">K</span><span><strong>Kick</strong><small id="sn7KickPlatformText">Conectando…</small></span></div><span id="sn7KickPlatformStatus" class="sn7-platform-status active">ATIVO</span></div>
-              <div class="sn7-platform-card" id="sn7PlatformTwitch"><div class="left"><span class="sn7-platform-icon">T</span><span><strong>Twitch</strong><small id="sn7TwitchPlatformText">Verificando…</small></span></div><span id="sn7TwitchPlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><button id="sn7TwitchConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectTwitch()">Conectar</button></div>
-              <div class="sn7-platform-card" id="sn7PlatformYoutube"><div class="left"><span class="sn7-platform-icon">▶</span><span><strong>YouTube</strong><small id="sn7YoutubePlatformText">Verificando…</small></span></div><span id="sn7YoutubePlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><button id="sn7YoutubeConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectYoutube()">Conectar</button></div>
+              <div class="sn7-platform-card" id="sn7PlatformTwitch"><div class="left"><span id="sn7TwitchPlatformIcon" class="sn7-platform-icon">T</span><span><strong>Twitch</strong><small id="sn7TwitchPlatformText">Verificando…</small></span></div><span id="sn7TwitchPlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><button id="sn7TwitchConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectTwitch()">Conectar</button></div>
+              <div class="sn7-platform-card" id="sn7PlatformYoutube"><div class="left"><span id="sn7YoutubePlatformIcon" class="sn7-platform-icon">▶</span><span><strong>YouTube</strong><small id="sn7YoutubePlatformText">Verificando…</small></span></div><span id="sn7YoutubePlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><button id="sn7YoutubeConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectYoutube()">Conectar</button></div>
               <div class="sn7-platform-card"><div class="left"><span class="sn7-platform-icon">♪</span><span><strong>TikTok</strong><small>Integração oficial de bot ainda não configurada</small></span></div><span class="sn7-platform-status">EM BREVE</span></div>
             </div>
           </div>
@@ -317,8 +317,9 @@ body.sn7-modal-open{overflow:hidden}
   </main>
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
-const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
-<script src="/static/js/app.js?v=sn7-1.7.7"></script><script>
+const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
+const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
+<script src="/static/js/app.js?v=sn7-1.8.0"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -361,6 +362,7 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
     }else{el.textContent=fallback||"S";}
   }
   function user(u){
+    if(!u)return;
     q("sn7ProfileLoggedOut").hidden=true;q("sn7ProfileLoggedIn").hidden=false;
     const username=u.username||"Kick";
     q("sn7ProfileUsername").textContent="@"+username;
@@ -369,22 +371,38 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
     const avatarUrl=u.profile_picture_url||u.profile_picture||u.avatar_url||"";
     setAvatar(q("sn7ProfileAvatar"), initials, avatarUrl);
     setAvatar(q("sn7ChannelAvatar"), initials, avatarUrl);
-    const nav=q("sn7NavProfileIcon");
-    setAvatar(nav, initials, avatarUrl);
+    setAvatar(q("sn7NavProfileIcon"), initials, avatarUrl);
   }
   function bot(a){const on=!!a;q("sn7ProfileDot").classList.toggle("on",on);q("sn7ProfileStatus").textContent=on?"Bot ativo":"Bot desligado";q("sn7ProfileBotTitle").textContent=on?"🟢 Bot ligado":"⚪ Bot desligado";q("sn7ProfileBotDescription").textContent=on?"O SN7 Core está ouvindo os comandos da live.":"O bot não está ouvindo os comandos da live.";q("sn7ProfileBotToggle").textContent=on?"Desligar bot":"Ligar bot";q("sn7ProfileBotToggle").dataset.active=String(on);q("sn7ProfileBotToggle").disabled=false}
+  function setPlatformAvatar(iconId,fallback,url){
+    const el=q(iconId);
+    if(!el)return;
+    el.innerHTML="";
+    if(url){
+      const img=document.createElement("img");
+      img.src=url; img.alt="Foto da conta"; img.loading="eager";
+      img.onerror=()=>{el.textContent=fallback;};
+      el.appendChild(img);
+    }else{el.textContent=fallback;}
+  }
   function platformStatus(id,statusId,textId,connectId,data,label){
     const st=q(statusId),tx=q(textId),bt=q(connectId);
     if(!st||!tx)return;
     const on=!!data?.connected; const active=!!data?.active;
+    const provider=label.toLowerCase()==="twitch"?"twitch":"youtube";
+    const fallback=provider==="twitch"?"T":"▶";
+    setPlatformAvatar(provider==="twitch"?"sn7TwitchPlatformIcon":"sn7YoutubePlatformIcon",fallback,data?.user?.avatar_url||"");
     st.textContent=on?(active?"BOT ATIVO":"CONECTADO"):"NÃO CONECTADO";
     st.classList.toggle("active",on);
     tx.textContent=on?((data.user?.display_name||data.user?.username||label)+(active?" • bot ativo":" • bot desligado")):"Conta ainda não conectada";
     if(bt){
       bt.hidden=false; bt.disabled=false;
-      if(!on){bt.textContent="Conectar"; bt.onclick=()=>connectPlatform(label.toLowerCase()==="twitch"?"twitch":"youtube");}
-      else {bt.textContent=active?"Desligar bot":"Ligar bot"; bt.onclick=()=>togglePlatform(label.toLowerCase()==="twitch"?"twitch":"youtube");}
+      if(!on){bt.textContent="Conectar"; bt.onclick=()=>connectPlatform(provider);}
+      else {bt.textContent=active?"Desligar bot":"Ligar bot"; bt.onclick=()=>togglePlatform(provider);}
     }
+  }
+  if(BROADCASTER_ID && window.SN7_INITIAL_PROFILE && window.SN7_INITIAL_PROFILE.id){
+    user(window.SN7_INITIAL_PROFILE);
   }
   function connectPlatform(provider){
     if(!BROADCASTER_ID)return;
@@ -417,10 +435,12 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
     if(BROADCASTER_ID){
       loggedOut.hidden=true;
       loggedIn.hidden=false;
-      const name=q("sn7ProfileUsername");
-      const channel=q("sn7ProfileChannel");
-      if(name && (name.textContent==="—" || !name.textContent.trim())) name.textContent="Carregando perfil…";
-      if(channel && (!channel.textContent || channel.textContent==="Canal conectado")) channel.textContent="Conexão com a Kick em andamento…";
+      if(!window.SN7_INITIAL_PROFILE || !window.SN7_INITIAL_PROFILE.id){
+        const name=q("sn7ProfileUsername");
+        const channel=q("sn7ProfileChannel");
+        if(name && (name.textContent==="—" || !name.textContent.trim())) name.textContent="Carregando perfil…";
+        if(channel && (!channel.textContent || channel.textContent==="Canal conectado")) channel.textContent="Conexão com a Kick em andamento…";
+      }
       const bt=q("sn7ProfileBotToggle");
       if(bt){bt.disabled=true;bt.textContent="Carregando…";}
     }else{
@@ -469,18 +489,43 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
     const b=q("sn7ProfileBotToggle");
     if(!b)return;
     showProfileShell();
+
+    const initial=window.SN7_INITIAL_PROFILE && window.SN7_INITIAL_PROFILE.id ? window.SN7_INITIAL_PROFILE : null;
+    if(initial){
+      // O snapshot da sessão é a fonte imediata do perfil. Não fazemos um GET
+      // ao banco só para confirmar algo que já foi salvo no callback do OAuth.
+      user(initial);
+      window.__sn7ProfileCache={time:Date.now(),data:{ok:true,authenticated:true,user:initial}};
+    }
+
     if(window.__sn7ProfileLoadPromise&&!force)return window.__sn7ProfileLoadPromise;
     const cache=window.__sn7ProfileCache;
     if(!force&&cache&&Date.now()-cache.time<30000){
       if(cache.data?.user)user(cache.data.user);
-      bot(!!(cache.data?.bot&&cache.data.bot.active));
       Promise.allSettled([loadBotStatus(false),loadPlatformStatus(false),loadObs(false)]);
       return Promise.resolve(cache.data);
     }
+
     window.__sn7ProfileLoadPromise=(async()=>{
       b.disabled=true; b.textContent="Verificando…"; msg("");
       const background=Promise.allSettled([loadBotStatus(force),loadPlatformStatus(force),loadObs(force)]);
       try{
+        // Quando temos um snapshot válido, uma atualização forçada usa a rota
+        // de refresh em segundo plano. Assim uma falha transitória do banco ou
+        // da API da Kick nunca apaga um perfil que já está na tela.
+        if(initial){
+          const refresh=await fetchJsonWithTimeout("/kick/profile/refresh",{credentials:"same-origin",cache:"no-store"},5500);
+          if(refresh.response.ok&&refresh.data?.ok&&refresh.data.user){
+            user(refresh.data.user);
+            window.__sn7ProfileCache={time:Date.now(),data:{ok:true,authenticated:true,user:refresh.data.user}};
+          }else if(force){
+            msg(refresh.data?.error||"Não foi possível atualizar os dados da Kick agora.",true);
+          }
+          return window.__sn7ProfileCache?.data||null;
+        }
+
+        // Sessões antigas que ainda não possuem snapshot usam /kick/me como
+        // fallback. Isso mantém compatibilidade com logins anteriores.
         const result=await fetchJsonWithTimeout("/kick/me",{credentials:"same-origin",cache:force?"no-store":"default"},2500);
         const d=result.data;
         if(!result.response.ok||!d?.ok)throw new Error(d?.error||`Falha HTTP ${result.response.status}`);
@@ -490,25 +535,21 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
           return d;
         }
         user(d.user);
-        bot(!!(d.bot&&d.bot.active));
         window.__sn7ProfileCache={time:Date.now(),data:d};
-        // Se o banco não tiver nome/foto, atualiza depois sem bloquear a tela.
-        if(!d.user.username || d.user.username==="Kick" || !d.user.profile_picture_url){
-          fetchJsonWithTimeout("/kick/profile/refresh",{credentials:"same-origin",cache:"no-store"},5500).then(r=>{
-            if(r.response.ok&&r.data?.ok&&r.data.user){
-              user(r.data.user); window.__sn7ProfileCache={time:Date.now(),data:{...d,user:r.data.user}};
-            }
-          }).catch(()=>{});
-        }
-        background.catch(()=>{});
         return d;
       }catch(e){
-        // Timeout/erro transitório não significa logout. Mantemos o shell e as integrações.
-        msg(e.name==="AbortError"?"Perfil demorou para responder. Tente atualizar o status.":(e.message||"Não foi possível consultar o perfil."),true);
-        return null;
+        // Erro/timeout transitório não significa logout. Se já existe um
+        // snapshot, mantemos o perfil e deixamos apenas a mensagem de status.
+        if(!initial){
+          msg(e.name==="AbortError"?"Perfil demorou para responder. Tente atualizar o status.":(e.message||"Não foi possível consultar o perfil."),true);
+        }else if(force){
+          msg(e.name==="AbortError"?"A atualização da Kick demorou. O perfil atual foi mantido.":(e.message||"Não foi possível atualizar a Kick agora."),true);
+        }
+        return window.__sn7ProfileCache?.data||null;
       }finally{
+        await background.catch(()=>{});
         b.disabled=false;
-        if(b.textContent==="Verificando…"||b.textContent==="Carregando…") b.textContent="Atualizar bot";
+        if(b.textContent==="Verificando…"||b.textContent==="Carregando…"||b.textContent==="Aplicando…") b.textContent="Atualizar status";
         window.__sn7ProfileLoadPromise=null;
       }
     })();
@@ -579,7 +620,7 @@ document.addEventListener("keydown", (event) => {
 });
 </script>
 <script src="/static/js/sn7-ui-fix.js"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.7.7"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.7.7"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.8.0"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.8.0"></script>
 </body>
 </html>

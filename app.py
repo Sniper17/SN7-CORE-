@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request, redirect
+from flask import Flask, jsonify, render_template, request, redirect, session
 from core.database import init_db, get_conn
 from core.auth import get_session_broadcaster_id, require_session_broadcaster
 from routes.economy import economy_bp
@@ -21,7 +21,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.7.7"
+SN7_VERSION = "1.8.0"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
@@ -61,32 +61,46 @@ def enforce_session_channel():
 
 @app.before_request
 def database_bootstrap():
+    # A primeira pintura do dashboard não depende do PostgreSQL.
+    # As rotas que realmente precisam do banco continuam inicializando-o
+    # no primeiro request de API. Isso evita que um cold start do banco
+    # deixe a tela do Perfil presa antes mesmo de o HTML aparecer.
+    if request.path in {"/", "/dashboard", "/perfil"} or request.path.startswith("/static/"):
+        return None
     if os.environ.get("DATABASE_URL"):
         init_db()
 
 
-def _dashboard_broadcaster_id():
-    current = get_session_broadcaster_id()
-    return str(current) if current is not None else None
-
+def _dashboard_context():
+    # A abertura do painel não consulta o PostgreSQL. O snapshot do perfil é
+    # gravado na sessão no callback da Kick e o /kick/me valida/atualiza os
+    # dados em segundo plano. Assim o banco nunca bloqueia a primeira pintura.
+    current = get_session_broadcaster_id(validate=False)
+    broadcaster_id = str(current) if current is not None else None
+    profile = None
+    if current is not None:
+        raw = session.get("kick_profile")
+        if isinstance(raw, dict) and int(raw.get("id") or 0) == int(current):
+            profile = {
+                "id": int(current),
+                "username": str(raw.get("username") or "").strip(),
+                "profile_picture_url": str(raw.get("profile_picture_url") or "").strip(),
+            }
+    return {
+        "broadcaster_id": broadcaster_id,
+        "public_mode": broadcaster_id is None,
+        "kick_profile": profile,
+    }
 
 @app.get("/")
 def home():
     # O painel é público. O login fica somente no perfil.
-    return render_template(
-        "dashboard.html",
-        broadcaster_id=_dashboard_broadcaster_id(),
-        public_mode=_dashboard_broadcaster_id() is None,
-    )
+    return render_template("dashboard.html", **_dashboard_context())
 
 
 @app.get("/dashboard")
 def dashboard():
-    return render_template(
-        "dashboard.html",
-        broadcaster_id=_dashboard_broadcaster_id(),
-        public_mode=_dashboard_broadcaster_id() is None,
-    )
+    return render_template("dashboard.html", **_dashboard_context())
 
 
 @app.get("/perfil")

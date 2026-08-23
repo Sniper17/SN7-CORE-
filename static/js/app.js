@@ -923,7 +923,7 @@ document.addEventListener("DOMContentLoaded", () => {
     Promise.race([allReady, maxBoot]).then(() => {
       sn7Booting = false;
       sn7HideBootLoader();
-      const activeTab = document.querySelector(".tab.active")?.id;
+      const activeTab = document.querySelector('nav button[data-tab].active')?.dataset.tab;
       if (activeTab === "music" && typeof window.loadMusic === "function") window.loadMusic().catch(() => {});
       if (activeTab === "profile" && typeof window.sn7LoadProfile === "function") window.sn7LoadProfile().catch(() => {});
       if (typeof window.sn7RestoreSavedModal === "function") {

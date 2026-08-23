@@ -1,4 +1,4 @@
-/* SN7 CORE V5 - carregamento inteligente / 1.7.7
+/* SN7 CORE V5 - carregamento inteligente / 1.8.0
  * Corrige o problema da V3: as abas refaziam GETs depois do boot
  * e o perfil só era carregado quando o usuário entrava nele.
  */
@@ -51,40 +51,11 @@
       window.loadRanking = wrapCached("ranking", window.loadRanking);
     }
 
-    if (typeof window.sn7LoadProfile === "function") {
-      const originalProfile = window.sn7LoadProfile;
-
-      window.sn7LoadProfile = function (force = false) {
-        if (force) {
-          state.profile.ready = false;
-          state.profile.promise = null;
-          state.profile.value = undefined;
-        }
-
-        if (state.profile.ready && !force) {
-          return Promise.resolve(state.profile.value);
-        }
-
-        if (state.profile.promise && !force) {
-          return state.profile.promise;
-        }
-
-        state.profile.promise = Promise.resolve()
-          .then(() => originalProfile.call(this, force))
-          .then((value) => {
-            state.profile.value = value;
-            state.profile.ready = true;
-            return value;
-          })
-          .catch((error) => {
-            state.profile.promise = null;
-            state.profile.ready = false;
-            throw error;
-          });
-
-        return state.profile.promise;
-      };
-    }
+    /*
+     * O loader de Perfil já possui cache e deduplicação próprios.
+     * Não o embrulhamos aqui para não manter uma Promise resolvida para sempre
+     * e impedir atualizações posteriores do perfil.
+     */
 
     /*
      * O loader inicial nunca espera o perfil.

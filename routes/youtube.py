@@ -93,7 +93,8 @@ def _save_connection(bid, token, profile):
     channel_id = str(profile.get("id") or "")
     snippet = profile.get("snippet") or {}
     title = str(snippet.get("title") or "").strip()
-    avatar = str(((snippet.get("thumbnails") or {}).get("default") or {}).get("url") or "").strip()
+    thumbnails = snippet.get("thumbnails") or {}
+    avatar = str((thumbnails.get("high") or thumbnails.get("medium") or thumbnails.get("default") or {}).get("url") or "").strip()
     conn = get_conn()
     try:
         with conn.cursor() as cur:
