@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.8.0">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.8.1">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -71,7 +71,7 @@ body.sn7-modal-open{overflow:hidden}
       <button type="button" data-tab="commands"><span>⌘</span> Comandos</button>
       <button type="button" data-tab="profile"><span id="sn7NavProfileIcon" class="sn7-nav-profile-icon">◉</span> Perfil</button>
     </nav>
-    <div class="sidebar-footer">SN7 CORE <span>v1.8.0</span></div>
+    <div class="sidebar-footer">SN7 CORE <span>v1.8.1</span></div>
   </aside>
 
   <main>
@@ -278,6 +278,7 @@ body.sn7-modal-open{overflow:hidden}
             <h3>Plataformas</h3>
             <p>Gerencie as integrações da sua live e concentre os recursos do SN7 Core em um só painel.</p>
             <div class="sn7-profile-platforms">
+              <div class="sn7-platform-card" id="sn7PlatformKick"><div class="left"><span id="sn7KickPlatformIcon" class="sn7-platform-icon">K</span><span><strong>Kick</strong><small id="sn7KickPlatformText">Verificando…</small></span></div><span id="sn7KickPlatformStatus" class="sn7-platform-status">VERIFICANDO</span><button id="sn7KickConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectKick()">Conectar</button></div>
               <div class="sn7-platform-card" id="sn7PlatformTwitch"><div class="left"><span id="sn7TwitchPlatformIcon" class="sn7-platform-icon">T</span><span><strong>Twitch</strong><small id="sn7TwitchPlatformText">Verificando…</small></span></div><span id="sn7TwitchPlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><button id="sn7TwitchConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectTwitch()">Conectar</button></div>
               <div class="sn7-platform-card" id="sn7PlatformYoutube"><div class="left"><span id="sn7YoutubePlatformIcon" class="sn7-platform-icon">▶</span><span><strong>YouTube</strong><small id="sn7YoutubePlatformText">Verificando…</small></span></div><span id="sn7YoutubePlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><button id="sn7YoutubeConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectYoutube()">Conectar</button></div>
               <div class="sn7-platform-card"><div class="left"><span class="sn7-platform-icon">♪</span><span><strong>TikTok</strong><small>Integração oficial de bot ainda não configurada</small></span></div><span class="sn7-platform-status">EM BREVE</span></div>
@@ -319,7 +320,7 @@ body.sn7-modal-open{overflow:hidden}
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
 const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
-<script src="/static/js/app.js?v=sn7-1.8.0"></script><script>
+<script src="/static/js/app.js?v=sn7-1.8.1"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -350,6 +351,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     q("sn7ProfileLoggedIn").hidden=true;q("sn7ProfileLoggedOut").hidden=false;
     setAvatar(q("sn7ChannelAvatar"), "S", "");
     setAvatar(q("sn7NavProfileIcon"), "◉", "");
+    renderKickPlatform(false,false,null);
   }
   function setAvatar(el, fallback, url){
     if(!el)return;
@@ -372,6 +374,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     setAvatar(q("sn7ProfileAvatar"), initials, avatarUrl);
     setAvatar(q("sn7ChannelAvatar"), initials, avatarUrl);
     setAvatar(q("sn7NavProfileIcon"), initials, avatarUrl);
+    if(BROADCASTER_ID) renderKickPlatform(true,false,u);
   }
   function bot(a){const on=!!a;q("sn7ProfileDot").classList.toggle("on",on);q("sn7ProfileStatus").textContent=on?"Bot ativo":"Bot desligado";q("sn7ProfileBotTitle").textContent=on?"🟢 Bot ligado":"⚪ Bot desligado";q("sn7ProfileBotDescription").textContent=on?"O SN7 Core está ouvindo os comandos da live.":"O bot não está ouvindo os comandos da live.";q("sn7ProfileBotToggle").textContent=on?"Desligar bot":"Ligar bot";q("sn7ProfileBotToggle").dataset.active=String(on);q("sn7ProfileBotToggle").disabled=false}
   function setPlatformAvatar(iconId,fallback,url){
@@ -388,31 +391,55 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   function platformStatus(id,statusId,textId,connectId,data,label){
     const st=q(statusId),tx=q(textId),bt=q(connectId);
     if(!st||!tx)return;
+    const provider=label.toLowerCase();
     const on=!!data?.connected; const active=!!data?.active;
-    const provider=label.toLowerCase()==="twitch"?"twitch":"youtube";
-    const fallback=provider==="twitch"?"T":"▶";
-    setPlatformAvatar(provider==="twitch"?"sn7TwitchPlatformIcon":"sn7YoutubePlatformIcon",fallback,data?.user?.avatar_url||"");
+    const fallback=provider==="twitch"?"T":provider==="youtube"?"▶":"K";
+    const iconId=provider==="twitch"?"sn7TwitchPlatformIcon":provider==="youtube"?"sn7YoutubePlatformIcon":"sn7KickPlatformIcon";
+    setPlatformAvatar(iconId,fallback,data?.user?.avatar_url||data?.user?.profile_picture_url||"");
     st.textContent=on?(active?"BOT ATIVO":"CONECTADO"):"NÃO CONECTADO";
     st.classList.toggle("active",on);
     tx.textContent=on?((data.user?.display_name||data.user?.username||label)+(active?" • bot ativo":" • bot desligado")):"Conta ainda não conectada";
     if(bt){
       bt.hidden=false; bt.disabled=false;
       if(!on){bt.textContent="Conectar"; bt.onclick=()=>connectPlatform(provider);}
-      else {bt.textContent=active?"Desligar bot":"Ligar bot"; bt.onclick=()=>togglePlatform(provider);}
+      else if(provider==="kick"){
+        bt.textContent=active?"Desligar bot":"Ligar bot";
+        bt.onclick=()=>togglePlatform("kick");
+      } else {
+        bt.textContent=active?"Desligar bot":"Ligar bot";
+        bt.onclick=()=>togglePlatform(provider);
+      }
     }
+  }
+
+  function renderKickPlatform(connected, active=false, profile=null){
+    const data={
+      connected:!!connected,
+      active:!!active,
+      user:profile||(
+        BROADCASTER_ID ? {username:"Kick",profile_picture_url:""} : null
+      )
+    };
+    platformStatus("sn7PlatformKick","sn7KickPlatformStatus","sn7KickPlatformText","sn7KickConnect",data,"Kick");
   }
   if(BROADCASTER_ID && window.SN7_INITIAL_PROFILE && window.SN7_INITIAL_PROFILE.id){
     user(window.SN7_INITIAL_PROFILE);
+    renderKickPlatform(true,false,window.SN7_INITIAL_PROFILE);
+  } else if(BROADCASTER_ID) {
+    renderKickPlatform(true,false,{id:BROADCASTER_ID,username:"Kick",profile_picture_url:""});
+  } else {
+    renderKickPlatform(false,false,null);
   }
   function connectPlatform(provider){
-    if(!BROADCASTER_ID)return;
-    const path=provider==="twitch"?"/twitch/login":"/youtube/login";
+    if(!BROADCASTER_ID && provider!=="kick")return;
+    const path=provider==="kick"?"/kick/login?next=profile":(provider==="twitch"?"/twitch/login":"/youtube/login");
     window.location.href=path;
   }
+  window.sn7ConnectKick=()=>connectPlatform("kick");
   async function togglePlatform(provider){
     if(!BROADCASTER_ID)return;
-    const endpoint=provider==="twitch"?`/twitch/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`:`/youtube/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`;
-    const button=q(provider==="twitch"?"sn7TwitchConnect":"sn7YoutubeConnect");
+    const endpoint=provider==="kick"?"/kick/bot/toggle":(provider==="twitch"?`/twitch/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`:`/youtube/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`);
+    const button=q(provider==="kick"?"sn7KickConnect":(provider==="twitch"?"sn7TwitchConnect":"sn7YoutubeConnect"));
     const currentlyActive=button?.textContent?.toLowerCase().includes("desligar");
     if(button){button.disabled=true;button.textContent="Aplicando…";}
     try{
@@ -438,8 +465,8 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
       if(!window.SN7_INITIAL_PROFILE || !window.SN7_INITIAL_PROFILE.id){
         const name=q("sn7ProfileUsername");
         const channel=q("sn7ProfileChannel");
-        if(name && (name.textContent==="—" || !name.textContent.trim())) name.textContent="Carregando perfil…";
-        if(channel && (!channel.textContent || channel.textContent==="Canal conectado")) channel.textContent="Conexão com a Kick em andamento…";
+        if(name && (name.textContent==="—" || !name.textContent.trim())) name.textContent="Conta Kick conectada";
+        if(channel && (!channel.textContent || channel.textContent==="Canal conectado")) channel.textContent="Dados do perfil sendo atualizados…";
       }
       const bt=q("sn7ProfileBotToggle");
       if(bt){bt.disabled=true;bt.textContent="Carregando…";}
@@ -453,7 +480,12 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     try{
       const r=await fetch("/kick/bot/status",{credentials:"same-origin",cache:force?"no-store":"default"});
       const d=await r.json();
-      if(d&&d.authenticated) bot(!!d.active);
+      if(d&&d.authenticated){
+        bot(!!d.active);
+        renderKickPlatform(true,!!d.active,window.SN7_INITIAL_PROFILE||null);
+      } else if(BROADCASTER_ID) {
+        renderKickPlatform(true,false,window.SN7_INITIAL_PROFILE||null);
+      }
     }catch(_){}
   }
   async function loadPlatformStatus(force=false){
@@ -620,7 +652,7 @@ document.addEventListener("keydown", (event) => {
 });
 </script>
 <script src="/static/js/sn7-ui-fix.js"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.8.0"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.8.0"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.8.1"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.8.1"></script>
 </body>
 </html>

@@ -3,26 +3,34 @@ from core.database import get_conn
 
 
 def get_session_broadcaster_id(validate=True):
-    # Evita duas consultas idênticas ao PostgreSQL no mesmo request
-    # (por exemplo, ao renderizar / e /dashboard).
-    if hasattr(g, "sn7_session_broadcaster_id"):
-        return g.sn7_session_broadcaster_id
+    """Obtém o canal da sessão, validando no banco quando solicitado.
+
+    O modo validate=False é usado somente para renderização/estado inicial.
+    Ele nunca preenche o cache validado de g, evitando que uma chamada
+    não validada possa ser reutilizada por uma rota protegida no mesmo request.
+    """
+    if not validate:
+        raw = session.get("kick_broadcaster_id")
+        if raw is None:
+            return None
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return None
+
+    if hasattr(g, "sn7_session_broadcaster_id_validated"):
+        return g.sn7_session_broadcaster_id_validated
 
     raw = session.get("kick_broadcaster_id")
     if raw is None:
-        g.sn7_session_broadcaster_id = None
+        g.sn7_session_broadcaster_id_validated = None
         return None
 
     try:
         broadcaster_id = int(raw)
     except (TypeError, ValueError):
-        g.sn7_session_broadcaster_id = None
+        g.sn7_session_broadcaster_id_validated = None
         return None
-
-    # O dashboard pode obter o ID da sessão sem consultar o banco.
-    # Importante: não colocar esse ID não validado no cache de g.
-    if not validate:
-        return broadcaster_id
 
     try:
         conn = get_conn()
@@ -34,15 +42,15 @@ def get_session_broadcaster_id(validate=True):
                     (broadcaster_id,),
                 )
                 if not cur.fetchone():
-                    g.sn7_session_broadcaster_id = None
+                    g.sn7_session_broadcaster_id_validated = None
                     return None
         finally:
             conn.close()
     except Exception:
-        g.sn7_session_broadcaster_id = None
+        g.sn7_session_broadcaster_id_validated = None
         return None
 
-    g.sn7_session_broadcaster_id = broadcaster_id
+    g.sn7_session_broadcaster_id_validated = broadcaster_id
     return broadcaster_id
 
 

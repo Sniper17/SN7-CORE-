@@ -1557,7 +1557,11 @@ def me():
         username = str(conn.get("username") or "Kick").strip()
         profile_picture_url = str(conn.get("profile_picture_url") or "").strip()
     else:
-        return jsonify({"ok": True, "authenticated": False, "user": None, "bot": {"active": False}})
+        # A sessão OAuth continua sendo suficiente para manter o perfil
+        # conectado na UI. O nome/foto serão recuperados assim que o banco
+        # voltar, sem transformar um cold start em logout falso.
+        username = "Kick"
+        profile_picture_url = ""
 
     # /kick/me é crítico para a primeira pintura do Perfil.
     # Não bloqueia esperando uma chamada externa só para saber se o bot está ativo.
