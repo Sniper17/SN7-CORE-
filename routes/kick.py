@@ -13,10 +13,10 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa, ed25519
 from flask import Blueprint, Response, jsonify, redirect, request, session
 
-from core.database import get_conn, migrate_channel_id
+from core.database import get_conn
 from core.services import ensure_channel, ensure_player, get_channel, get_player, get_rank, award_watch_presence, add_points, get_point_rewards
 from core.command_system import find_command, list_commands
-from core.auth import get_session_broadcaster_id
+from core.auth import get_session_broadcaster_id, stable_channel_id
 
 
 kick_bp = Blueprint("kick", __name__)
@@ -210,61 +210,69 @@ def _kick_pkce_verifier(state):
     return base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
 
 
-def _save_connection(user, token_data):
-    broadcaster_id = int(user.get("user_id"))
-    now = int(time.time())
+def _save_connection(user, token_data, profile_id=None):
+    """Vincula a conta Kick ao perfil SN7 atual.
+
+    broadcaster_user_id permanece como o ID real da Kick para chamadas à API;
+    sn7_profile_id é o ID canônico do perfil SN7.
+    """
+    kick_id = int(user.get("user_id"))
+    profile_id = int(profile_id or kick_id)
     expires_in = int(token_data.get("expires_in") or 0)
-    expires_at = now + expires_in if expires_in else 0
+    expires_at = int(time.time()) + expires_in if expires_in else 0
     scope = str(token_data.get("scope") or "")
     username = str(user.get("username") or user.get("slug") or user.get("channel_slug") or user.get("name") or user.get("display_name") or "").strip()
     profile_picture_url = str(user.get("profile_picture") or user.get("profile_picture_url") or user.get("profile_pic") or user.get("avatar_url") or "").strip()
-
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
+                "DELETE FROM kick_connections WHERE sn7_profile_id=%s AND broadcaster_user_id<>%s",
+                (profile_id, kick_id),
+            )
+            cur.execute(
                 """INSERT INTO kick_connections
-                   (broadcaster_user_id, username, profile_picture_url, access_token, refresh_token, expires_at, scope, updated_at)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,NOW())
+                   (broadcaster_user_id,sn7_profile_id,username,profile_picture_url,access_token,refresh_token,expires_at,scope,updated_at)
+                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW())
                    ON CONFLICT (broadcaster_user_id) DO UPDATE SET
+                     sn7_profile_id=EXCLUDED.sn7_profile_id,
                      username=EXCLUDED.username,
-                     profile_picture_url=CASE WHEN EXCLUDED.profile_picture_url <> '' THEN EXCLUDED.profile_picture_url ELSE kick_connections.profile_picture_url END,
+                     profile_picture_url=CASE WHEN EXCLUDED.profile_picture_url<>'' THEN EXCLUDED.profile_picture_url ELSE kick_connections.profile_picture_url END,
                      access_token=EXCLUDED.access_token,
                      refresh_token=COALESCE(EXCLUDED.refresh_token,kick_connections.refresh_token),
                      expires_at=EXCLUDED.expires_at,
                      scope=EXCLUDED.scope,
                      updated_at=NOW()""",
-                (broadcaster_id, username, profile_picture_url, token_data.get("access_token"),
-                 token_data.get("refresh_token"), expires_at, scope),
+                (kick_id,profile_id,username,profile_picture_url,token_data.get("access_token"),
+                 token_data.get("refresh_token"),expires_at,scope),
             )
         conn.commit()
     finally:
         conn.close()
-
-    ensure_channel(broadcaster_id, username)
-    return broadcaster_id
-
+    ensure_channel(profile_id, username)
+    return profile_id
 
 def _get_connection(broadcaster_id):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT broadcaster_user_id, username, profile_picture_url, access_token, refresh_token, expires_at, scope, bot_active
-                   FROM kick_connections WHERE broadcaster_user_id=%s""",
-                (int(broadcaster_id),),
+                """SELECT broadcaster_user_id,sn7_profile_id,username,profile_picture_url,
+                          access_token,refresh_token,expires_at,scope,bot_active
+                     FROM kick_connections
+                    WHERE broadcaster_user_id=%s OR sn7_profile_id=%s
+                    ORDER BY CASE WHEN sn7_profile_id=%s THEN 0 ELSE 1 END
+                    LIMIT 1""",
+                (int(broadcaster_id),int(broadcaster_id),int(broadcaster_id)),
             )
-            row = cur.fetchone()
+            row=cur.fetchone()
     finally:
         conn.close()
-    if not row:
-        return None
-    return {
-        "broadcaster_user_id": row[0], "username": row[1], "profile_picture_url": row[2] or "",
-        "access_token": row[3], "refresh_token": row[4],
-        "expires_at": row[5] or 0, "scope": row[6] or "", "bot_active": bool(row[7]),
-    }
-
+    if not row:return None
+    return {"broadcaster_user_id":int(row[0]),"sn7_profile_id":int(row[1] or row[0]),
+            "username":row[2] or "","profile_picture_url":row[3] or "",
+            "access_token":row[4],"refresh_token":row[5],"expires_at":row[6] or 0,
+            "scope":row[7] or "","bot_active":bool(row[8])}
 
 def _update_tokens(broadcaster_id, token_data):
     now = int(time.time())
@@ -962,15 +970,18 @@ def _is_moderator(sender, broadcaster_id):
 
 def _process_chat(payload, send_chat=None):
     if send_chat is None:
-        send_chat = lambda _bid, message: _send_chat(_bid, message)
+        send_chat = lambda _bid, message: _send_chat(kick_bid, message)
     broadcaster = payload.get("broadcaster") or {}
     sender = payload.get("sender") or {}
     try:
-        bid = int(broadcaster.get("user_id"))
+        kick_bid = int(broadcaster.get("user_id"))
         uid = int(sender.get("user_id")) if sender.get("user_id") else None
     except (TypeError, ValueError):
         print(f"[KICK-CHAT] payload sem IDs válidos: {payload}", flush=True)
         return
+
+    conn_for_channel = _get_connection(kick_bid)
+    bid = int(conn_for_channel.get("sn7_profile_id") if conn_for_channel else kick_bid)
 
     user = str(sender.get("username") or sender.get("slug") or "").strip()
     content = str(payload.get("content") or "").strip()
@@ -990,7 +1001,7 @@ def _process_chat(payload, send_chat=None):
 
     # A presença individual é inferida por mensagens no chat.
     # Só concede o bônus se a Kick confirmar que a live está ao vivo.
-    if _kick_channel_is_live(bid):
+    if _kick_channel_is_live(kick_bid):
         try:
             presence_bonus = award_watch_presence(bid, user, uid)
             if presence_bonus:
@@ -1556,7 +1567,9 @@ def _process_webhook(payload, event_type):
             broadcaster = payload.get("broadcaster") or {}
             bid = int(broadcaster.get("user_id") or 0)
             if bid > 0:
-                _bot_status_cache[bid] = (time.time(), True)
+                conn_for_channel = _get_connection(bid)
+                cache_bid = int(conn_for_channel.get("sn7_profile_id") if conn_for_channel else bid)
+                _bot_status_cache[cache_bid] = (time.time(), True)
         except (TypeError, ValueError):
             pass
         _process_chat(payload)
@@ -1567,6 +1580,8 @@ def _process_webhook(payload, event_type):
         bid = int(broadcaster.get("user_id"))
     except (TypeError, ValueError):
         return
+    conn_for_channel = _get_connection(bid)
+    bid = int(conn_for_channel.get("sn7_profile_id") if conn_for_channel else bid)
     rewards = get_point_rewards(bid)
 
     if event_type in {"channel.subscription.new", "channel.subscription.renewal"}:
@@ -1671,30 +1686,24 @@ def _bot_active(access_token, broadcaster_id=None):
 
 
 def _save_profile_picture(broadcaster_id, url):
-    url = str(url or "").strip()
-    if not url:
-        return
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("UPDATE kick_connections SET profile_picture_url=%s, updated_at=NOW() WHERE broadcaster_user_id=%s", (url, int(broadcaster_id)))
-        conn.commit()
-    finally:
-        conn.close()
-
-def _save_username(broadcaster_id, username):
-    username=str(username or "").strip()
-    if not username:
-        return
+    conn_data=_get_connection(int(broadcaster_id))
+    if not conn_data:return
     conn=get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("UPDATE kick_connections SET username=%s, updated_at=NOW() WHERE broadcaster_user_id=%s",(username,int(broadcaster_id)))
+            cur.execute("UPDATE kick_connections SET profile_picture_url=%s,updated_at=NOW() WHERE broadcaster_user_id=%s",(url,int(conn_data["broadcaster_user_id"])))
         conn.commit()
-    finally:
-        conn.close()
+    finally: conn.close()
 
-
+def _save_username(broadcaster_id, username):
+    conn_data=_get_connection(int(broadcaster_id))
+    if not conn_data:return
+    conn=get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE kick_connections SET username=%s,updated_at=NOW() WHERE broadcaster_user_id=%s",(username,int(conn_data["broadcaster_user_id"])))
+        conn.commit()
+    finally: conn.close()
 
 def _safe_remote_image_url(url):
     """Valida uma URL de imagem remota antes de o servidor fazer proxy."""
@@ -1735,7 +1744,7 @@ def profile_avatar():
         snapshot = session.get("kick_profile") if isinstance(session.get("kick_profile"), dict) else {}
         avatar = _resolve_profile_picture(
             conn["access_token"],
-            int(bid),
+            int(conn["broadcaster_user_id"]),
             user=None,
             existing=(
                 snapshot.get("profile_picture_url")
@@ -1894,7 +1903,7 @@ def bot_status():
         return jsonify({"ok": True, "authenticated": False, "active": False})
 
     try:
-        active = _bot_active(conn["access_token"], int(bid))
+        active = _bot_active(conn["access_token"], int(conn["broadcaster_user_id"]))
     except Exception as exc:
         print(f"[KICK-BOT] status falhou: {exc}", flush=True)
         # Se a consulta externa falhar, não inventamos "desligado". Mantemos
@@ -1921,7 +1930,7 @@ def bot_toggle():
         return jsonify({"ok": False, "error": "active precisa ser true ou false."}), 400
     try:
         if desired:
-            result = _subscribe_chat(conn["access_token"], bid)
+            result = _subscribe_chat(conn["access_token"], int(conn["broadcaster_user_id"]))
         else:
             result = _unsubscribe_chat(conn["access_token"])
         _bot_status_cache[int(bid)] = (time.time(), bool(desired))
@@ -2002,34 +2011,27 @@ def callback():
     try:
         token_data = _exchange_code(params.get("code", ""), verifier)
         user = _kick_user(token_data["access_token"])
-        broadcaster_id = int(user.get("user_id"))
+        kick_user_id = int(user.get("user_id"))
+        existing_profile_id = state_data.get("broadcaster_id")
+        if existing_profile_id is None:
+            existing_profile_id = get_session_broadcaster_id(validate=False)
+        profile_id = int(existing_profile_id) if existing_profile_id is not None else kick_user_id
 
-        # Se a sessão começou pela Twitch/YouTube, o canal recebeu um ID
-        # temporário. Ao entrar na Kick, transformamos esse ID no ID definitivo
-        # da Kick antes de salvar a conexão.
-        previous_id = state_data.get("broadcaster_id")
-        if previous_id is None:
-            previous_id = get_session_broadcaster_id(validate=False)
-        if previous_id is not None and int(previous_id) != broadcaster_id:
-            try:
-                migrate_channel_id(int(previous_id), broadcaster_id)
-            except RuntimeError as migration_error:
-                print(f"[KICK-OAUTH] migração de canal não aplicada: {migration_error}", flush=True)
+        _save_connection(user, token_data, profile_id=profile_id)
 
-        broadcaster_id = _save_connection(user, token_data)
-
-        # Login e ativação do bot são ações separadas.
-        session["sn7_broadcaster_id"] = broadcaster_id
-        session["kick_broadcaster_id"] = broadcaster_id
+        # Adicionar Kick nunca troca o perfil SN7 que já estava autenticado.
+        session["sn7_broadcaster_id"] = profile_id
+        session["kick_broadcaster_id"] = kick_user_id
         avatar = _resolve_profile_picture(
             token_data.get("access_token"),
-            broadcaster_id,
+            kick_user_id,
             user=user,
         )
         if avatar:
-            _save_profile_picture(broadcaster_id, avatar)
+            _save_profile_picture(profile_id, avatar)
         session["kick_profile"] = {
-            "id": int(broadcaster_id),
+            "id": int(profile_id),
+            "kick_user_id": kick_user_id,
             "username": str(user.get("username") or user.get("slug") or user.get("channel_slug") or user.get("name") or user.get("display_name") or "Kick").strip(),
             "profile_picture_url": avatar,
         }
@@ -2072,7 +2074,7 @@ def subscribe():
     if not conn_data:
         return jsonify({"ok": False, "error": "Canal não conectado ao Core."}), 404
     try:
-        result = _subscribe_chat(conn_data["access_token"], int(broadcaster_id))
+        result = _subscribe_chat(conn_data["access_token"], int(conn_data["broadcaster_user_id"]))
         return jsonify(result)
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500

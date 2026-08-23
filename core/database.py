@@ -12,6 +12,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS channels (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT UNIQUE NOT NULL,
+    sn7_profile_id BIGINT,
     username TEXT NOT NULL DEFAULT '',
     currency_name TEXT NOT NULL DEFAULT 'Pontos',
     currency_command TEXT NOT NULL DEFAULT '!pontos',
@@ -229,6 +230,9 @@ def init_db():
                 cur.execute("ALTER TABLE music_connections ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT ''")
                 cur.execute("ALTER TABLE kick_connections ADD COLUMN IF NOT EXISTS profile_picture_url TEXT NOT NULL DEFAULT ''")
                 cur.execute("ALTER TABLE kick_connections ADD COLUMN IF NOT EXISTS bot_active BOOLEAN NOT NULL DEFAULT FALSE")
+                cur.execute("ALTER TABLE kick_connections ADD COLUMN IF NOT EXISTS sn7_profile_id BIGINT")
+                cur.execute("UPDATE kick_connections SET sn7_profile_id=broadcaster_user_id WHERE sn7_profile_id IS NULL")
+                cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_kick_connections_sn7_profile_id ON kick_connections(sn7_profile_id)")
                 cur.execute("ALTER TABLE chat_connections ADD COLUMN IF NOT EXISTS bot_active BOOLEAN NOT NULL DEFAULT FALSE")
                 cur.execute("ALTER TABLE chat_connections ADD COLUMN IF NOT EXISTS cursor TEXT NOT NULL DEFAULT ''")
                 ensure_point_rewards_table(conn)

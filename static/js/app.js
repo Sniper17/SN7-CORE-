@@ -27,11 +27,16 @@ async function apiJson(url, options = {}) {
 
 function sn7ShowOperationLoader() {
   const loader = document.getElementById("sn7OperationLoader");
-  if (loader) loader.classList.add("open");
+  if (!loader) return;
+  clearTimeout(window.__sn7OperationLoaderTimer);
+  loader.classList.add("open");
+  // Fail-safe: uma falha inesperada nunca pode deixar a navegação travada.
+  window.__sn7OperationLoaderTimer = setTimeout(() => sn7HideOperationLoader(), 12000);
 }
 
 function sn7HideOperationLoader() {
   const loader = document.getElementById("sn7OperationLoader");
+  clearTimeout(window.__sn7OperationLoaderTimer);
   if (loader) loader.classList.remove("open");
 }
 
@@ -127,12 +132,20 @@ function activateTab(tab, options = {}) {
           clone.removeAttribute("id");
           clone.classList.add("sn7-page-title-svg");
           titleIcon.appendChild(clone);
-        } else if (button.dataset.tab === "profile") {
+        } else {
           const fallback = document.createElementNS("http://www.w3.org/2000/svg", "svg");
           fallback.setAttribute("viewBox", "0 0 24 24");
           fallback.setAttribute("aria-hidden", "true");
           fallback.classList.add("sn7-page-title-svg");
-          fallback.innerHTML = '<circle cx="12" cy="8.2" r="3.2"></circle><path d="M5.2 20a6.8 6.8 0 0 1 13.6 0"></path>';
+          const icons = {
+            overview: '<path d="M3.5 10.6 12 3.5l8.5 7.1"/><path d="M5.5 9.7v9.8a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.7"/><path d="M9.5 20.5v-5.8h5v5.8"/>',
+            economy: '<circle cx="12" cy="12" r="7.8"/><path d="M12 8v8M9.2 10.2c.8-1.1 4.8-1.1 5.6.3.9 1.7-1.1 2.4-2.8 2.7-1.7.3-3.7.8-2.9 2.5.7 1.5 4.9 1.6 5.8.1"/>',
+            ranking: '<path d="M7 20V10h4v10M13 20V4h4v16M3 20h18"/>',
+            minigames: '<path d="m7.5 8.5 2-2h5l2 2"/><path d="M7.5 8.5h9a4.2 4.2 0 0 1 3.9 5.7l-1.2 3.1a2.4 2.4 0 0 1-4.3.3L14 16h-4l-2.9 1.6a2.4 2.4 0 0 1-4.3-.3l-1.2-3.1a4.2 4.2 0 0 1 3.9-5.7Z"/>',
+            commands: '<path d="m8 8 4 4-4 4M13 16h4"/><rect x="3.5" y="4" width="17" height="16" rx="3"/>',
+            profile: '<circle cx="12" cy="8.2" r="3.2"/><path d="M5.2 20a6.8 6.8 0 0 1 13.6 0"/>'
+          };
+          fallback.innerHTML = icons[button.dataset.tab] || icons.profile;
           titleIcon.appendChild(fallback);
         }
       }

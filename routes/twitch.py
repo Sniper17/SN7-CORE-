@@ -515,7 +515,8 @@ def callback():
 
         bid = oauth.get("broadcaster_id")
         if bid is None:
-            bid = stable_channel_id("twitch", user.get("id"))
+            current_profile = get_session_broadcaster_id(validate=False)
+            bid = int(current_profile) if current_profile is not None else stable_channel_id("twitch", user.get("id"))
         else:
             require_session_broadcaster(bid)
 

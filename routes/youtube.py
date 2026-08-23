@@ -181,7 +181,8 @@ def callback():
 
         bid = state_data.get("broadcaster_id")
         if bid is None:
-            bid = stable_channel_id("youtube", profile.get("id"))
+            current_profile = get_session_broadcaster_id(validate=False)
+            bid = int(current_profile) if current_profile is not None else stable_channel_id("youtube", profile.get("id"))
         else:
             require_session_broadcaster(bid)
 

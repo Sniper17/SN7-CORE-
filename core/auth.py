@@ -48,14 +48,14 @@ def get_session_broadcaster_id(validate=True):
                     """
                     SELECT 1
                       FROM kick_connections
-                     WHERE broadcaster_user_id=%s
+                     WHERE broadcaster_user_id=%s OR sn7_profile_id=%s
                     UNION ALL
                     SELECT 1
                       FROM chat_connections
                      WHERE broadcaster_user_id=%s
                      LIMIT 1
                     """,
-                    (broadcaster_id, broadcaster_id),
+                    (broadcaster_id, broadcaster_id, broadcaster_id),
                 )
                 if not cur.fetchone():
                     g.sn7_session_broadcaster_id_validated = None
