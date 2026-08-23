@@ -1781,3 +1781,94 @@ main{
     padding-left:1px !important;
   }
 }
+
+/* SN7 1.9.2 — header icon alignment + Kick avatar hardening */
+.topbar h1#title{
+  display:flex !important;
+  align-items:center !important;
+  gap:11px !important;
+  margin-top:0 !important;
+  line-height:1 !important;
+}
+.topbar h1#title .sn7-page-title-icon{
+  align-self:center !important;
+  position:relative !important;
+  display:grid !important;
+  place-items:center !important;
+  align-items:center !important;
+  justify-items:center !important;
+  margin:0 !important;
+  padding:0 !important;
+  line-height:0 !important;
+  vertical-align:middle !important;
+}
+.topbar h1#title .sn7-page-title-icon > svg,
+.topbar h1#title .sn7-page-title-icon > .sn7-page-title-svg{
+  display:block !important;
+  width:19px !important;
+  height:19px !important;
+  margin:0 !important;
+  padding:0 !important;
+  transform:none !important;
+  flex:none !important;
+}
+.topbar h1#title .sn7-page-title-text{
+  display:block !important;
+  margin:0 !important;
+  line-height:1.05 !important;
+}
+
+.sidebar nav button > .sn7-nav-icon{
+  display:grid !important;
+  place-items:center !important;
+  align-items:center !important;
+  justify-items:center !important;
+  padding:0 !important;
+  line-height:0 !important;
+  vertical-align:middle !important;
+}
+.sidebar nav button > .sn7-nav-icon > svg{
+  display:block !important;
+  margin:0 !important;
+  padding:0 !important;
+  transform:none !important;
+  flex:none !important;
+}
+.sidebar nav button > .sn7-nav-profile-icon{
+  position:relative !important;
+  display:grid !important;
+  place-items:center !important;
+  overflow:hidden !important;
+  padding:0 !important;
+}
+.sidebar nav button > .sn7-nav-profile-icon > img{
+  position:absolute !important;
+  inset:0 !important;
+  width:100% !important;
+  height:100% !important;
+  display:block !important;
+  object-fit:cover !important;
+  object-position:center !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  border-radius:inherit !important;
+}
+
+/* Mobile header uses the same exact centering rules. */
+@media(max-width:700px){
+  .topbar h1#title{
+    align-items:center !important;
+    gap:9px !important;
+    margin-top:0 !important;
+    line-height:1 !important;
+  }
+  .topbar h1#title .sn7-page-title-icon{
+    align-self:center !important;
+  }
+  .topbar h1#title .sn7-page-title-icon > svg,
+  .topbar h1#title .sn7-page-title-icon > .sn7-page-title-svg{
+    width:17px !important;
+    height:17px !important;
+  }
+}

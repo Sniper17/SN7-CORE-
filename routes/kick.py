@@ -1662,23 +1662,48 @@ def _safe_remote_image_url(url):
 
 @kick_bp.get("/profile/avatar")
 def profile_avatar():
-    """Entrega o avatar pela mesma origem do painel para evitar bloqueios de CDN/hotlink."""
-    bid = get_session_broadcaster_id(validate=False)
+    """Entrega o avatar real da Kick pela mesma origem do painel."""
+    bid = _session_broadcaster_id()
     if bid is None:
         return jsonify({"ok": False, "error": "Faça login com a Kick primeiro."}), 401
 
     try:
-        conn = _get_connection(int(bid))
+        # Renova o OAuth quando necessário e, principalmente, não confia em
+        # uma URL de avatar antiga salva no banco. Isso corrige sessões antigas
+        # que ficaram presas no avatar padrão da Kick.
+        conn = _valid_connection(int(bid))
+        if not conn or not conn.get("access_token"):
+            return jsonify({"ok": False, "error": "A sessão da Kick expirou. Entre novamente."}), 401
+
         snapshot = session.get("kick_profile") if isinstance(session.get("kick_profile"), dict) else {}
-        url = (conn or {}).get("profile_picture_url") or snapshot.get("profile_picture_url") or ""
-        url = _safe_remote_image_url(url)
+        avatar = _resolve_profile_picture(
+            conn["access_token"],
+            int(bid),
+            user=None,
+            existing=(
+                snapshot.get("profile_picture_url")
+                or conn.get("profile_picture_url")
+                or ""
+            ),
+        )
+        if not avatar:
+            return jsonify({"ok": False, "error": "Avatar da Kick não disponível."}), 404
+
+        # Persiste o endereço real para as próximas aberturas do painel.
+        _save_profile_picture(int(bid), avatar)
+        if snapshot:
+            snapshot = dict(snapshot)
+            snapshot["profile_picture_url"] = avatar
+            session["kick_profile"] = snapshot
+
+        url = _safe_remote_image_url(avatar)
         if not url:
             return jsonify({"ok": False, "error": "Avatar da Kick não disponível."}), 404
 
         response = requests.get(
             url,
             headers={
-                "User-Agent": "Mozilla/5.0 (compatible; SN7-Core/1.8.9)",
+                "User-Agent": "Mozilla/5.0 (compatible; SN7-Core/1.9.2)",
                 "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
                 "Referer": "https://kick.com/",
             },
@@ -1709,12 +1734,14 @@ def profile_avatar():
             body,
             status=200,
             mimetype=mimetype,
-            headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"},
+            headers={
+                "Cache-Control": "private, max-age=3600",
+                "X-Content-Type-Options": "nosniff",
+            },
         )
     except Exception as exc:
         print(f"[KICK-PROFILE] proxy do avatar falhou broadcaster={bid}: {exc}", flush=True)
         return jsonify({"ok": False, "error": "Não foi possível carregar a foto do perfil."}), 502
-
 
 @kick_bp.get("/me")
 def me():
