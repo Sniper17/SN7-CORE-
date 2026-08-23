@@ -81,6 +81,11 @@ function activateTab(tab, options = {}) {
   );
   if (!button) return false;
 
+  // Um editor aberto nunca pode sobreviver à troca de seção.
+  if (typeof window.sn7CloseAllModals === "function") {
+    window.sn7CloseAllModals();
+  }
+
   document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
   document.querySelectorAll("nav button").forEach((x) => x.classList.remove("active"));
 
@@ -1011,6 +1016,13 @@ document.addEventListener("DOMContentLoaded", () => {
     syncBodyLock();
     return true;
   }
+
+  window.sn7CloseAllModals = function () {
+    document.querySelectorAll(".sn7-config-modal").forEach((item) => {
+      if (!item.hidden) closeModal(item.id);
+    });
+    try { sessionStorage.removeItem(SN7_ACTIVE_MODAL_KEY); } catch (_) {}
+  };
 
   window.openPointsEditor = () => openModal("sn7PointsEditor");
   window.closePointsEditor = () => closeModal("sn7PointsEditor");

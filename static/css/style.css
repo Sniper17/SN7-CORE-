@@ -1872,3 +1872,42 @@ main{
     height:17px !important;
   }
 }
+
+/* SN7 MODAL V4 - viewport seguro e ações sempre acessíveis */
+body.sn7-modal-open { overscroll-behavior: none !important; }
+.sn7-config-modal {
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+.sn7-config-modal-card {
+  max-height: calc(100svh - 16px) !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+.sn7-config-modal-card .save-row {
+  position: sticky !important;
+  bottom: 0 !important;
+  z-index: 3 !important;
+  margin: 18px -14px -18px !important;
+  padding: 12px 14px 14px !important;
+  background: linear-gradient(180deg, rgba(17,20,27,0), #11141b 28%) !important;
+}
+@media (min-width:601px) {
+  .sn7-config-modal-card .save-row {
+    margin-left:-16px !important;
+    margin-right:-16px !important;
+  }
+}
+.sn7-profile-login-options .sn7-platform-login-btn,
+.sn7-profile-login-options .sn7-platform-login-btn * {
+  text-decoration: none !important;
+}
+.sn7-profile-login-options .sn7-login-platform-icon {
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+.sn7-profile-login-options .sn7-login-platform-icon img {
+  width: 26px !important;
+  height: 26px !important;
+  object-fit: contain !important;
+}

@@ -101,7 +101,7 @@ body.sn7-modal-open{overflow:hidden}
         <span class="sn7-nav-label" data-short="Perfil">Perfil</span>
       </button>
     </nav>
-    <div class="sidebar-footer">SN7 CORE <span>v1.9.9</span></div>
+    <div class="sidebar-footer">SN7 CORE <span>v1.9.11</span></div>
   </aside>
 
   <main>
@@ -292,7 +292,7 @@ body.sn7-modal-open{overflow:hidden}
           .sn7-profile-login p{max-width:500px;margin:0 auto;color:var(--muted);font-size:13px;line-height:1.6}
           .sn7-profile-login .btn{margin-top:20px;min-width:220px}
           .sn7-platform-actions{grid-area:actions;width:100%;display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;min-width:0}.sn7-platform-action{padding:8px 11px;font-size:11px;min-width:0;white-space:nowrap;box-sizing:border-box}.sn7-platform-disconnect{border-color:#63343b!important;color:#ffb5bd!important;background:#171015!important}.sn7-platform-card{position:relative}.sn7-profile-login-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:620px;margin:20px auto 0}.sn7-profile-login-options .btn{margin-top:0!important;min-width:0;width:100%}
-          .sn7-profile-login-options .sn7-platform-login-btn{display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none!important;text-underline-offset:0}.sn7-login-platform-icon{width:24px;height:24px;display:grid;place-items:center;flex:0 0 24px;border-radius:6px;overflow:hidden}.sn7-login-platform-icon img{width:20px;height:20px;display:block;object-fit:contain}.sn7-login-platform-icon.kick img{width:23px;height:23px}.sn7-login-platform-icon.twitch{background:#9146ff}.sn7-login-platform-icon.youtube{background:#ff0033}@media(max-width:700px){.sn7-profile-login-options .sn7-platform-login-btn{justify-content:center;min-height:52px}}@media(max-width:700px){.sn7-platform-card{grid-template-columns:minmax(0,1fr) auto;column-gap:8px;padding:12px}.sn7-platform-actions{width:100%;justify-content:flex-end}.sn7-platform-action{width:auto!important;max-width:100%}.sn7-platform-status{font-size:9px;padding:5px 7px}.sn7-profile-user{align-items:flex-start}.sn7-profile-status{font-size:10px}.sn7-profile-bot{align-items:flex-start;flex-direction:column}.sn7-profile-actions .btn{width:100%}.sn7-profile-login-options{grid-template-columns:1fr}.sn7-profile-login-options .btn{width:100%}}
+          .sn7-profile-login-options .sn7-platform-login-btn{display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none!important;text-underline-offset:0}.sn7-login-platform-icon{width:24px;height:24px;display:grid;place-items:center;flex:0 0 24px;border-radius:6px;overflow:hidden}.sn7-login-platform-icon img{width:20px;height:20px;display:block;object-fit:contain}.sn7-login-platform-icon img{width:24px!important;height:24px!important;object-fit:contain!important}.sn7-profile-login-options .sn7-platform-login-btn,.sn7-profile-login-options .sn7-platform-login-btn *{text-decoration:none!important}.sn7-login-platform-icon.kick img{width:23px;height:23px}.sn7-login-platform-icon.twitch,.sn7-login-platform-icon.youtube,.sn7-login-platform-icon.kick{background:transparent}@media(max-width:700px){.sn7-profile-login-options .sn7-platform-login-btn{justify-content:center;min-height:52px}}@media(max-width:700px){.sn7-platform-card{grid-template-columns:minmax(0,1fr) auto;column-gap:8px;padding:12px}.sn7-platform-actions{width:100%;justify-content:flex-end}.sn7-platform-action{width:auto!important;max-width:100%}.sn7-platform-status{font-size:9px;padding:5px 7px}.sn7-profile-user{align-items:flex-start}.sn7-profile-status{font-size:10px}.sn7-profile-bot{align-items:flex-start;flex-direction:column}.sn7-profile-actions .btn{width:100%}.sn7-profile-login-options{grid-template-columns:1fr}.sn7-profile-login-options .btn{width:100%}}
 @media(max-width:380px){.sn7-platform-card{grid-template-columns:1fr;grid-template-areas:"left" "status" "actions"}.sn7-platform-status{justify-self:start}.sn7-platform-actions{justify-content:stretch}.sn7-platform-action{flex:1 1 0}.sn7-platform-card small{white-space:normal;text-overflow:clip}}
         </style>
         <div id="sn7ProfileLoggedOut" class="sn7-profile-login" hidden>
@@ -300,9 +300,9 @@ body.sn7-modal-open{overflow:hidden}
           <h3>Usuário desconectado</h3>
           <p>Escolha onde você quer usar o SN7 Core. Você poderá conectar as outras plataformas depois.</p>
           <div class="sn7-profile-login-options">
-            <a class="btn sn7-platform-login-btn" href="/kick/login?next=profile"><span class="sn7-login-platform-icon kick"><img src="https://kick.com/favicon.ico" alt="" loading="eager" referrerpolicy="no-referrer"></span><span>Entrar com a Kick</span></a>
-            <a class="btn sn7-platform-login-btn" href="/twitch/login"><span class="sn7-login-platform-icon twitch"><img src="https://www.twitch.tv/favicon.ico" alt="" loading="eager" referrerpolicy="no-referrer"></span><span>Entrar com a Twitch</span></a>
-            <a class="btn sn7-platform-login-btn" href="/youtube/login"><span class="sn7-login-platform-icon youtube"><img src="https://www.youtube.com/favicon.ico" alt="" loading="eager" referrerpolicy="no-referrer"></span><span>Entrar com o YouTube</span></a>
+            <a class="btn sn7-platform-login-btn" href="/kick/login?next=profile"><span class="sn7-login-platform-icon kick"><img src="https://cdn.simpleicons.org/kick" alt="" loading="eager" referrerpolicy="no-referrer"></span><span>Entrar com a Kick</span></a>
+            <a class="btn sn7-platform-login-btn" href="/twitch/login"><span class="sn7-login-platform-icon twitch"><img src="https://cdn.simpleicons.org/twitch" alt="" loading="eager" referrerpolicy="no-referrer"></span><span>Entrar com a Twitch</span></a>
+            <a class="btn sn7-platform-login-btn" href="/youtube/login"><span class="sn7-login-platform-icon youtube"><img src="https://cdn.simpleicons.org/youtube" alt="" loading="eager" referrerpolicy="no-referrer"></span><span>Entrar com o YouTube</span></a>
           </div>
         </div>
         <div id="sn7ProfileLoggedIn" hidden>
@@ -310,7 +310,7 @@ body.sn7-modal-open{overflow:hidden}
             <h3>Plataformas</h3>
             <p>Gerencie as integrações da sua live e concentre os recursos do SN7 Core em um só painel.</p>
             <div class="sn7-profile-platforms">
-              <div class="sn7-platform-card" id="sn7PlatformKick"><div class="left"><span id="sn7KickPlatformIcon" class="sn7-platform-icon">K</span><span><strong>Kick</strong><small id="sn7KickPlatformText">Verificando…</small></span></div><span id="sn7KickPlatformStatus" class="sn7-platform-status">VERIFICANDO</span><div class="sn7-platform-actions"><button id="sn7KickConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectKick()">Conectar</button></div></div>
+              <div class="sn7-platform-card" id="sn7PlatformKick"><div class="left"><span id="sn7KickPlatformIcon" class="sn7-platform-icon">K</span><span><strong>Kick</strong><small id="sn7KickPlatformText">Verificando…</small></span></div><span id="sn7KickPlatformStatus" class="sn7-platform-status">VERIFICANDO</span><div class="sn7-platform-actions"><button id="sn7KickConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectKick()">Conectar</button><button id="sn7KickDisconnect" class="btn sn7-platform-action sn7-platform-disconnect" type="button" onclick="sn7DisconnectPlatform('kick')" hidden>Desconectar</button></div></div>
               <div class="sn7-platform-card" id="sn7PlatformTwitch"><div class="left"><span id="sn7TwitchPlatformIcon" class="sn7-platform-icon">T</span><span><strong>Twitch</strong><small id="sn7TwitchPlatformText">Verificando…</small></span></div><span id="sn7TwitchPlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><div class="sn7-platform-actions"><button id="sn7TwitchConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectTwitch()">Conectar</button><button id="sn7TwitchDisconnect" class="btn sn7-platform-action sn7-platform-disconnect" type="button" onclick="sn7DisconnectPlatform('twitch')" hidden>Desconectar</button></div></div>
               <div class="sn7-platform-card" id="sn7PlatformYoutube"><div class="left"><span id="sn7YoutubePlatformIcon" class="sn7-platform-icon">▶</span><span><strong>YouTube</strong><small id="sn7YoutubePlatformText">Verificando…</small></span></div><span id="sn7YoutubePlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><div class="sn7-platform-actions"><button id="sn7YoutubeConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectYoutube()">Conectar</button><button id="sn7YoutubeDisconnect" class="btn sn7-platform-action sn7-platform-disconnect" type="button" onclick="sn7DisconnectPlatform('youtube')" hidden>Desconectar</button></div></div>
               <div class="sn7-platform-card"><div class="left"><span class="sn7-platform-icon">♪</span><span><strong>TikTok</strong><small>Integração oficial de bot ainda não configurada</small></span></div><span class="sn7-platform-status">EM BREVE</span></div>
@@ -502,7 +502,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
         BROADCASTER_ID ? {id:BROADCASTER_ID,username:"Kick",profile_picture_url:""} : null
       )
     };
-    platformStatus("sn7PlatformKick","sn7KickPlatformStatus","sn7KickPlatformText","sn7KickConnect",data,"Kick");
+    platformStatus("sn7PlatformKick","sn7KickPlatformStatus","sn7KickPlatformText","sn7KickConnect",data,"Kick","sn7KickDisconnect");
   }
   if(BROADCASTER_ID && window.SN7_INITIAL_PROFILE && window.SN7_INITIAL_PROFILE.id){
     user(window.SN7_INITIAL_PROFILE);
@@ -516,9 +516,9 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   }
   window.sn7ConnectKick=()=>connectPlatform("kick");
   async function disconnectPlatform(provider){
-    if(!BROADCASTER_ID || !["twitch","youtube"].includes(provider))return;
+    if(!BROADCASTER_ID || !["kick","twitch","youtube"].includes(provider))return;
     if(!window.confirm(`Desconectar a conta do ${provider==="twitch"?"Twitch":"YouTube"} deste canal?`))return;
-    const button=q(provider==="twitch"?"sn7TwitchDisconnect":"sn7YoutubeDisconnect");
+    const button=q(provider==="kick"?"sn7KickDisconnect":(provider==="twitch"?"sn7TwitchDisconnect":"sn7YoutubeDisconnect"));
     if(button){button.disabled=true;button.textContent="Desconectando…";}
     try{
       const endpoint=`/${provider}/${encodeURIComponent(BROADCASTER_ID)}/disconnect`;
@@ -530,7 +530,10 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
       if(cached?.data?.platforms?.[provider]) delete cached.data.platforms[provider];
       writePlatformCache(cached?.data||{});
       await loadPlatformStatus(true);
-      msg(`${provider==="twitch"?"Twitch":"YouTube"} desconectado.`,false);
+      if(provider==="kick" && data.logged_out){
+        showProfileShell();
+      }
+      msg(`${provider==="kick"?"Kick":provider==="twitch"?"Twitch":"YouTube"} desconectado.`,false);
     }catch(e){
       msg(e.message||"Não foi possível desconectar a conta.",true);
       await loadPlatformStatus(true).catch(()=>{});

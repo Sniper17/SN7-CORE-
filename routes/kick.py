@@ -1941,6 +1941,57 @@ def bot_toggle():
         return jsonify({"ok": False, "error": "Não foi possível alterar o status do bot."}), 502
 
 
+@kick_bp.post("/<int:profile_id>/disconnect")
+def disconnect_platform(profile_id):
+    """Remove a conta Kick vinculada ao perfil SN7 sem trocar o perfil principal."""
+    bid = _session_broadcaster_id()
+    if bid is None or int(bid) != int(profile_id):
+        return jsonify({"ok": False, "error": "Sessão inválida para este perfil."}), 401
+
+    conn_data = _get_connection(profile_id)
+    if not conn_data:
+        return jsonify({"ok": False, "error": "Conta Kick não está conectada."}), 404
+
+    # Desativa assinaturas do bot antes de remover os tokens.
+    try:
+        valid = _valid_connection(profile_id)
+        if valid and valid.get("access_token") and valid.get("bot_active"):
+            _unsubscribe_chat(valid["access_token"])
+    except Exception as exc:
+        print(f"[KICK-DISCONNECT] não foi possível remover assinaturas: {exc}", flush=True)
+
+    db = get_conn()
+    try:
+        with db.cursor() as cur:
+            cur.execute(
+                "DELETE FROM kick_connections WHERE sn7_profile_id=%s OR broadcaster_user_id=%s",
+                (int(profile_id), int(conn_data["broadcaster_user_id"])),
+            )
+            cur.execute(
+                "DELETE FROM chat_connections WHERE broadcaster_user_id=%s AND provider='kick'",
+                (int(profile_id),),
+            )
+            cur.execute(
+                "SELECT COUNT(*) FROM chat_connections WHERE broadcaster_user_id=%s AND provider IN ('twitch','youtube')",
+                (int(profile_id),),
+            )
+            remaining = int(cur.fetchone()[0] or 0)
+        db.commit()
+    finally:
+        db.close()
+
+    _bot_status_cache.pop(int(profile_id), None)
+    _profile_cache.pop(int(profile_id), None)
+    session.pop("kick_broadcaster_id", None)
+    session.pop("kick_profile", None)
+
+    # Se não houver outra plataforma vinculada, encerra a sessão do SN7.
+    if remaining == 0:
+        session.pop("sn7_broadcaster_id", None)
+
+    return jsonify({"ok": True, "disconnected": True, "logged_out": remaining == 0})
+
+
 @kick_bp.post("/logout")
 def logout():
     session.pop("kick_broadcaster_id", None)
