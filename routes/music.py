@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, redirect, session
 from core.database import get_conn
 from core.auth import require_session_broadcaster
-from core.music import set_public_commands_cache
+from core.music import set_public_commands_cache, _spotify_access_token
 import os
 import time
 import secrets
@@ -616,6 +616,24 @@ def _exchange_music_code(provider, code, verifier, redirect_uri):
         detail = data.get("error_description") or data.get("error") or "troca do código recusada"
         raise RuntimeError(f"{cfg['label']}: {detail}")
     return data
+
+
+@music_bp.get("/<int:broadcaster_id>/spotify/player-token")
+def get_spotify_player_token(broadcaster_id):
+    """Entrega ao player web um token Spotify já renovado, sem expor refresh_token."""
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 401
+
+    try:
+        token = _spotify_access_token(broadcaster_id)
+        if not token:
+            return jsonify({"ok": False, "error": "Spotify não está conectado neste canal."}), 404
+        return jsonify({"ok": True, "token": token})
+    except Exception as exc:
+        print(f"[MUSIC-SPOTIFY] token do player falhou: {exc}", flush=True)
+        return jsonify({"ok": False, "error": "Não foi possível preparar o player do Spotify."}), 502
 
 
 @music_bp.get("/<int:broadcaster_id>/connections")

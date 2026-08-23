@@ -2,6 +2,7 @@ from urllib.parse import urlparse
 import time
 import os
 import base64
+import re
 import requests
 
 from core.database import get_conn
@@ -91,15 +92,62 @@ def _spotify_access_token(bid):
 
 
 def _spotify_search_track(bid, query):
-    """Procura a faixa no Spotify e devolve os dados necessários ao player OBS."""
+    """Procura a faixa no Spotify priorizando correspondência real de título/artista."""
     token = _spotify_access_token(bid)
     if not token:
         raise ValueError('Spotify não está conectado neste canal. Conecte o Spotify no painel antes de usar !addmusic por nome.')
 
+    query = ' '.join(str(query or '').strip().split())
+    if not query:
+        raise ValueError('Informe uma música ou link.')
+
+    def norm(value):
+        import unicodedata
+        value = unicodedata.normalize('NFKD', str(value or ''))
+        value = ''.join(ch for ch in value if not unicodedata.combining(ch))
+        return re.sub(r'[^a-z0-9]+', ' ', value.lower()).strip()
+
+    def score(track):
+        title = norm(track.get('name'))
+        artists = norm(' '.join(
+            str(a.get('name') or '') for a in (track.get('artists') or []) if a.get('name')
+        ))
+        haystack = f'{title} {artists}'.strip()
+        qnorm = norm(query)
+        qtokens = [x for x in qnorm.split() if x]
+        if not qtokens:
+            return -1
+
+        score = 0
+        if title == qnorm:
+            score += 1000
+        if qnorm in title:
+            score += 500
+        if qnorm in haystack:
+            score += 250
+
+        title_tokens = set(title.split())
+        artist_tokens = set(artists.split())
+        matched_title = sum(1 for token in qtokens if token in title_tokens)
+        matched_any = sum(1 for token in qtokens if token in haystack.split())
+        score += matched_title * 80
+        score += matched_any * 25
+
+        # Penaliza resultados que só compartilham uma palavra muito genérica.
+        coverage = matched_any / max(1, len(qtokens))
+        score += int(coverage * 150)
+
+        # Um título que começa exatamente pelo termo pesquisado é normalmente
+        # melhor que uma faixa onde o termo aparece perdido no artista.
+        if title.startswith(qnorm):
+            score += 180
+
+        return score
+
     try:
         response = requests.get(
             'https://api.spotify.com/v1/search',
-            params={'q': str(query).strip(), 'type': 'track', 'limit': 1},
+            params={'q': query, 'type': 'track', 'limit': 10, 'market': 'from_token'},
             headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'},
             timeout=10,
         )
@@ -110,9 +158,21 @@ def _spotify_search_track(bid, query):
 
         items = ((data.get('tracks') or {}).get('items') or [])
         if not items:
-            raise ValueError(f'Não encontrei "{str(query).strip()}" no Spotify.')
+            raise ValueError(f'Não encontrei "{query}" no Spotify.')
 
-        track = items[0]
+        ranked = sorted(items, key=score, reverse=True)
+        track = ranked[0]
+        best_score = score(track)
+        qtokens = [x for x in norm(query).split() if x]
+
+        # Evita adicionar uma faixa completamente sem relação com a busca.
+        if best_score < 80 or not any(
+            token in norm(track.get('name')) or
+            token in norm(' '.join(str(a.get('name') or '') for a in (track.get('artists') or [])))
+            for token in qtokens
+        ):
+            raise ValueError(f'Não encontrei uma música compatível com "{query}" no Spotify.')
+
         track_id = str(track.get('id') or '').strip()
         if not track_id:
             raise ValueError('O Spotify retornou uma faixa sem identificador válido.')
