@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 import requests
 from flask import Blueprint, jsonify, redirect, request, session
 
-from core.auth import get_session_broadcaster_id, require_session_broadcaster
+from core.auth import get_session_broadcaster_id, require_session_broadcaster, stable_channel_id
 from core.database import get_conn
 from routes.kick import _process_chat
 
@@ -457,11 +457,9 @@ text-decoration:none;font-weight:700}
 
 @twitch_bp.get("/login")
 def login():
-    bid = get_session_broadcaster_id()
-    if bid is None:
-        return _oauth_error(
-            "Entre com a Kick primeiro para vincular a Twitch ao mesmo canal SN7.", 401
-        )
+    # A Twitch pode ser a primeira plataforma da conta. Quando ainda não
+    # existe um canal SN7, o callback cria um ID temporário estável.
+    bid = get_session_broadcaster_id(validate=False)
 
     cid, secret = _cfg()
     if not cid or not secret:
@@ -472,7 +470,7 @@ def login():
     state = secrets.token_urlsafe(32)
     session["twitch_oauth"] = {
         "state": state,
-        "broadcaster_id": int(bid),
+        "broadcaster_id": int(bid) if bid is not None else None,
         "created_at": int(time.time()),
     }
 
@@ -512,13 +510,21 @@ def callback():
         )
 
     try:
-        require_session_broadcaster(oauth["broadcaster_id"])
         token = _token_exchange(request.args.get("code"))
         user = _user(token["access_token"])
 
-        # A conta Twitch autenticada deve ser a mesma que ficará como
-        # broadcaster/user do EventSub. Isso mantém o bot simples e seguro.
-        _save_connection(oauth["broadcaster_id"], token, user)
+        bid = oauth.get("broadcaster_id")
+        if bid is None:
+            bid = stable_channel_id("twitch", user.get("id"))
+        else:
+            require_session_broadcaster(bid)
+
+        # A conta Twitch autenticada é a identidade usada pelo EventSub.
+        _save_connection(int(bid), token, user)
+        session["sn7_broadcaster_id"] = int(bid)
+        # Mantemos a chave antiga para compatibilidade com rotas legadas.
+        session["kick_broadcaster_id"] = int(bid)
+        session.permanent = True
         return redirect("/dashboard?profile=1&twitch_connected=1")
     except Exception as exc:
         print(f"[TWITCH-OAUTH] callback falhou: {exc}", flush=True)
@@ -634,6 +640,33 @@ def toggle(bid):
                 print(f"[TWITCH-BOT] rollback bot_active falhou: {db_exc}", flush=True)
 
         return jsonify({"ok": False, "error": message}), 502
+
+
+@twitch_bp.post("/<int:bid>/disconnect")
+def disconnect(bid):
+    try:
+        require_session_broadcaster(bid)
+    except PermissionError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 403
+
+    try:
+        conn = _conn(bid)
+        if conn:
+            _unsubscribe(conn)
+        db = get_conn()
+        try:
+            with db.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM chat_connections WHERE broadcaster_user_id=%s AND provider='twitch'",
+                    (int(bid),),
+                )
+            db.commit()
+        finally:
+            db.close()
+        return jsonify({"ok": True, "connected": False, "active": False})
+    except Exception as exc:
+        print(f"[TWITCH-OAUTH] disconnect falhou broadcaster={bid}: {exc}", flush=True)
+        return jsonify({"ok": False, "error": str(exc)}), 502
 
 
 @twitch_bp.post("/eventsub")

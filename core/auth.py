@@ -1,16 +1,24 @@
+import hashlib
+
 from flask import g, session
 from core.database import get_conn
 
 
-def get_session_broadcaster_id(validate=True):
-    """Obtém o canal da sessão, validando no banco quando solicitado.
+def stable_channel_id(provider, external_user_id):
+    """Gera um ID numérico estável para uma sessão que começou fora da Kick."""
+    raw = f"sn7:{str(provider).strip().lower()}:{str(external_user_id).strip()}".encode("utf-8")
+    value = int.from_bytes(hashlib.sha256(raw).digest()[:8], "big") & ((1 << 62) - 1)
+    return value or 1
 
-    O modo validate=False é usado somente para renderização/estado inicial.
-    Ele nunca preenche o cache validado de g, evitando que uma chamada
-    não validada possa ser reutilizada por uma rota protegida no mesmo request.
+
+def get_session_broadcaster_id(validate=True):
+    """Obtém o canal da sessão, aceitando Kick, Twitch ou YouTube.
+
+    Mantém kick_broadcaster_id por compatibilidade com versões antigas, mas
+    também aceita sn7_broadcaster_id para logins iniciados por Twitch/YouTube.
     """
     if not validate:
-        raw = session.get("kick_broadcaster_id")
+        raw = session.get("sn7_broadcaster_id", session.get("kick_broadcaster_id"))
         if raw is None:
             return None
         try:
@@ -21,7 +29,7 @@ def get_session_broadcaster_id(validate=True):
     if hasattr(g, "sn7_session_broadcaster_id_validated"):
         return g.sn7_session_broadcaster_id_validated
 
-    raw = session.get("kick_broadcaster_id")
+    raw = session.get("sn7_broadcaster_id", session.get("kick_broadcaster_id"))
     if raw is None:
         g.sn7_session_broadcaster_id_validated = None
         return None
@@ -37,9 +45,17 @@ def get_session_broadcaster_id(validate=True):
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT 1 FROM kick_connections "
-                    "WHERE broadcaster_user_id=%s LIMIT 1",
-                    (broadcaster_id,),
+                    """
+                    SELECT 1
+                      FROM kick_connections
+                     WHERE broadcaster_user_id=%s
+                    UNION ALL
+                    SELECT 1
+                      FROM chat_connections
+                     WHERE broadcaster_user_id=%s
+                     LIMIT 1
+                    """,
+                    (broadcaster_id, broadcaster_id),
                 )
                 if not cur.fetchone():
                     g.sn7_session_broadcaster_id_validated = None
@@ -57,7 +73,7 @@ def get_session_broadcaster_id(validate=True):
 def require_session_broadcaster(broadcaster_id):
     current = get_session_broadcaster_id()
     if current is None:
-        raise PermissionError("Nenhum canal Kick está conectado nesta sessão.")
+        raise PermissionError("Nenhuma conta está conectada nesta sessão.")
     if int(current) != int(broadcaster_id):
         raise PermissionError("Acesso negado: este canal pertence a outro streamer.")
     return current

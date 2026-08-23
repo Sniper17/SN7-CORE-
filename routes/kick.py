@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa, ed25519
 from flask import Blueprint, Response, jsonify, redirect, request, session
 
-from core.database import get_conn
+from core.database import get_conn, migrate_channel_id
 from core.services import ensure_channel, ensure_player, get_channel, get_player, get_rank, award_watch_presence, add_points, get_point_rewards
 from core.command_system import find_command, list_commands
 from core.auth import get_session_broadcaster_id
@@ -1878,6 +1878,7 @@ def bot_toggle():
 @kick_bp.post("/logout")
 def logout():
     session.pop("kick_broadcaster_id", None)
+    session.pop("sn7_broadcaster_id", None)
     session.pop("kick_oauth_state", None)
     session.pop("kick_code_verifier", None)
     session.pop("kick_oauth_next", None)
@@ -1930,9 +1931,22 @@ def callback():
     try:
         token_data = _exchange_code(params.get("code", ""), verifier)
         user = _kick_user(token_data["access_token"])
+        broadcaster_id = int(user.get("user_id"))
+
+        # Se a sessão começou pela Twitch/YouTube, o canal recebeu um ID
+        # temporário. Ao entrar na Kick, transformamos esse ID no ID definitivo
+        # da Kick antes de salvar a conexão.
+        previous_id = get_session_broadcaster_id(validate=False)
+        if previous_id is not None and int(previous_id) != broadcaster_id:
+            try:
+                migrate_channel_id(int(previous_id), broadcaster_id)
+            except RuntimeError as migration_error:
+                print(f"[KICK-OAUTH] migração de canal não aplicada: {migration_error}", flush=True)
+
         broadcaster_id = _save_connection(user, token_data)
 
         # Login e ativação do bot são ações separadas.
+        session["sn7_broadcaster_id"] = broadcaster_id
         session["kick_broadcaster_id"] = broadcaster_id
         avatar = _resolve_profile_picture(
             token_data.get("access_token"),

@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.4">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.7">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -290,22 +290,26 @@ body.sn7-modal-open{overflow:hidden}
           .sn7-profile-login h3{margin:0 0 7px;font-size:21px}
           .sn7-profile-login p{max-width:500px;margin:0 auto;color:var(--muted);font-size:13px;line-height:1.6}
           .sn7-profile-login .btn{margin-top:20px;min-width:220px}
-          .sn7-platform-action{margin-left:auto;flex:0 0 auto;padding:7px 10px;font-size:11px}.sn7-platform-card{position:relative}.sn7-platform-status{white-space:nowrap}@media(max-width:700px){.sn7-platform-action{width:auto!important}.sn7-profile-user{align-items:flex-start}.sn7-profile-status{font-size:10px}.sn7-profile-bot{align-items:flex-start;flex-direction:column}.sn7-profile-actions .btn{width:100%}}
+          .sn7-platform-actions{margin-left:auto;display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;flex:0 0 auto}.sn7-platform-action{padding:7px 10px;font-size:11px}.sn7-platform-disconnect{border-color:#63343b!important;color:#ffb5bd!important;background:#171015!important}.sn7-platform-card{position:relative}.sn7-platform-status{white-space:nowrap}.sn7-profile-login-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:620px;margin:20px auto 0}.sn7-profile-login-options .btn{margin-top:0!important;min-width:0;width:100%}@media(max-width:700px){.sn7-platform-actions{width:100%;margin-left:0;justify-content:flex-end}.sn7-platform-action{width:auto!important}.sn7-profile-user{align-items:flex-start}.sn7-profile-status{font-size:10px}.sn7-profile-bot{align-items:flex-start;flex-direction:column}.sn7-profile-actions .btn{width:100%}.sn7-profile-login-options{grid-template-columns:1fr}.sn7-profile-login-options .btn{width:100%}}
         </style>
         <div id="sn7ProfileLoggedOut" class="sn7-profile-login" hidden>
           <div class="sn7-profile-avatar" style="margin:0 auto 16px">✦</div>
           <h3>Usuário desconectado</h3>
-          <p>Você pode navegar pelo painel sem login. Entre com a Kick para configurar sua live e controlar o bot.</p>
-          <a class="btn" href="/kick/login?next=profile">Entrar com a Kick</a>
+          <p>Escolha onde você quer usar o SN7 Core. Você poderá conectar as outras plataformas depois.</p>
+          <div class="sn7-profile-login-options">
+            <a class="btn" href="/kick/login?next=profile">🟢 Entrar com a Kick</a>
+            <a class="btn" href="/twitch/login">🟣 Entrar com a Twitch</a>
+            <a class="btn" href="/youtube/login">🔴 Entrar com o YouTube</a>
+          </div>
         </div>
         <div id="sn7ProfileLoggedIn" hidden>
           <div class="sn7-profile-section">
             <h3>Plataformas</h3>
             <p>Gerencie as integrações da sua live e concentre os recursos do SN7 Core em um só painel.</p>
             <div class="sn7-profile-platforms">
-              <div class="sn7-platform-card" id="sn7PlatformKick"><div class="left"><span id="sn7KickPlatformIcon" class="sn7-platform-icon">K</span><span><strong>Kick</strong><small id="sn7KickPlatformText">Verificando…</small></span></div><span id="sn7KickPlatformStatus" class="sn7-platform-status">VERIFICANDO</span><button id="sn7KickConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectKick()">Conectar</button></div>
-              <div class="sn7-platform-card" id="sn7PlatformTwitch"><div class="left"><span id="sn7TwitchPlatformIcon" class="sn7-platform-icon">T</span><span><strong>Twitch</strong><small id="sn7TwitchPlatformText">Verificando…</small></span></div><span id="sn7TwitchPlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><button id="sn7TwitchConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectTwitch()">Conectar</button></div>
-              <div class="sn7-platform-card" id="sn7PlatformYoutube"><div class="left"><span id="sn7YoutubePlatformIcon" class="sn7-platform-icon">▶</span><span><strong>YouTube</strong><small id="sn7YoutubePlatformText">Verificando…</small></span></div><span id="sn7YoutubePlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><button id="sn7YoutubeConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectYoutube()">Conectar</button></div>
+              <div class="sn7-platform-card" id="sn7PlatformKick"><div class="left"><span id="sn7KickPlatformIcon" class="sn7-platform-icon">K</span><span><strong>Kick</strong><small id="sn7KickPlatformText">Verificando…</small></span></div><span id="sn7KickPlatformStatus" class="sn7-platform-status">VERIFICANDO</span><div class="sn7-platform-actions"><button id="sn7KickConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectKick()">Conectar</button></div></div>
+              <div class="sn7-platform-card" id="sn7PlatformTwitch"><div class="left"><span id="sn7TwitchPlatformIcon" class="sn7-platform-icon">T</span><span><strong>Twitch</strong><small id="sn7TwitchPlatformText">Verificando…</small></span></div><span id="sn7TwitchPlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><div class="sn7-platform-actions"><button id="sn7TwitchConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectTwitch()">Conectar</button><button id="sn7TwitchDisconnect" class="btn sn7-platform-action sn7-platform-disconnect" type="button" onclick="sn7DisconnectPlatform('twitch')" hidden>Desconectar</button></div></div>
+              <div class="sn7-platform-card" id="sn7PlatformYoutube"><div class="left"><span id="sn7YoutubePlatformIcon" class="sn7-platform-icon">▶</span><span><strong>YouTube</strong><small id="sn7YoutubePlatformText">Verificando…</small></span></div><span id="sn7YoutubePlatformStatus" class="sn7-platform-status">NÃO CONECTADO</span><div class="sn7-platform-actions"><button id="sn7YoutubeConnect" class="btn sn7-platform-action" type="button" onclick="sn7ConnectYoutube()">Conectar</button><button id="sn7YoutubeDisconnect" class="btn sn7-platform-action sn7-platform-disconnect" type="button" onclick="sn7DisconnectPlatform('youtube')" hidden>Desconectar</button></div></div>
               <div class="sn7-platform-card"><div class="left"><span class="sn7-platform-icon">♪</span><span><strong>TikTok</strong><small>Integração oficial de bot ainda não configurada</small></span></div><span class="sn7-platform-status">EM BREVE</span></div>
             </div>
           </div>
@@ -345,7 +349,7 @@ body.sn7-modal-open{overflow:hidden}
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
 const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
-<script src="/static/js/app.js?v=sn7-1.9.4"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.7"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -378,11 +382,11 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     setAvatar(q("sn7NavProfileIcon"), "◉", "");
     renderKickPlatform(false,false,null);
   }
-  function setAvatar(el, fallback, url){
+  function setAvatar(el, fallback, url, provider="kick"){
     if(!el)return;
     el.innerHTML="";
     const direct=String(url||"").trim();
-    const proxy=(BROADCASTER_ID ? `/kick/profile/avatar?v=${encodeURIComponent(String(BROADCASTER_ID))}` : "");
+    const proxy=(provider==="kick" && BROADCASTER_ID ? `/kick/profile/avatar?v=${encodeURIComponent(String(BROADCASTER_ID))}` : "");
     const source=proxy || direct;
     if(source){
       const img=document.createElement("img");
@@ -427,38 +431,62 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     if(desc) desc.textContent=on?"O SN7 Core está ouvindo os comandos da live.":"O bot não está ouvindo os comandos da live.";
     if(toggle){toggle.textContent=on?"Desligar bot":"Ligar bot";toggle.dataset.active=String(on);toggle.disabled=false;}
   }
-  function setPlatformAvatar(iconId,fallback,url){
+  const PROFILE_CACHE_KEY = "sn7_platform_snapshot";
+  function readPlatformCache(){
+    try{
+      const raw=localStorage.getItem(PROFILE_CACHE_KEY);
+      const parsed=raw?JSON.parse(raw):null;
+      return parsed && typeof parsed==="object" ? parsed : null;
+    }catch(_){return null;}
+  }
+  function writePlatformCache(data){
+    try{localStorage.setItem(PROFILE_CACHE_KEY,JSON.stringify({time:Date.now(),broadcaster_id:BROADCASTER_ID,data}));}catch(_){}
+  }
+  function setPlatformAvatar(iconId,fallback,url,provider){
     const el=q(iconId);
     if(!el)return;
     el.innerHTML="";
-    if(url){
+    const direct=String(url||"").trim();
+    const cached=provider && readPlatformCache()?.data?.platforms?.[provider]?.user?.avatar_url || "";
+    const source=provider==="kick" && BROADCASTER_ID
+      ? `/kick/profile/avatar?v=${encodeURIComponent(String(BROADCASTER_ID))}`
+      : (direct || cached);
+    if(source){
       const img=document.createElement("img");
-      img.src=url; img.alt="Foto da conta"; img.loading="eager";
-      img.onerror=()=>{el.textContent=fallback;};
+      img.src=source; img.alt="Foto da conta"; img.loading="eager"; img.decoding="async";
+      let triedFallback=false;
+      img.onerror=()=>{
+        if(!triedFallback && direct && source!==direct){
+          triedFallback=true; img.src=direct; return;
+        }
+        if(!triedFallback && cached && source!==cached && cached!==direct){
+          triedFallback=true; img.src=cached; return;
+        }
+        el.textContent=fallback;
+      };
       el.appendChild(img);
     }else{el.textContent=fallback;}
   }
-  function platformStatus(id,statusId,textId,connectId,data,label){
-    const st=q(statusId),tx=q(textId),bt=q(connectId);
+  function platformStatus(id,statusId,textId,connectId,data,label,disconnectId){
+    const st=q(statusId),tx=q(textId),bt=q(connectId),db=q(disconnectId);
     if(!st||!tx)return;
     const provider=label.toLowerCase();
     const on=!!data?.connected; const active=!!data?.active;
     const fallback=provider==="twitch"?"T":provider==="youtube"?"▶":"K";
     const iconId=provider==="twitch"?"sn7TwitchPlatformIcon":provider==="youtube"?"sn7YoutubePlatformIcon":"sn7KickPlatformIcon";
-    setPlatformAvatar(iconId,fallback,data?.user?.avatar_url||data?.user?.profile_picture_url||"");
+    setPlatformAvatar(iconId,fallback,data?.user?.avatar_url||data?.user?.profile_picture_url||"",provider);
     st.textContent=on?(active?"BOT ATIVO":"CONECTADO"):"NÃO CONECTADO";
     st.classList.toggle("active",on);
     tx.textContent=on?((data.user?.display_name||data.user?.username||label)+(active?" • bot ativo":" • bot desligado")):"Conta ainda não conectada";
     if(bt){
       bt.hidden=false; bt.disabled=false;
       if(!on){bt.textContent="Conectar"; bt.onclick=()=>connectPlatform(provider);}
-      else if(provider==="kick"){
-        bt.textContent=active?"Desligar bot":"Ligar bot";
-        bt.onclick=()=>togglePlatform("kick");
-      } else {
-        bt.textContent=active?"Desligar bot":"Ligar bot";
-        bt.onclick=()=>togglePlatform(provider);
-      }
+      else {bt.textContent=active?"Desligar bot":"Ligar bot"; bt.onclick=()=>togglePlatform(provider);}
+    }
+    if(db){
+      db.hidden=!on;
+      db.disabled=false;
+      if(on) db.textContent="Desconectar";
     }
   }
 
@@ -476,17 +504,38 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   if(BROADCASTER_ID && window.SN7_INITIAL_PROFILE && window.SN7_INITIAL_PROFILE.id){
     user(window.SN7_INITIAL_PROFILE);
     renderKickPlatform(true,false,window.__sn7KickProfile);
-  } else if(BROADCASTER_ID) {
-    renderKickPlatform(true,false,{id:BROADCASTER_ID,username:"Kick",profile_picture_url:""});
   } else {
     renderKickPlatform(false,false,null);
   }
   function connectPlatform(provider){
-    if(!BROADCASTER_ID && provider!=="kick")return;
     const path=provider==="kick"?"/kick/login?next=profile":(provider==="twitch"?"/twitch/login":"/youtube/login");
     window.location.href=path;
   }
   window.sn7ConnectKick=()=>connectPlatform("kick");
+  async function disconnectPlatform(provider){
+    if(!BROADCASTER_ID || !["twitch","youtube"].includes(provider))return;
+    if(!window.confirm(`Desconectar a conta do ${provider==="twitch"?"Twitch":"YouTube"} deste canal?`))return;
+    const button=q(provider==="twitch"?"sn7TwitchDisconnect":"sn7YoutubeDisconnect");
+    if(button){button.disabled=true;button.textContent="Desconectando…";}
+    try{
+      const endpoint=`/${provider}/${encodeURIComponent(BROADCASTER_ID)}/disconnect`;
+      const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"}});
+      const data=await response.json();
+      if(!response.ok||data.ok===false)throw new Error(data.error||`Falha HTTP ${response.status}`);
+      window.__sn7PlatformStatusCache=null;
+      const cached=readPlatformCache();
+      if(cached?.data?.platforms?.[provider]) delete cached.data.platforms[provider];
+      writePlatformCache(cached?.data||{});
+      await loadPlatformStatus(true);
+      msg(`${provider==="twitch"?"Twitch":"YouTube"} desconectado.`,false);
+    }catch(e){
+      msg(e.message||"Não foi possível desconectar a conta.",true);
+      await loadPlatformStatus(true).catch(()=>{});
+    }finally{
+      if(button){button.disabled=false;button.textContent="Desconectar";}
+    }
+  }
+  window.sn7DisconnectPlatform=disconnectPlatform;
   async function togglePlatform(provider){
     if(!BROADCASTER_ID)return;
     const endpoint=provider==="kick"?"/kick/bot/toggle":(provider==="twitch"?`/twitch/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`:`/youtube/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`);
@@ -533,24 +582,54 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
       }
     }catch(_){}
   }
+  function applyPlatformIdentity(data){
+    if(data?.platforms?.kick?.connected) return;
+    const candidate=data?.platforms?.twitch?.connected ? data.platforms.twitch :
+      (data?.platforms?.youtube?.connected ? data.platforms.youtube : null);
+    const u=candidate?.user;
+    if(!u)return;
+    const name=(u.display_name||u.username||"SN7").replace(/^@/,"").trim();
+    const initials=(name.charAt(0)||"S").toUpperCase();
+    const avatar=u.avatar_url||u.profile_picture_url||"";
+    setAvatar(q("sn7ChannelAvatar"),initials,avatar,candidate===data.platforms.twitch?"twitch":"youtube");
+    setAvatar(q("sn7NavProfileIcon"),initials,avatar,candidate===data.platforms.twitch?"twitch":"youtube");
+  }
+
   async function loadPlatformStatus(force=false){
     if(!BROADCASTER_ID)return;
     const cached=window.__sn7PlatformStatusCache;
     if(!force&&cached&&Date.now()-cached.time<15000){
-      const [tw,yt]=cached.data;
-      platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",tw,"Twitch");
-      platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",yt,"YouTube");
+      const d=cached.data||{};
+      renderKickPlatform(!!d.platforms?.kick?.connected,!!d.platforms?.kick?.active,d.platforms?.kick?.user||window.__sn7KickProfile||null);
+      platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",d.platforms?.twitch||{connected:false},"Twitch","sn7TwitchDisconnect");
+      platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",d.platforms?.youtube||{connected:false},"YouTube","sn7YoutubeDisconnect");
+      if(d.platforms?.kick) bot(!!d.platforms.kick.active);
+      applyPlatformIdentity(d);
       return;
     }
-    const jobs=[
-      fetch(`/twitch/${encodeURIComponent(BROADCASTER_ID)}/status`,{credentials:"same-origin",cache:force?"no-store":"default"}).then(r=>r.json()).catch(()=>({ok:false})),
-      fetch(`/youtube/${encodeURIComponent(BROADCASTER_ID)}/status`,{credentials:"same-origin",cache:force?"no-store":"default"}).then(r=>r.json()).catch(()=>({ok:false})),
-    ];
-    const data=await Promise.all(jobs);
+
+    // Primeiro pinta o snapshot local para evitar o estado "Verificando..."
+    // quando o usuário já possui contas conhecidas neste dispositivo.
+    const local=readPlatformCache();
+    if(!force && local?.broadcaster_id===BROADCASTER_ID && local.data?.platforms){
+      const d=local.data;
+      renderKickPlatform(!!d.platforms.kick?.connected,!!d.platforms.kick?.active,d.platforms.kick?.user||window.__sn7KickProfile||null);
+      platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",d.platforms.twitch||{connected:false},"Twitch","sn7TwitchDisconnect");
+      platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",d.platforms.youtube||{connected:false},"YouTube","sn7YoutubeDisconnect");
+      if(d.platforms.kick) bot(!!d.platforms.kick.active);
+      applyPlatformIdentity(d);
+    }
+
+    const response=await fetch("/api/platforms/status",{credentials:"same-origin",cache:force?"no-store":"default"});
+    const data=await response.json();
+    if(!response.ok||data.ok===false)throw new Error(data.error||`Falha HTTP ${response.status}`);
     window.__sn7PlatformStatusCache={time:Date.now(),data};
-    const [tw,yt]=data;
-    platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",tw,"Twitch");
-    platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",yt,"YouTube");
+    writePlatformCache(data);
+    renderKickPlatform(!!data.platforms?.kick?.connected,!!data.platforms?.kick?.active,data.platforms?.kick?.user||window.__sn7KickProfile||null);
+    platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",data.platforms?.twitch||{connected:false},"Twitch","sn7TwitchDisconnect");
+    platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",data.platforms?.youtube||{connected:false},"YouTube","sn7YoutubeDisconnect");
+    if(data.platforms?.kick) bot(!!data.platforms.kick.active);
+    applyPlatformIdentity(data);
   }
   async function fetchJsonWithTimeout(url, options={}, timeoutMs=2500){
     const controller=new AbortController();
@@ -598,7 +677,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
 
     window.__sn7ProfileLoadPromise=(async()=>{
       b.disabled=true; b.textContent="Verificando…"; msg("");
-      const background=Promise.allSettled([loadBotStatus(force),loadPlatformStatus(force),loadObs(force)]);
+      const background=Promise.allSettled([loadPlatformStatus(force),loadObs(force)]);
       try{
         // Quando temos um snapshot válido, uma atualização forçada usa a rota
         // de refresh em segundo plano. Assim uma falha transitória do banco ou
@@ -614,18 +693,25 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
           return window.__sn7ProfileCache?.data||null;
         }
 
-        // Sessões antigas que ainda não possuem snapshot usam /kick/me como
-        // fallback. Isso mantém compatibilidade com logins anteriores.
-        const result=await fetchJsonWithTimeout("/kick/me",{credentials:"same-origin",cache:force?"no-store":"default"},2500);
+        // Sessões antigas ou iniciadas pela Twitch/YouTube usam o estado
+        // agregado das plataformas. Não bloqueamos o painel esperando a Kick.
+        const result=await fetchJsonWithTimeout("/api/platforms/status",{credentials:"same-origin",cache:force?"no-store":"default"},2500);
         const d=result.data;
         if(!result.response.ok||!d?.ok)throw new Error(d?.error||`Falha HTTP ${result.response.status}`);
-        if(!d.authenticated||!d.user){
+        if(!d.authenticated){
           out();
-          msg("Conecte sua conta Kick para carregar o perfil.",false);
+          msg("Conecte uma plataforma para carregar o perfil.",false);
           return d;
         }
-        user(d.user);
-        window.__sn7ProfileCache={time:Date.now(),data:d};
+        window.__sn7PlatformStatusCache={time:Date.now(),data:d};
+        if(d.platforms?.kick?.connected && d.platforms.kick.user){
+          user(d.platforms.kick.user);
+        }else{
+          applyPlatformIdentity(d);
+          q("sn7ProfileLoggedOut").hidden=true;
+          q("sn7ProfileLoggedIn").hidden=false;
+        }
+        window.__sn7ProfileCache={time:Date.now(),data:{ok:true,authenticated:true,user:d.platforms?.kick?.user||null}};
         return d;
       }catch(e){
         // Erro/timeout transitório não significa logout. Se já existe um
@@ -710,7 +796,7 @@ document.addEventListener("keydown", (event) => {
 });
 </script>
 <script src="/static/js/sn7-ui-fix.js"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.4"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.4"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.7"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.7"></script>
 </body>
 </html>

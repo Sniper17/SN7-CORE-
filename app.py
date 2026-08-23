@@ -21,7 +21,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.4"
+SN7_VERSION = "1.9.7"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
@@ -112,6 +112,68 @@ def dashboard():
 @app.get("/perfil")
 def profile():
     return redirect("/?profile=1")
+
+
+@app.get("/api/platforms/status")
+def platform_status():
+    """Retorna o estado das três plataformas em uma única consulta rápida."""
+    bid = get_session_broadcaster_id()
+    if bid is None:
+        return jsonify({"ok": True, "authenticated": False, "broadcaster_id": None,
+                        "platforms": {"kick": {"connected": False, "active": False},
+                                      "twitch": {"connected": False, "active": False},
+                                      "youtube": {"connected": False, "active": False}}})
+    try:
+        conn = get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT username, profile_picture_url, bot_active
+                      FROM kick_connections
+                     WHERE broadcaster_user_id=%s
+                """, (int(bid),))
+                kick = cur.fetchone()
+
+                cur.execute("""
+                    SELECT provider, external_user_id, username, display_name,
+                           avatar_url, bot_active
+                      FROM chat_connections
+                     WHERE broadcaster_user_id=%s
+                       AND provider IN ('twitch','youtube')
+                """, (int(bid),))
+                rows = {str(r[0]): r for r in cur.fetchall()}
+        finally:
+            conn.close()
+
+        tw = rows.get("twitch")
+        yt = rows.get("youtube")
+        return jsonify({
+            "ok": True,
+            "authenticated": True,
+            "broadcaster_id": str(bid),
+            "platforms": {
+                "kick": {
+                    "connected": bool(kick),
+                    "active": bool(kick and kick[2]),
+                    "user": ({"id": int(bid), "username": kick[0],
+                              "profile_picture_url": kick[1] or ""} if kick else None),
+                },
+                "twitch": {
+                    "connected": bool(tw),
+                    "active": bool(tw and tw[5]),
+                    "user": ({"id": tw[1], "username": tw[2],
+                              "display_name": tw[3], "avatar_url": tw[4] or ""} if tw else None),
+                },
+                "youtube": {
+                    "connected": bool(yt),
+                    "active": bool(yt and yt[5]),
+                    "user": ({"id": yt[1], "username": yt[2],
+                              "display_name": yt[3], "avatar_url": yt[4] or ""} if yt else None),
+                },
+            },
+        })
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 502
 
 
 @app.get("/health")

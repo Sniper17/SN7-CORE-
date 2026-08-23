@@ -306,6 +306,43 @@ def init_db():
     
         _db_initialized = True
         _point_rewards_ready = True
+
+def migrate_channel_id(old_id, new_id):
+    """Move os dados de um canal temporário para o ID definitivo da Kick."""
+    old_id = int(old_id)
+    new_id = int(new_id)
+    if old_id == new_id:
+        return
+    tables = [
+        "channels", "players", "custom_commands", "duel_events", "pending_bets",
+        "kick_connections", "chat_connections", "command_configs", "command_aliases",
+        "obs_connections", "music_settings", "music_queue", "music_player_state",
+        "music_connections", "point_rewards",
+    ]
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            # Se o ID definitivo já possui dados, não misturamos contas
+            # silenciosamente. O chamador pode manter a conta antiga intacta.
+            for table in tables:
+                cur.execute(
+                    f"SELECT 1 FROM {table} WHERE broadcaster_user_id=%s LIMIT 1",
+                    (new_id,),
+                )
+                if cur.fetchone():
+                    raise RuntimeError(
+                        "O canal da Kick já possui dados no SN7 Core; "
+                        "não foi feita a migração automática."
+                    )
+            for table in tables:
+                cur.execute(
+                    f"UPDATE {table} SET broadcaster_user_id=%s WHERE broadcaster_user_id=%s",
+                    (new_id, old_id),
+                )
+        conn.commit()
+    finally:
+        conn.close()
+
 # SN7_POINTS_REWARDS_V1
 POINTS_REWARD_SCHEMA = """
 CREATE TABLE IF NOT EXISTS point_rewards (

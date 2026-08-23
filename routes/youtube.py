@@ -8,7 +8,7 @@ import requests
 from flask import Blueprint, jsonify, request, redirect, session
 
 from core.database import get_conn
-from core.auth import require_session_broadcaster, get_session_broadcaster_id
+from core.auth import require_session_broadcaster, get_session_broadcaster_id, stable_channel_id
 from routes.kick import _process_chat
 
 youtube_bp = Blueprint("youtube", __name__)
@@ -140,13 +140,16 @@ def _oauth_error(message, status=400, retry_url="/perfil"):
 
 @youtube_bp.get("/login")
 def login():
-    bid = get_session_broadcaster_id()
-    if bid is None:
-        return _oauth_error("Entre com a Kick primeiro para vincular o YouTube ao mesmo canal SN7."), 401
+    # O YouTube também pode ser a primeira plataforma da conta.
+    bid = get_session_broadcaster_id(validate=False)
     if not _configured():
         return _oauth_error("YOUTUBE_BOT_CLIENT_ID/YOUTUBE_BOT_CLIENT_SECRET não configurados no Render.", 503, "/?profile=1")
     state = secrets.token_urlsafe(32)
-    session["youtube_bot_oauth"] = {"state": state, "broadcaster_id": int(bid), "created_at": int(time.time())}
+    session["youtube_bot_oauth"] = {
+        "state": state,
+        "broadcaster_id": int(bid) if bid is not None else None,
+        "created_at": int(time.time()),
+    }
     params = {
         "client_id": _bot_credentials()[0], "redirect_uri": _redirect_uri(),
         "response_type": "code", "scope": "https://www.googleapis.com/auth/youtube.force-ssl",
@@ -166,7 +169,6 @@ def callback():
     if not code:
         return _oauth_error("O YouTube não retornou o código de autorização.", 400)
     try:
-        require_session_broadcaster(state_data["broadcaster_id"])
         response = requests.post(TOKEN_URL, data={
             "code": code, "client_id": _bot_credentials()[0],
             "client_secret": _bot_credentials()[1],
@@ -176,7 +178,18 @@ def callback():
         if response.status_code >= 400 or not token.get("access_token"):
             raise RuntimeError(token.get("error_description") or token.get("error") or "OAuth YouTube recusado.")
         profile = _youtube_profile(token["access_token"])
-        _save_connection(state_data["broadcaster_id"], token, profile)
+
+        bid = state_data.get("broadcaster_id")
+        if bid is None:
+            bid = stable_channel_id("youtube", profile.get("id"))
+        else:
+            require_session_broadcaster(bid)
+
+        _save_connection(int(bid), token, profile)
+        session["sn7_broadcaster_id"] = int(bid)
+        # Compatibilidade com a sessão antiga baseada na Kick.
+        session["kick_broadcaster_id"] = int(bid)
+        session.permanent = True
         return redirect("/?profile=1&youtube_connected=1")
     except Exception as exc:
         print(f"[YOUTUBE-OAUTH] callback falhou: {exc}", flush=True)
@@ -343,6 +356,30 @@ def toggle(bid):
         return jsonify({"ok": True, "active": desired})
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 502
+
+@youtube_bp.post("/<int:bid>/disconnect")
+def disconnect(bid):
+    try:
+        require_session_broadcaster(bid)
+    except PermissionError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 403
+
+    try:
+        db = get_conn()
+        try:
+            with db.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM chat_connections WHERE broadcaster_user_id=%s AND provider='youtube'",
+                    (int(bid),),
+                )
+            db.commit()
+        finally:
+            db.close()
+        return jsonify({"ok": True, "connected": False, "active": False})
+    except Exception as exc:
+        print(f"[YOUTUBE-OAUTH] disconnect falhou broadcaster={bid}: {exc}", flush=True)
+        return jsonify({"ok": False, "error": str(exc)}), 502
+
 
 if os.environ.get("DATABASE_URL"):
     _start_worker()
