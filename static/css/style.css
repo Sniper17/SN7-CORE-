@@ -549,7 +549,7 @@ nav button.active::after{content:""!important;position:absolute!important;inset:
 .sn7-music-queue-toggle:hover{background:#1c2330;border-color:#3b4555;color:#fff}
 .sn7-music-queue-toggle b{color:#c4baff;font-size:10px}
 .sn7-music-queue-card{max-width:560px!important}
-.sn7-music-queue-modal-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}
+.sn7-music-queue-modal-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px;padding-right:52px;min-height:38px}
 .sn7-music-queue-modal-head h3{margin:3px 0 0;font-size:18px}
 .sn7-queue-clear{white-space:nowrap}
 .sn7-music-queue{display:grid;gap:5px}
@@ -594,8 +594,8 @@ nav button.active::after{content:""!important;position:absolute!important;inset:
   .sn7-music-controls{gap:7px}
   .sn7-music-volume{margin-left:2px;gap:4px}
   .sn7-volume-btn{width:28px;height:28px}
-  .sn7-music-queue-modal-head{align-items:flex-start}
-  .sn7-music-queue-modal-head .sn7-subtle{padding:8px 9px}
+  .sn7-music-queue-modal-head{display:block;padding-right:52px;min-height:0}
+  .sn7-music-queue-modal-head .sn7-subtle{padding:8px 9px;margin-top:10px}
   .sn7-music-row{padding:8px 4px}
   .sn7-music-provider{display:none}
 }

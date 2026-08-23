@@ -1674,6 +1674,30 @@ function renderMusicQueue(queue) {
     </div>`).join("");
 }
 
+let sn7MusicQueuePollTimer = null;
+
+function startMusicQueuePolling() {
+  if (sn7MusicQueuePollTimer) clearInterval(sn7MusicQueuePollTimer);
+  sn7MusicQueuePollTimer = setInterval(() => {
+    const modal = $("sn7MusicQueueModal");
+    if (!modal || modal.hasAttribute("hidden")) {
+      if (sn7MusicQueuePollTimer) {
+        clearInterval(sn7MusicQueuePollTimer);
+        sn7MusicQueuePollTimer = null;
+      }
+      return;
+    }
+    loadMusic().catch(() => {});
+  }, 2500);
+}
+
+function stopMusicQueuePolling() {
+  if (sn7MusicQueuePollTimer) {
+    clearInterval(sn7MusicQueuePollTimer);
+    sn7MusicQueuePollTimer = null;
+  }
+}
+
 async function loadMusic() {
   if (!musicHasChannel()) {
     const data = {
@@ -1881,6 +1905,7 @@ function openMusicQueue() {
   modal.removeAttribute("hidden");
   document.body.classList.add("sn7-modal-open");
   loadMusic().catch(() => {});
+  startMusicQueuePolling();
 }
 
 function closeMusicQueue(event) {
@@ -1889,6 +1914,7 @@ function closeMusicQueue(event) {
   if (!modal) return;
   modal.setAttribute("hidden", "");
   document.body.classList.remove("sn7-modal-open");
+  stopMusicQueuePolling();
 }
 
 function openMusicConfig() {

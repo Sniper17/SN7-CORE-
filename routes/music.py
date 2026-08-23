@@ -122,9 +122,10 @@ def snapshot(bid):
             cur.execute(
                 """SELECT id, provider, title, artist, source_url, added_by, status, position
                    FROM music_queue
-                   WHERE broadcaster_user_id=%s AND status='queued' AND id<>COALESCE(%s,0)
+                   WHERE broadcaster_user_id=%s AND status='queued'
+                     AND (id<>COALESCE(%s,0) OR NOT %s)
                    ORDER BY position ASC,id ASC LIMIT 100""",
-                (bid, current_id),
+                (bid, current_id, bool(state_row[1])),
             )
             queue = [
                 {'id': r[0], 'provider': r[1], 'title': r[2], 'artist': r[3] or '',
