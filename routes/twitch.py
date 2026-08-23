@@ -259,19 +259,19 @@ def _app_token():
     return data["access_token"]
 
 
-def _eventsub_headers(app_token):
+def _eventsub_headers(access_token):
     cid, _ = _cfg()
     return {
         "Client-Id": cid,
-        "Authorization": f"Bearer {app_token}",
+        "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
 
 
-def _list_eventsub(app_token):
+def _list_eventsub(access_token):
     response = requests.get(
         f"{TWITCH_API}/eventsub/subscriptions",
-        headers=_eventsub_headers(app_token),
+        headers=_eventsub_headers(access_token),
         timeout=15,
     )
     if response.status_code >= 400:
@@ -299,8 +299,14 @@ def _subscribe(conn):
     if len(secret) < 10 or len(secret) > 100:
         raise RuntimeError("TWITCH_EVENTSUB_SECRET precisa ter entre 10 e 100 caracteres.")
 
-    app_token = _app_token()
-    subscriptions = _list_eventsub(app_token)
+    # channel.chat.message via Webhook exige um USER access token com
+    # autorização de chat. O app token (client_credentials) não serve
+    # para criar esta subscription.
+    user_token = str(conn.get("access_token") or "").strip()
+    if not user_token:
+        raise RuntimeError("A sessão da Twitch não possui access token. Conecte a Twitch novamente.")
+
+    subscriptions = _list_eventsub(user_token)
 
     # Não apaga uma inscrição existente. Isso evita uma janela sem chat
     # enquanto a Twitch valida uma nova inscrição.
@@ -331,7 +337,7 @@ def _subscribe(conn):
 
     response = requests.post(
         f"{TWITCH_API}/eventsub/subscriptions",
-        headers=_eventsub_headers(app_token),
+        headers=_eventsub_headers(user_token),
         json=payload,
         timeout=15,
     )
@@ -354,8 +360,10 @@ def _subscribe(conn):
 
 def _unsubscribe(conn):
     try:
-        app_token = _app_token()
-        for sub in _list_eventsub(app_token):
+        user_token = str(conn.get("access_token") or "").strip()
+        if not user_token:
+            return
+        for sub in _list_eventsub(user_token):
             if not _subscription_matches(sub, conn["external_user_id"]):
                 continue
             sub_id = sub.get("id")
@@ -458,6 +466,8 @@ def login():
         "client_id": cid,
         "redirect_uri": _redirect_uri(),
         "response_type": "code",
+        # Necessários para channel.chat.message e para enviar respostas
+        # pelo próprio usuário autenticado.
         "scope": "user:read:chat user:write:chat",
         "state": state,
     }
@@ -585,8 +595,31 @@ def toggle(bid):
 
         return jsonify({"ok": True, "active": desired, "eventsub": result})
     except Exception as exc:
-        print(f"[TWITCH-BOT] toggle falhou broadcaster={bid}: {exc}", flush=True)
-        return jsonify({"ok": False, "error": str(exc)}), 502
+        message = str(exc)
+        print(f"[TWITCH-BOT] toggle falhou broadcaster={bid}: {message}", flush=True)
+
+        # Evita deixar o banco marcado como ativo quando a Twitch recusou
+        # a criação do EventSub.
+        if desired:
+            try:
+                db = get_conn()
+                try:
+                    with db.cursor() as cur:
+                        cur.execute(
+                            """
+                            UPDATE chat_connections
+                               SET bot_active=FALSE,updated_at=NOW()
+                             WHERE broadcaster_user_id=%s AND provider='twitch'
+                            """,
+                            (int(bid),),
+                        )
+                    db.commit()
+                finally:
+                    db.close()
+            except Exception as db_exc:
+                print(f"[TWITCH-BOT] rollback bot_active falhou: {db_exc}", flush=True)
+
+        return jsonify({"ok": False, "error": message}), 502
 
 
 @twitch_bp.post("/eventsub")
