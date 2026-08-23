@@ -21,7 +21,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.11"
+SN7_VERSION = "1.9.12"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
@@ -128,10 +128,12 @@ def platform_status():
         try:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT username, profile_picture_url, bot_active
+                    SELECT broadcaster_user_id, sn7_profile_id, username, profile_picture_url, bot_active
                       FROM kick_connections
-                     WHERE broadcaster_user_id=%s
-                """, (int(bid),))
+                     WHERE broadcaster_user_id=%s OR sn7_profile_id=%s
+                     ORDER BY CASE WHEN sn7_profile_id=%s THEN 0 ELSE 1 END
+                     LIMIT 1
+                """, (int(bid), int(bid), int(bid)))
                 kick = cur.fetchone()
 
                 cur.execute("""
@@ -154,9 +156,10 @@ def platform_status():
             "platforms": {
                 "kick": {
                     "connected": bool(kick),
-                    "active": bool(kick and kick[2]),
-                    "user": ({"id": int(bid), "username": kick[0],
-                              "profile_picture_url": kick[1] or ""} if kick else None),
+                    "active": bool(kick and kick[4]),
+                    "user": ({"id": int(kick[0]), "profile_id": int(kick[1] or bid),
+                              "username": kick[2],
+                              "profile_picture_url": kick[3] or ""} if kick else None),
                 },
                 "twitch": {
                     "connected": bool(tw),

@@ -1650,15 +1650,17 @@ def _unsubscribe_chat(access_token):
     return {"ok": True, "active": False, "deleted_subscription_ids": ids}
 
 
-def _save_bot_state(broadcaster_id, active):
-    """Persiste o último estado confirmado do bot para sobreviver a reinícios do Render."""
+def _save_bot_state(profile_id, active):
+    """Persiste o estado do bot pelo perfil SN7 ou pelo ID real da Kick."""
     try:
         conn = get_conn()
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE kick_connections SET bot_active=%s, updated_at=NOW() WHERE broadcaster_user_id=%s",
-                    (bool(active), int(broadcaster_id)),
+                    """UPDATE kick_connections
+                          SET bot_active=%s, updated_at=NOW()
+                        WHERE sn7_profile_id=%s OR broadcaster_user_id=%s""",
+                    (bool(active), int(profile_id), int(profile_id)),
                 )
             conn.commit()
         finally:
@@ -1903,7 +1905,7 @@ def bot_status():
         return jsonify({"ok": True, "authenticated": False, "active": False})
 
     try:
-        active = _bot_active(conn["access_token"], int(conn["broadcaster_user_id"]))
+        active = _bot_active(conn["access_token"], int(bid))
     except Exception as exc:
         print(f"[KICK-BOT] status falhou: {exc}", flush=True)
         # Se a consulta externa falhar, não inventamos "desligado". Mantemos

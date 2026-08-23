@@ -1911,3 +1911,11 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
   height: 26px !important;
   object-fit: contain !important;
 }
+
+/* SN7 1.9.12 modal/mobile navigation fix */
+.sn7-config-modal{z-index:2147483100 !important;height:100svh !important;min-height:100svh !important;max-height:100svh !important;overflow-y:auto !important;overscroll-behavior:contain !important;padding:8px !important;}
+.sn7-config-modal .sn7-config-modal-card{max-height:calc(100svh - 20px) !important;overflow-y:auto !important;overscroll-behavior:contain !important;-webkit-overflow-scrolling:touch !important;padding-bottom:calc(24px + env(safe-area-inset-bottom)) !important;}
+.sn7-login-platform-icon{width:28px !important;height:28px !important;flex:0 0 28px !important;background:transparent !important;}
+.sn7-login-platform-icon img{width:26px !important;height:26px !important;display:block !important;object-fit:contain !important;}
+.sn7-profile-login-options .sn7-platform-login-btn{text-decoration:none !important;}
+@media(max-width:700px){.sn7-config-modal{align-items:flex-start !important;padding:8px 8px calc(8px + env(safe-area-inset-bottom)) !important;} .sn7-config-modal .sn7-config-modal-card{width:min(680px,100%) !important;margin:0 auto !important;max-height:calc(100svh - 16px) !important;padding:18px 15px calc(26px + env(safe-area-inset-bottom)) !important;} .sn7-config-modal-card h3{font-size:20px !important;margin-bottom:5px !important}.sn7-config-modal-card>p{margin-bottom:12px !important}.sn7-config-modal-card label{margin-top:10px !important}.sn7-config-modal-card .form-grid{gap:8px !important}.sn7-config-modal-card .save-row{padding-top:10px !important;gap:8px !important;}.sn7-config-modal-card .save-row .btn,.sn7-config-modal-card .save-row .sn7-danger{min-height:46px !important;flex:0 0 auto !important;}}
