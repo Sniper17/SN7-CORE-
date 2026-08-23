@@ -1,4 +1,4 @@
-/* SN7 CORE V5 - carregamento inteligente / 1.8.1
+/* SN7 CORE V5 - carregamento inteligente / 1.8.2
  * Corrige o problema da V3: as abas refaziam GETs depois do boot
  * e o perfil só era carregado quando o usuário entrava nele.
  */
