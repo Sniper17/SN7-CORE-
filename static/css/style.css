@@ -898,3 +898,110 @@ label:focus:not(:focus-visible) {
 .sn7-link-allow > span:last-child {
   white-space:nowrap !important;
 }
+
+/* SN7 1.8.7 — navegação mobile premium.
+   Mantém as cores atuais do site; altera somente forma, profundidade e animação. */
+@media(max-width:700px){
+  .sidebar{
+    left:10px;
+    right:10px;
+    bottom:8px;
+    width:auto;
+    height:76px;
+    padding:6px 8px 7px;
+    border:1px solid var(--border);
+    border-radius:26px;
+    background:rgba(15,18,24,.97);
+    box-shadow:0 14px 34px rgba(0,0,0,.30),0 2px 8px rgba(0,0,0,.20);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+  }
+  nav{
+    height:100%;
+    display:grid;
+    grid-template-columns:repeat(6,minmax(0,1fr));
+    gap:3px;
+    align-items:stretch;
+  }
+  nav button{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    min-height:60px;
+    padding:5px 2px 7px;
+    border:1px solid transparent;
+    border-radius:19px;
+    background:transparent;
+    color:var(--muted);
+    text-align:center;
+    font-size:9px;
+    font-weight:600;
+    line-height:1.15;
+    white-space:nowrap;
+    overflow:hidden;
+    transition:transform .18s ease,background .20s ease,border-color .20s ease,
+               color .20s ease,box-shadow .20s ease;
+  }
+  nav button span{
+    width:auto;
+    min-width:25px;
+    margin:0;
+    color:inherit;
+    font-size:20px;
+    line-height:22px;
+    transition:transform .20s ease,color .20s ease;
+  }
+  nav button:hover{
+    background:transparent;
+  }
+  nav button.active{
+    background:var(--panel2);
+    border-color:var(--border);
+    color:var(--text);
+    transform:translateY(-2px);
+    box-shadow:0 8px 20px rgba(0,0,0,.20),inset 0 1px 0 rgba(255,255,255,.035);
+  }
+  nav button.active span{
+    color:var(--text);
+    transform:translateY(-1px) scale(1.04);
+  }
+  nav button.active::after{
+    content:"";
+    position:absolute;
+    left:24%;
+    right:24%;
+    bottom:4px;
+    height:2px;
+    border-radius:99px;
+    background:currentColor;
+    opacity:.9;
+    transform:scaleX(1);
+    transform-origin:center;
+  }
+  nav button:not(.active)::after{
+    content:"";
+    position:absolute;
+    left:38%;
+    right:38%;
+    bottom:4px;
+    height:2px;
+    border-radius:99px;
+    background:currentColor;
+    opacity:0;
+    transform:scaleX(.4);
+    transition:opacity .18s ease,transform .18s ease;
+  }
+  nav button:active{
+    transform:translateY(0) scale(.96);
+  }
+  nav button.active:active{
+    transform:translateY(0) scale(.96);
+  }
+  nav button:focus-visible{
+    outline:2px solid currentColor;
+    outline-offset:-2px;
+  }
+}

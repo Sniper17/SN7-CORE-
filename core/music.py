@@ -92,7 +92,7 @@ def _spotify_access_token(bid):
 
 
 def _spotify_search_track(bid, query):
-    """Procura a faixa no Spotify priorizando correspondência real de título/artista."""
+    """Procura a faixa no Spotify priorizando o título exato antes da popularidade."""
     token = _spotify_access_token(bid)
     if not token:
         raise ValueError('Spotify não está conectado neste canal. Conecte o Spotify no painel antes de usar !addmusic por nome.')
@@ -107,47 +107,66 @@ def _spotify_search_track(bid, query):
         value = ''.join(ch for ch in value if not unicodedata.combining(ch))
         return re.sub(r'[^a-z0-9]+', ' ', value.lower()).strip()
 
+    qnorm = norm(query)
+    qtokens = [x for x in qnorm.split() if x]
+    if not qtokens:
+        raise ValueError('Informe uma música ou link.')
+
+    def artists_text(track):
+        return ' '.join(
+            str(a.get('name') or '') for a in (track.get('artists') or []) if a.get('name')
+        ).strip()
+
+    def choose_exact(items):
+        exact = [track for track in items if norm(track.get('name')) == qnorm]
+        if not exact:
+            return None
+        # Se houver várias gravações com o mesmo título, mantém a ordem do
+        # Spotify. O importante é nunca trocar "JUJUTSU" por "JUJUTSU 2/3".
+        return exact[0]
+
     def score(track):
         title = norm(track.get('name'))
-        artists = norm(' '.join(
-            str(a.get('name') or '') for a in (track.get('artists') or []) if a.get('name')
-        ))
+        artists = norm(artists_text(track))
         haystack = f'{title} {artists}'.strip()
-        qnorm = norm(query)
-        qtokens = [x for x in qnorm.split() if x]
-        if not qtokens:
-            return -1
 
-        score = 0
+        score_value = 0
         if title == qnorm:
-            score += 1000
+            score_value += 5000
         if qnorm in title:
-            score += 500
+            score_value += 900
+        if title.startswith(qnorm):
+            score_value += 350
         if qnorm in haystack:
-            score += 250
+            score_value += 200
 
         title_tokens = set(title.split())
-        artist_tokens = set(artists.split())
+        hay_tokens = set(haystack.split())
         matched_title = sum(1 for token in qtokens if token in title_tokens)
-        matched_any = sum(1 for token in qtokens if token in haystack.split())
-        score += matched_title * 80
-        score += matched_any * 25
+        matched_any = sum(1 for token in qtokens if token in hay_tokens)
+        score_value += matched_title * 100
+        score_value += matched_any * 25
 
-        # Penaliza resultados que só compartilham uma palavra muito genérica.
         coverage = matched_any / max(1, len(qtokens))
-        score += int(coverage * 150)
+        score_value += int(coverage * 150)
 
-        # Um título que começa exatamente pelo termo pesquisado é normalmente
-        # melhor que uma faixa onde o termo aparece perdido no artista.
-        if title.startswith(qnorm):
-            score += 180
+        # Quando o usuário informa só o começo do título e não existe uma
+        # correspondência exata, prefere a versão mais curta antes de Jujutsu 2,
+        # Jujutsu 3 etc. A popularidade do resultado não deve decidir sozinha.
+        if len(qtokens) == 1 and title.startswith(qnorm):
+            score_value -= max(0, len(title.split()) - 1) * 60
 
-        return score
+        return score_value
 
-    try:
+    def search(search_query):
         response = requests.get(
             'https://api.spotify.com/v1/search',
-            params={'q': query, 'type': 'track', 'limit': 10, 'market': 'from_token'},
+            params={
+                'q': search_query,
+                'type': 'track',
+                'limit': 10,
+                'market': 'from_token',
+            },
             headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'},
             timeout=10,
         )
@@ -155,21 +174,28 @@ def _spotify_search_track(bid, query):
         if response.status_code >= 400:
             message = (data.get('error') or {}).get('message') or 'Spotify recusou a busca.'
             raise ValueError(f'Não consegui buscar no Spotify: {message}')
+        return ((data.get('tracks') or {}).get('items') or [])
 
-        items = ((data.get('tracks') or {}).get('items') or [])
-        if not items:
-            raise ValueError(f'Não encontrei "{query}" no Spotify.')
+    try:
+        # Primeiro pedimos ao Spotify uma busca filtrada pelo campo track.
+        # Isso evita que a ordenação por popularidade faça "JUJUTSU 3"
+        # aparecer antes de uma faixa chamada exatamente "JUJUTSU".
+        safe_query = query.replace('"', ' ').strip()
+        exact_items = search(f'track:"{safe_query}"')
+        exact_track = choose_exact(exact_items)
+        if exact_track:
+            track = exact_track
+        else:
+            items = search(query)
+            if not items:
+                raise ValueError(f'Não encontrei "{query}" no Spotify.')
+            track = max(items, key=score)
 
-        ranked = sorted(items, key=score, reverse=True)
-        track = ranked[0]
         best_score = score(track)
-        qtokens = [x for x in norm(query).split() if x]
-
-        # Evita adicionar uma faixa completamente sem relação com a busca.
-        if best_score < 80 or not any(
-            token in norm(track.get('name')) or
-            token in norm(' '.join(str(a.get('name') or '') for a in (track.get('artists') or [])))
-            for token in qtokens
+        if best_score < 100 or not any(
+            token_part in norm(track.get('name')) or
+            token_part in norm(artists_text(track))
+            for token_part in qtokens
         ):
             raise ValueError(f'Não encontrei uma música compatível com "{query}" no Spotify.')
 
@@ -177,8 +203,11 @@ def _spotify_search_track(bid, query):
         if not track_id:
             raise ValueError('O Spotify retornou uma faixa sem identificador válido.')
 
-        artists = track.get('artists') or []
-        artist = ', '.join(str(a.get('name') or '').strip() for a in artists if a.get('name')).strip()
+        artist = ', '.join(
+            str(a.get('name') or '').strip()
+            for a in (track.get('artists') or [])
+            if a.get('name')
+        ).strip()
         title = str(track.get('name') or query).strip()
         return {
             'id': track_id,
@@ -191,7 +220,6 @@ def _spotify_search_track(bid, query):
         raise
     except Exception as exc:
         raise ValueError(f'Não consegui consultar o Spotify agora: {exc}')
-
 
 def add_from_chat(bid, query, user):
     query = str(query or '').strip()

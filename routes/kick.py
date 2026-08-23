@@ -1492,6 +1492,16 @@ def _process_webhook(payload, event_type):
     print(f"[KICK-WEBHOOK] evento recebido para processamento: {event_type}", flush=True)
     if event_type == "chat.message.sent":
         print("[KICK-WEBHOOK] processando chat.message.sent", flush=True)
+        # A chegada de um chat.message.sent é uma prova direta de que o bot
+        # está recebendo eventos. Atualizamos o cache para a UI não mostrar
+        # "desligado" enquanto a assinatura já está entregando mensagens.
+        try:
+            broadcaster = payload.get("broadcaster") or {}
+            bid = int(broadcaster.get("user_id") or 0)
+            if bid > 0:
+                _bot_status_cache[bid] = (time.time(), True)
+        except (TypeError, ValueError):
+            pass
         _process_chat(payload)
         return
 
@@ -1690,18 +1700,27 @@ def profile_refresh():
 
 @kick_bp.get("/bot/status")
 def bot_status():
-    """Consulta o estado do bot sem bloquear a rota crítica /kick/me."""
+    """Consulta o estado real do bot usando uma conexão Kick renovada."""
     bid = _session_broadcaster_id()
     if bid is None:
         return jsonify({"ok": True, "authenticated": False, "active": False})
-    conn = _get_connection(bid)
+
+    # Não usamos _get_connection() diretamente aqui. O access_token da Kick
+    # pode ter expirado enquanto o webhook continua funcionando. Nesse caso,
+    # consultar /events/subscriptions com o token antigo retornava 401 e a UI
+    # interpretava isso incorretamente como "bot desligado".
+    conn = _valid_connection(bid)
     if not conn or not conn.get("access_token"):
         return jsonify({"ok": True, "authenticated": False, "active": False})
+
     try:
         active = _bot_active(conn["access_token"], int(bid))
     except Exception as exc:
         print(f"[KICK-BOT] status falhou: {exc}", flush=True)
-        active = False
+        # Se a consulta externa falhar, não inventamos "desligado". Mantemos
+        # o último estado conhecido durante o TTL do cache.
+        cached = _bot_status_cache.get(int(bid))
+        active = bool(cached[1]) if cached else False
     return jsonify({"ok": True, "authenticated": True, "active": bool(active)})
 
 
