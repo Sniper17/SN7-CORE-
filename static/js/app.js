@@ -111,7 +111,10 @@ function activateTab(tab, options = {}) {
     const navIcon = button.querySelector(".sn7-nav-icon");
     const titleIcon = title.querySelector(".sn7-page-title-icon");
     const titleText = title.querySelector(".sn7-page-title-text");
-    if (titleText) titleText.textContent = label?.textContent?.trim() || button.getAttribute("aria-label") || "";
+    if (titleText) {
+      const baseLabel = label?.textContent?.trim() || button.getAttribute("aria-label") || "";
+      titleText.textContent = button.dataset.tab === "minigames" ? "Jogos / Música" : baseLabel;
+    }
     if (titleIcon) {
       titleIcon.replaceChildren();
       if (navIcon) {
