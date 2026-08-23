@@ -980,8 +980,20 @@ def _process_chat(payload, send_chat=None):
         print(f"[KICK-CHAT] payload sem IDs válidos: {payload}", flush=True)
         return
 
-    conn_for_channel = _get_connection(kick_bid)
-    bid = int(conn_for_channel.get("sn7_profile_id") if conn_for_channel else kick_bid)
+    # Integrações diferentes podem entregar o ID externo da plataforma,
+    # enquanto o motor de comandos trabalha com o ID interno do perfil SN7.
+    # O Twitch já resolve esse vínculo antes de chegar aqui, então preservamos
+    # explicitamente o perfil para não tentar procurar uma conexão Kick.
+    profile_id = payload.get("sn7_profile_id")
+    if profile_id is not None:
+        try:
+            bid = int(profile_id)
+        except (TypeError, ValueError):
+            print(f"[CHAT] sn7_profile_id inválido: {profile_id!r}", flush=True)
+            return
+    else:
+        conn_for_channel = _get_connection(kick_bid)
+        bid = int(conn_for_channel.get("sn7_profile_id") if conn_for_channel else kick_bid)
 
     user = str(sender.get("username") or sender.get("slug") or "").strip()
     content = str(payload.get("content") or "").strip()

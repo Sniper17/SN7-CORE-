@@ -61,9 +61,12 @@ def _conn(bid):
                        profile_url,avatar_url,access_token,refresh_token,expires_at,
                        scope,bot_active
                   FROM chat_connections
-                 WHERE broadcaster_user_id=%s AND provider='twitch'
+                 WHERE provider='twitch'
+                   AND (broadcaster_user_id=%s OR external_user_id=%s)
+                 ORDER BY CASE WHEN broadcaster_user_id=%s THEN 0 ELSE 1 END
+                 LIMIT 1
                 """,
-                (int(bid),),
+                (int(bid), str(bid), int(bid)),
             )
             row = cur.fetchone()
     finally:
@@ -754,13 +757,22 @@ def eventsub():
 
         normalized = {
             "broadcaster": {
+                # Este é o ID externo da Twitch, usado apenas para o contexto
+                # da mensagem. O motor de comandos recebe abaixo o ID interno
+                # do perfil SN7.
                 "user_id": bid,
                 "username": conn["username"],
             },
             "sender": sender,
             "content": str((event.get("message") or {}).get("text") or ""),
+            "sn7_profile_id": conn["broadcaster_user_id"],
         }
 
+        print(
+            f"[TWITCH-CHAT] {sender.get('username') or 'usuário'}: "
+            f"{normalized['content']} -> perfil {conn['broadcaster_user_id']}",
+            flush=True,
+        )
         _process_chat(normalized, lambda _bid, message: _send_chat(conn, message))
     except Exception as exc:
         print(f"[TWITCH-CHAT] event processing falhou: {exc}", flush=True)
