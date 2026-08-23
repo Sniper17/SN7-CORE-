@@ -1,5 +1,8 @@
 from urllib.parse import urlparse
 import time
+import os
+import base64
+import requests
 
 from core.database import get_conn
 
@@ -17,7 +20,7 @@ def _provider(url):
     return 'link'
 
 
-PLAYABLE_PROVIDERS = {'youtube', 'link'}
+PLAYABLE_PROVIDERS = {'youtube', 'spotify', 'link'}
 DIRECT_AUDIO_EXTENSIONS = ('.mp3', '.m4a', '.aac', '.ogg', '.wav', '.opus')
 
 
@@ -26,29 +29,183 @@ def _is_direct_audio_url(url):
     return path.endswith(DIRECT_AUDIO_EXTENSIONS)
 
 
+def _spotify_access_token(bid):
+    """Retorna um token Spotify válido para buscas feitas pelo !addmusic."""
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT access_token, refresh_token, expires_at FROM music_connections "
+                "WHERE broadcaster_user_id=%s AND provider='spotify'",
+                (int(bid),),
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        return None
+
+    access_token, refresh_token, expires_at = row
+    now = int(time.time())
+    if access_token and (not expires_at or int(expires_at) > now + 60):
+        return str(access_token)
+    if not refresh_token:
+        return str(access_token) if access_token else None
+
+    client_id = os.environ.get('SPOTIFY_CLIENT_ID', '').strip()
+    client_secret = os.environ.get('SPOTIFY_CLIENT_SECRET', '').strip()
+    if not client_id or not client_secret:
+        return str(access_token) if access_token else None
+
+    basic = base64.b64encode(f'{client_id}:{client_secret}'.encode()).decode()
+    try:
+        response = requests.post(
+            'https://accounts.spotify.com/api/token',
+            data={'grant_type': 'refresh_token', 'refresh_token': str(refresh_token)},
+            headers={'Authorization': f'Basic {basic}', 'Accept': 'application/json'},
+            timeout=10,
+        )
+        data = response.json() or {}
+        if response.status_code >= 400 or not data.get('access_token'):
+            return str(access_token) if access_token else None
+
+        new_token = str(data['access_token'])
+        expires_in = int(data.get('expires_in') or 3600)
+        new_refresh = str(data.get('refresh_token') or refresh_token)
+        conn = get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """UPDATE music_connections
+                       SET access_token=%s, refresh_token=%s, expires_at=%s, updated_at=NOW()
+                       WHERE broadcaster_user_id=%s AND provider='spotify'""",
+                    (new_token, new_refresh, now + expires_in, int(bid)),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+        return new_token
+    except Exception:
+        return str(access_token) if access_token else None
+
+
+def _spotify_search_track(bid, query):
+    """Procura a faixa no Spotify e devolve os dados necessários ao player OBS."""
+    token = _spotify_access_token(bid)
+    if not token:
+        raise ValueError('Spotify não está conectado neste canal. Conecte o Spotify no painel antes de usar !addmusic por nome.')
+
+    try:
+        response = requests.get(
+            'https://api.spotify.com/v1/search',
+            params={'q': str(query).strip(), 'type': 'track', 'limit': 1},
+            headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'},
+            timeout=10,
+        )
+        data = response.json() or {}
+        if response.status_code >= 400:
+            message = (data.get('error') or {}).get('message') or 'Spotify recusou a busca.'
+            raise ValueError(f'Não consegui buscar no Spotify: {message}')
+
+        items = ((data.get('tracks') or {}).get('items') or [])
+        if not items:
+            raise ValueError(f'Não encontrei "{str(query).strip()}" no Spotify.')
+
+        track = items[0]
+        track_id = str(track.get('id') or '').strip()
+        if not track_id:
+            raise ValueError('O Spotify retornou uma faixa sem identificador válido.')
+
+        artists = track.get('artists') or []
+        artist = ', '.join(str(a.get('name') or '').strip() for a in artists if a.get('name')).strip()
+        title = str(track.get('name') or query).strip()
+        return {
+            'id': track_id,
+            'title': title,
+            'artist': artist,
+            'source_url': f'spotify:track:{track_id}',
+            'provider': 'spotify',
+        }
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError(f'Não consegui consultar o Spotify agora: {exc}')
+
+
 def add_from_chat(bid, query, user):
     query = str(query or '').strip()
     if not query:
         raise ValueError('Informe uma música ou link.')
     provider = _provider(query if query.startswith(('http://', 'https://')) else '')
     source_url = query if provider != 'unknown' else ''
-    if provider not in PLAYABLE_PROVIDERS:
-        raise ValueError('Esta fonte ainda não é compatível com o player do OBS. Use um link do YouTube ou um link direto de áudio.')
-    if provider == 'link' and not _is_direct_audio_url(source_url):
-        raise ValueError('Para links, use uma URL direta de áudio (.mp3, .m4a, .aac, .ogg, .wav ou .opus).')
-    title = query
-    artist = ''
-    if not source_url and ' - ' in query:
-        artist, title = [part.strip() for part in query.split(' - ', 1)]
+
+    # Carrega as permissões antes de consultar qualquer serviço externo.
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute('SELECT allow_youtube,allow_spotify,allow_soundcloud,allow_links FROM music_settings WHERE broadcaster_user_id=%s', (int(bid),))
             settings = cur.fetchone() or (True, True, False, True)
-            if provider == 'youtube' and not settings[0]: raise ValueError('YouTube está desativado para este canal.')
-            if provider == 'spotify' and not settings[1]: raise ValueError('Spotify está desativado para este canal.')
-            if provider == 'soundcloud' and not settings[2]: raise ValueError('SoundCloud está desativado para este canal.')
-            if source_url and not settings[3]: raise ValueError('Links estão desativados para este canal.')
+    finally:
+        conn.close()
+
+    if provider == 'youtube' and not settings[0]:
+        raise ValueError('YouTube está desativado para este canal.')
+    if provider == 'spotify' and not settings[1]:
+        raise ValueError('Spotify está desativado para este canal.')
+    if provider == 'soundcloud' and not settings[2]:
+        raise ValueError('SoundCloud está desativado para este canal.')
+    if provider == 'link' and not settings[3]:
+        raise ValueError('Links estão desativados para este canal.')
+    if provider == 'unknown' and not settings[1]:
+        raise ValueError('Spotify está desativado para este canal. Ative o Spotify para usar !addmusic por nome.')
+
+    # Nome livre no chat: procura a faixa no Spotify conectado e grava
+    # um URI spotify:track, que o player OBS já sabe reproduzir.
+    if provider == 'unknown':
+        found = _spotify_search_track(bid, query)
+        provider = found['provider']
+        source_url = found['source_url']
+        title = found['title']
+        artist = found['artist']
+    else:
+        if provider not in PLAYABLE_PROVIDERS:
+            raise ValueError('Esta fonte ainda não é compatível com o player do OBS. Use YouTube, Spotify ou um link direto de áudio.')
+        if provider == 'link' and not _is_direct_audio_url(source_url):
+            raise ValueError('Para links, use uma URL direta de áudio (.mp3, .m4a, .aac, .ogg, .wav ou .opus).')
+        title = query
+        artist = ''
+        if provider == 'spotify':
+            # Aceita links https://open.spotify.com/track/... e URIs spotify:track:...
+            from urllib.parse import urlparse
+            if source_url.startswith('spotify:track:'):
+                track_id = source_url.split(':', 2)[2].split('?', 1)[0].strip()
+            else:
+                parts = [part for part in urlparse(source_url).path.split('/') if part]
+                track_id = parts[1].split('?', 1)[0] if len(parts) >= 2 and parts[0].lower() == 'track' else ''
+            if not track_id or len(track_id) != 22:
+                raise ValueError('Link do Spotify inválido. Use um link de faixa do Spotify.')
+            # O player consegue reproduzir pelo URI; a busca opcional abaixo
+            # apenas preenche título/artista quando possível.
+            token = _spotify_access_token(bid)
+            if token:
+                try:
+                    r = requests.get(
+                        f'https://api.spotify.com/v1/tracks/{track_id}',
+                        headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'},
+                        timeout=8,
+                    )
+                    if r.status_code < 400:
+                        track = r.json() or {}
+                        title = str(track.get('name') or title).strip()
+                        artist = ', '.join(str(a.get('name') or '').strip() for a in (track.get('artists') or []) if a.get('name')).strip()
+                except Exception:
+                    pass
+    if not source_url and ' - ' in query:
+        artist, title = [part.strip() for part in query.split(' - ', 1)]
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(bid),))
             queued_count = int(cur.fetchone()[0] or 0)
             if queued_count >= 100:
