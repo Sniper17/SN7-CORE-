@@ -196,13 +196,48 @@ def status(bid):
                               "display_name": conn["display_name"], "avatar_url": conn["avatar_url"]} if conn else None)})
 
 def _find_live_chat(conn):
-    response = requests.get(f"{API}/liveBroadcasts", params={"part":"snippet", "mine":"true", "broadcastStatus":"active", "maxResults":1},
-                            headers={"Authorization": f"Bearer {conn['access_token']}"}, timeout=15)
-    data = response.json()
-    if response.status_code >= 400:
-        raise RuntimeError((data.get("error") or {}).get("message") or "YouTube recusou a consulta.")
-    items = data.get("items") or []
-    return (items[0].get("snippet") or {}).get("liveChatId") if items else None
+    # liveBroadcasts.list aceita exatamente um filtro entre
+    # broadcastStatus, id e mine. Não combinamos mine=true
+    # com broadcastStatus=active.
+    headers = {"Authorization": f"Bearer {conn['access_token']}"}
+    page_token = ""
+
+    while True:
+        params = {
+            "part": "snippet,status",
+            "mine": "true",
+            "broadcastType": "all",
+            "maxResults": 50,
+        }
+        if page_token:
+            params["pageToken"] = page_token
+
+        response = requests.get(
+            f"{API}/liveBroadcasts",
+            params=params,
+            headers=headers,
+            timeout=15,
+        )
+        data = response.json()
+
+        if response.status_code >= 400:
+            error = data.get("error") or {}
+            raise RuntimeError(
+                error.get("message") or "YouTube recusou a consulta."
+            )
+
+        for item in data.get("items") or []:
+            status = (item.get("status") or {}).get("lifeCycleStatus")
+            if status != "live":
+                continue
+
+            chat_id = (item.get("snippet") or {}).get("liveChatId")
+            if chat_id:
+                return chat_id
+
+        page_token = data.get("nextPageToken") or ""
+        if not page_token:
+            return None
 
 def _send(conn, text):
     response = requests.post(f"{API}/liveChat/messages", params={"part":"snippet"},
