@@ -1011,9 +1011,10 @@ def _process_chat(payload, send_chat=None):
     except Exception as exc:
         print(f"[KICK-BET] erro expirando apostas: {exc}", flush=True)
 
-    # A presença individual é inferida por mensagens no chat.
-    # Só concede o bônus se a Kick confirmar que a live está ao vivo.
-    if _kick_channel_is_live(kick_bid):
+    # A presença individual é específica da Kick. Twitch/YouTube usam o
+    # mesmo motor de comandos, mas não devem consultar a API da Kick.
+    platform = str(payload.get("platform") or "kick").lower()
+    if platform == "kick" and _kick_channel_is_live(kick_bid):
         try:
             presence_bonus = award_watch_presence(bid, user, uid)
             if presence_bonus:

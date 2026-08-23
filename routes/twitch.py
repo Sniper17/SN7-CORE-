@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import os
 import secrets
+import threading
 import time
 from urllib.parse import urlencode
 
@@ -18,6 +19,31 @@ TWITCH_API = "https://api.twitch.tv/helix"
 TWITCH_OAUTH = "https://id.twitch.tv/oauth2"
 EVENTSUB_TYPE = "channel.chat.message"
 EVENTSUB_VERSION = "1"
+
+# EventSub deve ser processado de forma idempotente. Em caso de inscrições
+# duplicadas ou reentrega da Twitch, o mesmo message_id não pode executar o
+# comando duas vezes. Mantemos uma janela curta em memória por processo.
+_EVENTSUB_DEDUP_TTL = 120
+_eventsub_seen = {}
+_eventsub_seen_lock = threading.Lock()
+
+
+def _eventsub_duplicate(message_id):
+    message_id = str(message_id or "").strip()
+    if not message_id:
+        return False
+
+    now = time.time()
+    with _eventsub_seen_lock:
+        expired = [key for key, seen_at in _eventsub_seen.items() if now - seen_at > _EVENTSUB_DEDUP_TTL]
+        for key in expired:
+            _eventsub_seen.pop(key, None)
+
+        if message_id in _eventsub_seen:
+            return True
+
+        _eventsub_seen[message_id] = now
+        return False
 
 
 def _env(name, default=""):
@@ -695,6 +721,13 @@ def eventsub():
     if not hmac.compare_digest(expected, signature):
         return ("", 403)
 
+    # A Twitch pode reenviar uma notificação ou haver inscrições antigas
+    # duplicadas. O Message-Id é único por evento e permite garantir que um
+    # comando seja executado apenas uma vez.
+    if _eventsub_duplicate(message_id):
+        print(f"[TWITCH-EVENTSUB] evento duplicado ignorado: {message_id}", flush=True)
+        return ("", 204)
+
     message_type = request.headers.get("Twitch-Eventsub-Message-Type", "")
     payload = request.get_json(silent=True) or {}
 
@@ -766,6 +799,7 @@ def eventsub():
             "sender": sender,
             "content": str((event.get("message") or {}).get("text") or ""),
             "sn7_profile_id": conn["broadcaster_user_id"],
+            "platform": "twitch",
         }
 
         print(
