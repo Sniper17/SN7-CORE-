@@ -115,7 +115,7 @@ def callback():
 def status(bid):
     try: require_session_broadcaster(bid)
     except PermissionError as e:return jsonify({'ok':False,'error':str(e)}),403
-    c=_valid(_conn(bid)); return jsonify({'ok':True,'configured':bool(_cfg()[0] and _cfg()[1]),'connected':bool(c),'active':bool(c and c['bot_active']),'user':({'id':c['external_user_id'],'username':c['username'],'display_name':c['display_name'],'avatar_url':c['avatar_url']} if c else None)})
+    c=_conn(bid); return jsonify({'ok':True,'configured':bool(_cfg()[0] and _cfg()[1]),'connected':bool(c),'active':bool(c and c['bot_active']),'token_expired':bool(c and c.get('expires_at',0) <= int(time.time())+60),'user':({'id':c['external_user_id'],'username':c['username'],'display_name':c['display_name'],'avatar_url':c['avatar_url']} if c else None)})
 
 @twitch_bp.post('/<int:bid>/bot/toggle')
 def toggle(bid):

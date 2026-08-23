@@ -469,18 +469,9 @@ def _save_music_connection(bid, provider, profile, token):
                     expires_at, str(token.get("scope") or "")
                 ),
             )
-        if provider == "youtube":
-            cur.execute(
-                """INSERT INTO chat_connections
-                   (broadcaster_user_id,provider,external_user_id,username,display_name,profile_url,avatar_url,access_token,refresh_token,expires_at,scope,updated_at)
-                   VALUES (%s,'youtube',%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
-                   ON CONFLICT (broadcaster_user_id,provider) DO UPDATE SET
-                     external_user_id=EXCLUDED.external_user_id, username=EXCLUDED.username, display_name=EXCLUDED.display_name,
-                     profile_url=EXCLUDED.profile_url, avatar_url=EXCLUDED.avatar_url, access_token=EXCLUDED.access_token,
-                     refresh_token=COALESCE(EXCLUDED.refresh_token,chat_connections.refresh_token), expires_at=EXCLUDED.expires_at,
-                     scope=EXCLUDED.scope, updated_at=NOW()""",
-                (int(bid), external_id, username, display_name, profile_url, avatar_url, token.get("access_token"), token.get("refresh_token"), expires_at, str(token.get("scope") or ""))
-            )
+        # IMPORTANTE: o OAuth do Music Player é separado do OAuth do bot de chat.
+        # Não copie o token de música para chat_connections, pois isso sobrescreveria
+        # a credencial usada pelo bot do YouTube.
         conn.commit()
     finally:
         conn.close()
@@ -676,6 +667,7 @@ def connect_music_provider(broadcaster_id, provider):
         "state": state,
         "verifier": verifier,
         "broadcaster_id": int(broadcaster_id),
+        "created_at": int(time.time()),
     }
 
     redirect_uri = _oauth_redirect_uri(provider)
@@ -716,9 +708,10 @@ def music_provider_callback(provider):
 
     state_data = session.pop(f"music_oauth_{provider}", None)
     broadcaster_id = int(state_data.get("broadcaster_id") or 0) if state_data else 0
-    if not state_data or broadcaster_id <= 0:
-        return _music_oauth_error("OAuth inválido ou expirado.", 400)
-    if request.args.get("state") != state_data.get("state"):
+    state_age = int(time.time()) - int((state_data or {}).get("created_at") or 0)
+    if not state_data or broadcaster_id <= 0 or state_age > 600:
+        return _music_oauth_error("A sessão do OAuth expirou. Inicie a conexão novamente.", 400)
+    if not secrets.compare_digest(str(request.args.get("state") or ""), str(state_data.get("state") or "")):
         return _music_oauth_error("OAuth state inválido.", 400)
     if request.args.get("error"):
         return _music_oauth_error(

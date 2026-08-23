@@ -907,8 +907,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Boot rápido: tudo que alimenta as abas começa em paralelo. O loader tem
-  // no máximo 3s; se o Render demorar, a interface aparece e as respostas
+  // Boot rápido: dados essenciais começam em paralelo. O loader tem
+  // no máximo 1,2s; se o Render demorar, a interface aparece e as respostas
   // continuam chegando em segundo plano, sem bloquear a navegação.
   requestAnimationFrame(() => {
     const bootTasks = [

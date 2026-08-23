@@ -276,7 +276,7 @@ def _kick_user(access_token):
     response = requests.get(
         f"{KICK_API}/users",
         headers={"Authorization": f"Bearer {access_token}"},
-        timeout=20,
+        timeout=6,
     )
     data = response.json()
     if response.status_code >= 400:
@@ -1535,11 +1535,12 @@ def me():
     cached = _profile_cache.get(int(bid))
     if cached and time.time() - cached[0] < _profile_cache_ttl:
         return jsonify(cached[1])
-    conn = _valid_connection(bid)
-    if not conn:
+    # /kick/me nunca renova token nem chama a API externa. Isso mantém a primeira
+    # pintura rápida mesmo quando o access_token está expirado. A atualização de
+    # nome/foto, quando necessária, acontece em /kick/profile/refresh.
+    conn = _get_connection(bid)
+    if not conn or not conn.get("access_token"):
         return jsonify({"ok": True, "authenticated": False, "user": None, "bot": {"active": False}})
-    # Somente dados já persistidos: nenhuma chamada à API da Kick na rota crítica.
-    # Se o avatar ainda não estiver salvo, a UI usa as iniciais e continua instantânea.
     username=str(conn.get("username") or "Kick").strip()
     profile_picture_url=str(conn.get("profile_picture_url") or "").strip()
 
@@ -1555,14 +1556,37 @@ def me():
     return jsonify(result)
 
 
+@kick_bp.get("/profile/refresh")
+def profile_refresh():
+    """Atualiza nome/foto sem colocar a rede no caminho crítico do Perfil."""
+    bid = _session_broadcaster_id()
+    if bid is None:
+        return jsonify({"ok": False, "authenticated": False, "error": "Entre com a Kick primeiro."}), 401
+    conn = _valid_connection(bid)
+    if not conn:
+        return jsonify({"ok": False, "authenticated": True, "error": "A sessão da Kick expirou. Entre novamente."}), 401
+    try:
+        user = _kick_user(conn["access_token"])
+        username = str(user.get("username") or user.get("slug") or user.get("channel_slug") or user.get("name") or user.get("display_name") or conn.get("username") or "Kick").strip()
+        avatar = str(user.get("profile_picture") or user.get("profile_picture_url") or user.get("profile_pic") or user.get("avatar_url") or conn.get("profile_picture_url") or "").strip()
+        if username: _save_username(bid, username)
+        if avatar: _save_profile_picture(bid, avatar)
+        result = {"ok": True, "authenticated": True, "user": {"id": int(bid), "username": username, "profile_picture_url": avatar}}
+        _profile_cache[int(bid)] = (time.time(), result)
+        return jsonify(result)
+    except Exception as exc:
+        print(f"[KICK-PROFILE] atualização falhou broadcaster={bid}: {exc}", flush=True)
+        return jsonify({"ok": False, "authenticated": True, "error": "Não foi possível atualizar os dados do canal agora."}), 502
+
+
 @kick_bp.get("/bot/status")
 def bot_status():
     """Consulta o estado do bot sem bloquear a rota crítica /kick/me."""
     bid = _session_broadcaster_id()
     if bid is None:
         return jsonify({"ok": True, "authenticated": False, "active": False})
-    conn = _valid_connection(bid)
-    if not conn:
+    conn = _get_connection(bid)
+    if not conn or not conn.get("access_token"):
         return jsonify({"ok": True, "authenticated": False, "active": False})
     try:
         active = _bot_active(conn["access_token"], int(bid))

@@ -187,9 +187,10 @@ def status(bid):
         require_session_broadcaster(bid)
     except PermissionError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 403
-    conn = _refresh(_conn(bid), bid)
+    conn = _conn(bid)
     return jsonify({"ok": True, "configured": _configured(), "connected": bool(conn),
                     "active": bool(conn and conn["bot_active"]),
+                    "token_expired": bool(conn and int(conn.get("expires_at") or 0) <= int(time.time()) + 60),
                     "user": ({"id": conn["external_user_id"], "username": conn["username"],
                               "display_name": conn["display_name"], "avatar_url": conn["avatar_url"]} if conn else None)})
 

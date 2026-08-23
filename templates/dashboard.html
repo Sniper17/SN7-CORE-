@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.7.5">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.7.7">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -318,7 +318,7 @@ body.sn7-modal-open{overflow:hidden}
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
-<script src="/static/js/app.js?v=sn7-1.7.5"></script><script>
+<script src="/static/js/app.js?v=sn7-1.7.7"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -338,8 +338,6 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
       } else {
         open();
       }
-      window.setTimeout(open, 50);
-      window.setTimeout(open, 250);
     }
   }catch(_){}
 })();
@@ -375,17 +373,44 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
     setAvatar(nav, initials, avatarUrl);
   }
   function bot(a){const on=!!a;q("sn7ProfileDot").classList.toggle("on",on);q("sn7ProfileStatus").textContent=on?"Bot ativo":"Bot desligado";q("sn7ProfileBotTitle").textContent=on?"🟢 Bot ligado":"⚪ Bot desligado";q("sn7ProfileBotDescription").textContent=on?"O SN7 Core está ouvindo os comandos da live.":"O bot não está ouvindo os comandos da live.";q("sn7ProfileBotToggle").textContent=on?"Desligar bot":"Ligar bot";q("sn7ProfileBotToggle").dataset.active=String(on);q("sn7ProfileBotToggle").disabled=false}
-  function platformStatus(id,statusId,textId,connectId,data,label){const st=q(statusId),tx=q(textId),bt=q(connectId);if(!st||!tx)return;const on=!!data?.connected;const active=!!data?.active;st.textContent=on?(active?"BOT ATIVO":"CONECTADO"):"NÃO CONECTADO";st.classList.toggle("active",on);tx.textContent=on?((data.user?.display_name||data.user?.username||label)+ (active?" • bot ativo":" • bot desligado")):"Conta ainda não conectada";if(bt){bt.hidden=false;bt.disabled=false;bt.textContent=on?(active?"Desligar bot":"Ligar bot"):"Conectar";bt.onclick=on?()=>togglePlatform(label.toLowerCase()==="twitch"?"twitch":"youtube"):bt.onclick}}
-  async function loadPlatformStatus(){
-    if(!BROADCASTER_ID)return;
-    const jobs=[
-      fetch(`/twitch/${encodeURIComponent(BROADCASTER_ID)}/status`,{credentials:"same-origin",cache:"default"}).then(r=>r.json()).catch(()=>({ok:false})),
-      fetch(`/youtube/${encodeURIComponent(BROADCASTER_ID)}/status`,{credentials:"same-origin",cache:"default"}).then(r=>r.json()).catch(()=>({ok:false})),
-    ];
-    const [tw,yt]=await Promise.all(jobs);
-    platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",tw,"Twitch");
-    platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",yt,"YouTube");
+  function platformStatus(id,statusId,textId,connectId,data,label){
+    const st=q(statusId),tx=q(textId),bt=q(connectId);
+    if(!st||!tx)return;
+    const on=!!data?.connected; const active=!!data?.active;
+    st.textContent=on?(active?"BOT ATIVO":"CONECTADO"):"NÃO CONECTADO";
+    st.classList.toggle("active",on);
+    tx.textContent=on?((data.user?.display_name||data.user?.username||label)+(active?" • bot ativo":" • bot desligado")):"Conta ainda não conectada";
+    if(bt){
+      bt.hidden=false; bt.disabled=false;
+      if(!on){bt.textContent="Conectar"; bt.onclick=()=>connectPlatform(label.toLowerCase()==="twitch"?"twitch":"youtube");}
+      else {bt.textContent=active?"Desligar bot":"Ligar bot"; bt.onclick=()=>togglePlatform(label.toLowerCase()==="twitch"?"twitch":"youtube");}
+    }
   }
+  function connectPlatform(provider){
+    if(!BROADCASTER_ID)return;
+    const path=provider==="twitch"?"/twitch/login":"/youtube/login";
+    window.location.href=path;
+  }
+  async function togglePlatform(provider){
+    if(!BROADCASTER_ID)return;
+    const endpoint=provider==="twitch"?`/twitch/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`:`/youtube/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`;
+    const button=q(provider==="twitch"?"sn7TwitchConnect":"sn7YoutubeConnect");
+    const currentlyActive=button?.textContent?.toLowerCase().includes("desligar");
+    if(button){button.disabled=true;button.textContent="Aplicando…";}
+    try{
+      const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({active:!currentlyActive})});
+      const data=await response.json();
+      if(!response.ok||data.ok===false)throw new Error(data.error||`Falha HTTP ${response.status}`);
+      window.__sn7PlatformStatusCache=null;
+      await loadPlatformStatus(true);
+    }catch(e){
+      msg(e.message||"Não foi possível alterar o bot.",true);
+      await loadPlatformStatus(true).catch(()=>{});
+    }
+  }
+  window.sn7ConnectTwitch=()=>connectPlatform("twitch");
+  window.sn7ConnectYoutube=()=>connectPlatform("youtube");
+  window.togglePlatform=togglePlatform;
   function showProfileShell(){
     const loggedIn=q("sn7ProfileLoggedIn"), loggedOut=q("sn7ProfileLoggedOut");
     if(!loggedIn || !loggedOut) return;
@@ -430,6 +455,16 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
     platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",tw,"Twitch");
     platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",yt,"YouTube");
   }
+  async function fetchJsonWithTimeout(url, options={}, timeoutMs=2500){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),timeoutMs);
+    try{
+      const response=await fetch(url,{...options,signal:controller.signal});
+      let data=null; try{data=await response.json();}catch(_){}
+      return {response,data};
+    }finally{clearTimeout(timer);}
+  }
+
   async function load(force=false){
     const b=q("sn7ProfileBotToggle");
     if(!b)return;
@@ -437,33 +472,40 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
     if(window.__sn7ProfileLoadPromise&&!force)return window.__sn7ProfileLoadPromise;
     const cache=window.__sn7ProfileCache;
     if(!force&&cache&&Date.now()-cache.time<30000){
-      user(cache.data.user);
-      bot(!!(cache.data.bot&&cache.data.bot.active));
+      if(cache.data?.user)user(cache.data.user);
+      bot(!!(cache.data?.bot&&cache.data.bot.active));
       Promise.allSettled([loadBotStatus(false),loadPlatformStatus(false),loadObs(false)]);
-      return Promise.resolve();
+      return Promise.resolve(cache.data);
     }
     window.__sn7ProfileLoadPromise=(async()=>{
-      b.disabled=true;
-      b.textContent="Verificando…";
-      msg("");
-      // O perfil principal não espera Twitch, YouTube ou OBS.
-      // Essas integrações continuam carregando em segundo plano.
+      b.disabled=true; b.textContent="Verificando…"; msg("");
       const background=Promise.allSettled([loadBotStatus(force),loadPlatformStatus(force),loadObs(force)]);
       try{
-        const response=await fetch("/kick/me",{credentials:"same-origin",cache:force?"no-store":"default"});
-        const d=await response.json();
-        if(!response.ok||!d.ok)throw new Error(d.error||"Não foi possível consultar o perfil.");
+        const result=await fetchJsonWithTimeout("/kick/me",{credentials:"same-origin",cache:force?"no-store":"default"},2500);
+        const d=result.data;
+        if(!result.response.ok||!d?.ok)throw new Error(d?.error||`Falha HTTP ${result.response.status}`);
         if(!d.authenticated||!d.user){
           out();
-          return;
+          msg("Conecte sua conta Kick para carregar o perfil.",false);
+          return d;
         }
         user(d.user);
         bot(!!(d.bot&&d.bot.active));
         window.__sn7ProfileCache={time:Date.now(),data:d};
+        // Se o banco não tiver nome/foto, atualiza depois sem bloquear a tela.
+        if(!d.user.username || d.user.username==="Kick" || !d.user.profile_picture_url){
+          fetchJsonWithTimeout("/kick/profile/refresh",{credentials:"same-origin",cache:"no-store"},5500).then(r=>{
+            if(r.response.ok&&r.data?.ok&&r.data.user){
+              user(r.data.user); window.__sn7ProfileCache={time:Date.now(),data:{...d,user:r.data.user}};
+            }
+          }).catch(()=>{});
+        }
         background.catch(()=>{});
+        return d;
       }catch(e){
-        out();
-        msg(e.message||"Erro ao consultar o perfil.",true);
+        // Timeout/erro transitório não significa logout. Mantemos o shell e as integrações.
+        msg(e.name==="AbortError"?"Perfil demorou para responder. Tente atualizar o status.":(e.message||"Não foi possível consultar o perfil."),true);
+        return null;
       }finally{
         b.disabled=false;
         if(b.textContent==="Verificando…"||b.textContent==="Carregando…") b.textContent="Atualizar bot";
@@ -472,7 +514,7 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
     })();
     return window.__sn7ProfileLoadPromise;
   }
-  window.sn7LoadProfile = () => load(false);
+  window.sn7LoadProfile = (force=false) => load(!!force);
   q("sn7ProfileRefresh")?.addEventListener("click",()=>load(true));
   q("sn7ProfileLogout")?.addEventListener("click",async()=>{q("sn7ProfileLogout").disabled=true;try{await fetch("/kick/logout",{method:"POST",credentials:"same-origin"})}finally{window.location.href="/?profile=1"}});
   document.addEventListener("DOMContentLoaded",()=>{
@@ -537,7 +579,7 @@ document.addEventListener("keydown", (event) => {
 });
 </script>
 <script src="/static/js/sn7-ui-fix.js"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.7.5"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.7.5"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.7.7"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.7.7"></script>
 </body>
 </html>
