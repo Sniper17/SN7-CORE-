@@ -87,28 +87,9 @@
     }
 
     /*
-     * Se o perfil já estiver sendo carregado por outra parte da interface,
-     * aguarda essa consulta antes de remover o loader. Caso contrário,
-     * a primeira pintura não fica bloqueada pelo perfil.
+     * O loader inicial nunca espera o perfil.
+     * O shell do perfil aparece imediatamente e os dados chegam em segundo plano.
      */
-    if (
-      typeof window.sn7HideBootLoader === "function" &&
-      typeof window.sn7LoadProfile === "function"
-    ) {
-      const originalHide = window.sn7HideBootLoader;
-
-      window.sn7HideBootLoader = function () {
-        const profilePromise = state.profile.promise;
-
-        if (profilePromise) {
-          Promise.resolve(profilePromise)
-            .catch(() => {})
-            .finally(() => originalHide());
-        } else {
-          originalHide();
-        }
-      };
-    }
   }
 
   install();

@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.7.1">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.7.5">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -318,7 +318,7 @@ body.sn7-modal-open{overflow:hidden}
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};</script>
-<script src="/static/js/app.js?v=sn7-1.7.1"></script><script>
+<script src="/static/js/app.js?v=sn7-1.7.5"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -331,6 +331,7 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
       const open = function(){
         const btn = document.querySelector('nav button[data-tab="profile"]');
         if (btn) btn.click();
+        if (typeof window.sn7LoadProfile === "function") window.sn7LoadProfile().catch(()=>{});
       };
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", open, {once:true});
@@ -385,56 +386,92 @@ const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.
     platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",tw,"Twitch");
     platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",yt,"YouTube");
   }
-  async function load(force=false){const b=q("sn7ProfileBotToggle");if(!b)return;if(window.__sn7ProfileLoadPromise&&!force)return window.__sn7ProfileLoadPromise;const cache=window.__sn7ProfileCache;if(!force&&cache&&Date.now()-cache.time<10000){user(cache.data.user);bot(!!(cache.data.bot&&cache.data.bot.active));loadPlatformStatus();loadObs(false);return cache.promise||Promise.resolve()}window.__sn7ProfileLoadPromise=(async()=>{b.disabled=true;b.textContent="Verificando...";msg("");try{const requests=[fetch("/kick/me",{credentials:"same-origin",cache:force?"no-store":"default"}).then(r=>r.json()),loadObs(force),loadPlatformStatus()];const [d]=await Promise.all(requests);if(!d.ok)throw new Error(d.error||"Não foi possível consultar o perfil.");if(!d.authenticated||!d.user){out();return}user(d.user);bot(!!(d.bot&&d.bot.active));window.__sn7ProfileCache={time:Date.now(),data:d};}catch(e){out();msg(e.message||"Erro ao consultar o perfil.",true)}finally{b.disabled=false;window.__sn7ProfileLoadPromise=null}})();return window.__sn7ProfileLoadPromise}
-  window.sn7ConnectTwitch=function(){window.location.href="/twitch/login"};
-  window.sn7ConnectYoutube=function(){if(!BROADCASTER_ID)return;window.location.href="/youtube/login"};
-  q("sn7ProfileBotToggle")?.addEventListener("click",async()=>{const b=q("sn7ProfileBotToggle"),cur=b.dataset.active==="true";b.disabled=true;b.textContent="Alterando...";msg("");try{const r=await fetch("/kick/bot/toggle",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({active:!cur})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível alterar o bot.");bot(!!d.active);msg(d.active?"Bot ligado com sucesso.":"Bot desligado com sucesso.")}catch(e){msg(e.message||"Erro ao alterar o bot.",true);load()}});
-  async function togglePlatform(provider){const id=provider==='twitch'?BROADCASTER_ID:BROADCASTER_ID;const status=await fetch(`/${provider}/${encodeURIComponent(id)}/status`,{credentials:"same-origin",cache:"no-store"}).then(r=>r.json()).catch(()=>({}));if(!status.connected){msg(`Conecte o ${provider==='twitch'?'Twitch':'YouTube'} primeiro.`,true);return}const desired=!status.active;try{const r=await fetch(`/${provider}/${encodeURIComponent(id)}/bot/toggle`,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({active:desired})}),d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível alterar o bot.");msg(d.active?`✓ Bot do ${provider==='twitch'?'Twitch':'YouTube'} ligado.`:`Bot do ${provider==='twitch'?'Twitch':'YouTube'} desligado.`);await loadPlatformStatus()}catch(e){msg(e.message||"Erro ao alterar o bot.",true)}}
-  q("sn7TwitchPlatformStatus")?.addEventListener("click",()=>togglePlatform("twitch"));
-  q("sn7YoutubePlatformStatus")?.addEventListener("click",()=>togglePlatform("youtube"));
-  async function loadObs(force=false){
-    const state=q("sn7ObsState"), row=q("sn7ObsUrlRow"), url=q("sn7ObsUrl"), connect=q("sn7ObsConnect"), rotate=q("sn7ObsRotate");
-    if(!state || !connect) return;
-    try{
-      const r=await fetch(`/api/obs/${encodeURIComponent(BROADCASTER_ID)}/connection`,{credentials:"same-origin",cache:force?"no-store":"default"});
-      const d=await r.json();
-      if(!r.ok || !d.ok) throw new Error(d.error||"Não foi possível consultar a conexão do OBS.");
-      const connected=!!d.connected && !!d.connection?.overlay_url;
-      state.textContent=connected?"CONECTADO":"NÃO CONECTADO"; state.classList.toggle("on",connected);
-      if(row) row.hidden=!connected;
-      if(url) url.value=connected?d.connection.overlay_url:"";
-      connect.textContent="Conectar ao OBS";
-      if(rotate) rotate.hidden=!connected;
-    }catch(e){
-      state.textContent="ERRO"; state.classList.remove("on"); if(row) row.hidden=true;
+  function showProfileShell(){
+    const loggedIn=q("sn7ProfileLoggedIn"), loggedOut=q("sn7ProfileLoggedOut");
+    if(!loggedIn || !loggedOut) return;
+    if(BROADCASTER_ID){
+      loggedOut.hidden=true;
+      loggedIn.hidden=false;
+      const name=q("sn7ProfileUsername");
+      const channel=q("sn7ProfileChannel");
+      if(name && (name.textContent==="—" || !name.textContent.trim())) name.textContent="Carregando perfil…";
+      if(channel && (!channel.textContent || channel.textContent==="Canal conectado")) channel.textContent="Conexão com a Kick em andamento…";
+      const bt=q("sn7ProfileBotToggle");
+      if(bt){bt.disabled=true;bt.textContent="Carregando…";}
+    }else{
+      loggedIn.hidden=true;
+      loggedOut.hidden=false;
     }
   }
-  window.sn7ConnectOBS=async function(){
-    const b=q("sn7ObsConnect"); if(!b || !BROADCASTER_ID) return;
-    b.disabled=true; b.textContent="Conectando..."; msg("");
+  async function loadBotStatus(force=false){
+    if(!BROADCASTER_ID)return;
     try{
-      const r=await fetch(`/api/obs/${encodeURIComponent(BROADCASTER_ID)}/connect`,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"}});
-      const d=await r.json(); if(!r.ok||!d.ok) throw new Error(d.error||"Não foi possível conectar ao OBS.");
-      if(q("sn7ObsUrl")) q("sn7ObsUrl").value=d.connection.overlay_url;
-      if(q("sn7ObsUrlRow")) q("sn7ObsUrlRow").hidden=false;
-      if(q("sn7ObsState")){q("sn7ObsState").textContent="CONECTADO";q("sn7ObsState").classList.add("on")}
-      if(q("sn7ObsRotate")) q("sn7ObsRotate").hidden=false;
-      b.textContent="Conectado ao OBS"; msg("✓ Conexão do OBS criada. Agora adicione a URL como Fonte de Navegador no OBS.");
-    }catch(e){b.textContent="Conectar ao OBS";msg(e.message||"Erro ao conectar ao OBS.",true)}finally{b.disabled=false}
-  };
-  window.sn7CopyObsUrl=async function(){
-    const input=q("sn7ObsUrl"); if(!input?.value) return;
-    try{await navigator.clipboard.writeText(input.value);msg("✓ URL do OBS copiada.")}catch(_){input.select();document.execCommand("copy");msg("✓ URL do OBS copiada.")}
-  };
-  window.sn7RotateOBS=async function(){
-    if(!confirm("Gerar uma nova conexão? A URL antiga deixará de funcionar.")) return;
-    const b=q("sn7ObsRotate"); b.disabled=true; b.textContent="Gerando...";
-    try{
-      const r=await fetch(`/api/obs/${encodeURIComponent(BROADCASTER_ID)}/rotate`,{method:"POST",credentials:"same-origin"});
-      const d=await r.json(); if(!r.ok||!d.ok) throw new Error(d.error||"Não foi possível gerar uma nova conexão.");
-      q("sn7ObsUrl").value=d.connection.overlay_url; msg("✓ Nova URL do OBS criada. Atualize a Fonte de Navegador no OBS.");
-    }catch(e){msg(e.message||"Erro ao gerar nova conexão.",true)}finally{b.disabled=false;b.textContent="Gerar nova conexão"}
-  };
+      const r=await fetch("/kick/bot/status",{credentials:"same-origin",cache:force?"no-store":"default"});
+      const d=await r.json();
+      if(d&&d.authenticated) bot(!!d.active);
+    }catch(_){}
+  }
+  async function loadPlatformStatus(force=false){
+    if(!BROADCASTER_ID)return;
+    const cached=window.__sn7PlatformStatusCache;
+    if(!force&&cached&&Date.now()-cached.time<15000){
+      const [tw,yt]=cached.data;
+      platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",tw,"Twitch");
+      platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",yt,"YouTube");
+      return;
+    }
+    const jobs=[
+      fetch(`/twitch/${encodeURIComponent(BROADCASTER_ID)}/status`,{credentials:"same-origin",cache:force?"no-store":"default"}).then(r=>r.json()).catch(()=>({ok:false})),
+      fetch(`/youtube/${encodeURIComponent(BROADCASTER_ID)}/status`,{credentials:"same-origin",cache:force?"no-store":"default"}).then(r=>r.json()).catch(()=>({ok:false})),
+    ];
+    const data=await Promise.all(jobs);
+    window.__sn7PlatformStatusCache={time:Date.now(),data};
+    const [tw,yt]=data;
+    platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",tw,"Twitch");
+    platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",yt,"YouTube");
+  }
+  async function load(force=false){
+    const b=q("sn7ProfileBotToggle");
+    if(!b)return;
+    showProfileShell();
+    if(window.__sn7ProfileLoadPromise&&!force)return window.__sn7ProfileLoadPromise;
+    const cache=window.__sn7ProfileCache;
+    if(!force&&cache&&Date.now()-cache.time<30000){
+      user(cache.data.user);
+      bot(!!(cache.data.bot&&cache.data.bot.active));
+      Promise.allSettled([loadBotStatus(false),loadPlatformStatus(false),loadObs(false)]);
+      return Promise.resolve();
+    }
+    window.__sn7ProfileLoadPromise=(async()=>{
+      b.disabled=true;
+      b.textContent="Verificando…";
+      msg("");
+      // O perfil principal não espera Twitch, YouTube ou OBS.
+      // Essas integrações continuam carregando em segundo plano.
+      const background=Promise.allSettled([loadBotStatus(force),loadPlatformStatus(force),loadObs(force)]);
+      try{
+        const response=await fetch("/kick/me",{credentials:"same-origin",cache:force?"no-store":"default"});
+        const d=await response.json();
+        if(!response.ok||!d.ok)throw new Error(d.error||"Não foi possível consultar o perfil.");
+        if(!d.authenticated||!d.user){
+          out();
+          return;
+        }
+        user(d.user);
+        bot(!!(d.bot&&d.bot.active));
+        window.__sn7ProfileCache={time:Date.now(),data:d};
+        background.catch(()=>{});
+      }catch(e){
+        out();
+        msg(e.message||"Erro ao consultar o perfil.",true);
+      }finally{
+        b.disabled=false;
+        if(b.textContent==="Verificando…"||b.textContent==="Carregando…") b.textContent="Atualizar bot";
+        window.__sn7ProfileLoadPromise=null;
+      }
+    })();
+    return window.__sn7ProfileLoadPromise;
+  }
   window.sn7LoadProfile = () => load(false);
   q("sn7ProfileRefresh")?.addEventListener("click",()=>load(true));
   q("sn7ProfileLogout")?.addEventListener("click",async()=>{q("sn7ProfileLogout").disabled=true;try{await fetch("/kick/logout",{method:"POST",credentials:"same-origin"})}finally{window.location.href="/?profile=1"}});
@@ -500,7 +537,7 @@ document.addEventListener("keydown", (event) => {
 });
 </script>
 <script src="/static/js/sn7-ui-fix.js"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.7.1"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.7.1"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.7.5"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.7.5"></script>
 </body>
 </html>

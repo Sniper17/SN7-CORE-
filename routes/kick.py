@@ -1538,31 +1538,38 @@ def me():
     conn = _valid_connection(bid)
     if not conn:
         return jsonify({"ok": True, "authenticated": False, "user": None, "bot": {"active": False}})
-    username=str(conn.get("username") or "").strip()
+    # Somente dados já persistidos: nenhuma chamada à API da Kick na rota crítica.
+    # Se o avatar ainda não estiver salvo, a UI usa as iniciais e continua instantânea.
+    username=str(conn.get("username") or "Kick").strip()
     profile_picture_url=str(conn.get("profile_picture_url") or "").strip()
-    if not username or not profile_picture_url:
-        try:
-            ku=_kick_user(conn["access_token"])
-            username=str(ku.get("username") or ku.get("slug") or ku.get("channel_slug") or ku.get("name") or ku.get("display_name") or username).strip()
-            profile_picture_url=str(ku.get("profile_picture") or ku.get("profile_picture_url") or ku.get("profile_pic") or ku.get("avatar_url") or profile_picture_url).strip()
-            if username: _save_username(bid,username)
-            if profile_picture_url: _save_profile_picture(bid,profile_picture_url)
-        except Exception as exc:
-            print(f"[KICK-BOT] não foi possível atualizar perfil: {exc}",flush=True)
 
-    try:
-        active=_bot_active(conn["access_token"], bid)
-    except Exception as exc:
-        print(f"[KICK-BOT] status falhou: {exc}",flush=True)
-        active=False
+    # /kick/me é crítico para a primeira pintura do Perfil.
+    # Não bloqueia esperando uma chamada externa só para saber se o bot está ativo.
     result = {
         "ok": True,
         "authenticated": True,
         "user": {"id": int(bid), "username": username, "profile_picture_url": profile_picture_url},
-        "bot": {"active": active},
+        "bot": {"active": False},
     }
     _profile_cache[int(bid)] = (time.time(), result)
     return jsonify(result)
+
+
+@kick_bp.get("/bot/status")
+def bot_status():
+    """Consulta o estado do bot sem bloquear a rota crítica /kick/me."""
+    bid = _session_broadcaster_id()
+    if bid is None:
+        return jsonify({"ok": True, "authenticated": False, "active": False})
+    conn = _valid_connection(bid)
+    if not conn:
+        return jsonify({"ok": True, "authenticated": False, "active": False})
+    try:
+        active = _bot_active(conn["access_token"], int(bid))
+    except Exception as exc:
+        print(f"[KICK-BOT] status falhou: {exc}", flush=True)
+        active = False
+    return jsonify({"ok": True, "authenticated": True, "active": bool(active)})
 
 
 @kick_bp.post("/bot/toggle")

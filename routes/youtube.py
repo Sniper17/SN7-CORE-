@@ -21,6 +21,13 @@ API = "https://www.googleapis.com/youtube/v3"
 def _env(name, default=""):
     return os.environ.get(name, default).strip()
 
+def _bot_credentials():
+    # O bot usa credenciais próprias; mantém fallback para instalações antigas.
+    return (
+        _env("YOUTUBE_BOT_CLIENT_ID") or _env("YOUTUBE_CLIENT_ID"),
+        _env("YOUTUBE_BOT_CLIENT_SECRET") or _env("YOUTUBE_CLIENT_SECRET"),
+    )
+
 def _redirect_uri():
     # OAuth do BOT é separado do OAuth usado pelo Music Player.
     configured = _env("YOUTUBE_BOT_REDIRECT_URI")
@@ -29,7 +36,8 @@ def _redirect_uri():
     return f"{_env('SN7_PUBLIC_URL', 'https://sn7-core.onrender.com').rstrip('/')}/youtube/callback"
 
 def _configured():
-    return bool(_env("YOUTUBE_CLIENT_ID") and _env("YOUTUBE_CLIENT_SECRET"))
+    cid, secret = _bot_credentials()
+    return bool(cid and secret)
 
 def _conn(bid):
     conn = get_conn()
@@ -59,8 +67,8 @@ def _refresh(conn_data, bid):
     if not refresh_token or not _configured():
         return conn_data
     response = requests.post(TOKEN_URL, data={
-        "client_id": _env("YOUTUBE_CLIENT_ID"),
-        "client_secret": _env("YOUTUBE_CLIENT_SECRET"),
+        "client_id": _bot_credentials()[0],
+        "client_secret": _bot_credentials()[1],
         "refresh_token": refresh_token,
         "grant_type": "refresh_token",
     }, timeout=15)
@@ -135,11 +143,11 @@ def login():
     if bid is None:
         return _oauth_error("Entre com a Kick primeiro para vincular o YouTube ao mesmo canal SN7."), 401
     if not _configured():
-        return _oauth_error("YOUTUBE_CLIENT_ID/YOUTUBE_CLIENT_SECRET não configurados no Render.", 503, "/?profile=1")
+        return _oauth_error("YOUTUBE_BOT_CLIENT_ID/YOUTUBE_BOT_CLIENT_SECRET não configurados no Render.", 503, "/?profile=1")
     state = secrets.token_urlsafe(32)
     session["youtube_bot_oauth"] = {"state": state, "broadcaster_id": int(bid), "created_at": int(time.time())}
     params = {
-        "client_id": _env("YOUTUBE_CLIENT_ID"), "redirect_uri": _redirect_uri(),
+        "client_id": _bot_credentials()[0], "redirect_uri": _redirect_uri(),
         "response_type": "code", "scope": "https://www.googleapis.com/auth/youtube.force-ssl",
         "access_type": "offline", "include_granted_scopes": "true", "prompt": "consent", "state": state,
     }
@@ -159,8 +167,8 @@ def callback():
     try:
         require_session_broadcaster(state_data["broadcaster_id"])
         response = requests.post(TOKEN_URL, data={
-            "code": code, "client_id": _env("YOUTUBE_CLIENT_ID"),
-            "client_secret": _env("YOUTUBE_CLIENT_SECRET"),
+            "code": code, "client_id": _bot_credentials()[0],
+            "client_secret": _bot_credentials()[1],
             "redirect_uri": _redirect_uri(), "grant_type": "authorization_code",
         }, timeout=15)
         token = response.json()

@@ -918,7 +918,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ];
 
     const allReady = Promise.allSettled(bootTasks);
-    const maxBoot = new Promise((resolve) => setTimeout(resolve, 3000));
+    const maxBoot = new Promise((resolve) => setTimeout(resolve, 1200));
 
     Promise.race([allReady, maxBoot]).then(() => {
       sn7Booting = false;

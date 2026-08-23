@@ -98,14 +98,15 @@ def login():
     if bid is None:return jsonify({'ok':False,'error':'Entre com a Kick primeiro para vincular o Twitch ao mesmo canal SN7.'}),401
     cid,sec=_cfg()
     if not cid or not sec:return jsonify({'ok':False,'error':'TWITCH_CLIENT_ID/TWITCH_CLIENT_SECRET não configurados no Render.'}),503
-    state=secrets.token_urlsafe(32); session['twitch_oauth']={'state':state,'broadcaster_id':int(bid)}
+    state=secrets.token_urlsafe(32); session['twitch_oauth']={'state':state,'broadcaster_id':int(bid),'created_at':int(time.time())}
     params={'client_id':cid,'redirect_uri':_redirect(),'response_type':'code','scope':'user:read:chat user:write:chat','state':state}
     return redirect(f"{TWITCH_OAUTH}/authorize?{urlencode(params)}")
 
 @twitch_bp.get('/callback')
 def callback():
     data=session.pop('twitch_oauth',None)
-    if not data or request.args.get('state')!=data.get('state'):return jsonify({'ok':False,'error':'OAuth Twitch inválido ou expirado.'}),400
+    age=int(time.time())-int((data or {}).get('created_at') or 0)
+    if not data or age>600 or not secrets.compare_digest(str(request.args.get('state') or ''),str(data.get('state') or '')):return jsonify({'ok':False,'error':'A sessão do OAuth do Twitch expirou. Inicie a conexão novamente.'}),400
     try:
         require_session_broadcaster(data['broadcaster_id']); token=_token_exchange(request.args.get('code',''),None); user=_user(token); _save(data['broadcaster_id'],token,user); return redirect('/dashboard?profile=1&twitch_connected=1')
     except Exception as exc:return jsonify({'ok':False,'error':str(exc)}),502
