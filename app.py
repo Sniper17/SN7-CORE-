@@ -21,7 +21,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.15"
+SN7_VERSION = "1.9.16"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
@@ -149,27 +149,36 @@ def platform_status():
 
         tw = rows.get("twitch")
         yt = rows.get("youtube")
+        kick_active = bool(kick and kick[4])
+        twitch_active = bool(tw and tw[5])
+        youtube_active = bool(yt and yt[5])
+        # O status "Bot do canal" representa o motor do SN7 como um todo:
+        # basta uma plataforma conectada estar com o bot ativo para o canal
+        # continuar sendo atendido. O status individual de cada plataforma
+        # continua sendo exibido separadamente nos cards.
+        channel_bot_active = kick_active or twitch_active or youtube_active
         return jsonify({
             "ok": True,
             "authenticated": True,
             "broadcaster_id": str(bid),
+            "bot_active": channel_bot_active,
             "platforms": {
                 "kick": {
                     "connected": bool(kick),
-                    "active": bool(kick and kick[4]),
+                    "active": kick_active,
                     "user": ({"id": int(kick[0]), "profile_id": int(kick[1] or bid),
                               "username": kick[2],
                               "profile_picture_url": kick[3] or ""} if kick else None),
                 },
                 "twitch": {
                     "connected": bool(tw),
-                    "active": bool(tw and tw[5]),
+                    "active": twitch_active,
                     "user": ({"id": tw[1], "username": tw[2],
                               "display_name": tw[3], "avatar_url": tw[4] or ""} if tw else None),
                 },
                 "youtube": {
                     "connected": bool(yt),
-                    "active": bool(yt and yt[5]),
+                    "active": youtube_active,
                     "user": ({"id": yt[1], "username": yt[2],
                               "display_name": yt[3], "avatar_url": yt[4] or ""} if yt else None),
                 },

@@ -177,18 +177,17 @@ def _spotify_search_track(bid, query):
         return ((data.get('tracks') or {}).get('items') or [])
 
     try:
-        # Primeiro pedimos ao Spotify uma busca filtrada pelo campo track.
-        # Isso evita que a ordenação por popularidade faça "JUJUTSU 3"
-        # aparecer antes de uma faixa chamada exatamente "JUJUTSU".
-        safe_query = query.replace('"', ' ').strip()
-        exact_items = search(f'track:"{safe_query}"')
-        exact_track = choose_exact(exact_items)
+        # Uma única busca já traz os candidatos necessários. A versão anterior
+        # fazia duas chamadas ao Spotify em muitos casos (track:"..." e depois
+        # a busca normal), o que aumentava bastante o tempo do !addmusic.
+        items = search(query)
+        if not items:
+            raise ValueError(f'Não encontrei "{query}" no Spotify.')
+
+        exact_track = choose_exact(items)
         if exact_track:
             track = exact_track
         else:
-            items = search(query)
-            if not items:
-                raise ValueError(f'Não encontrei "{query}" no Spotify.')
             prefix = [item for item in items if norm(item.get('name')).startswith(qnorm)]
             if prefix:
                 prefix.sort(key=lambda item: (len(norm(item.get('name')).split()), -score(item)))
@@ -299,12 +298,12 @@ def add_from_chat(bid, query, user):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(bid),))
-            queued_count = int(cur.fetchone()[0] or 0)
+            cur.execute("SELECT COUNT(*), COALESCE(MAX(position),0) FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(bid),))
+            queued_count, max_position = cur.fetchone()
+            queued_count = int(queued_count or 0)
             if queued_count >= 100:
                 raise ValueError('A fila deste canal já atingiu o limite de 100 músicas.')
-            cur.execute("SELECT COALESCE(MAX(position),0)+1 FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(bid),))
-            position = int(cur.fetchone()[0] or 1)
+            position = int(max_position or 0) + 1
             cur.execute("INSERT INTO music_queue(broadcaster_user_id,provider,title,artist,source_url,added_by,status,position) VALUES(%s,%s,%s,%s,%s,%s,'queued',%s) RETURNING id", (int(bid), provider, title[:200], artist[:160], source_url[:1000], str(user)[:80], position))
             item_id = cur.fetchone()[0]
             cur.execute("INSERT INTO music_player_state(broadcaster_user_id,current_queue_id) VALUES(%s,%s) ON CONFLICT (broadcaster_user_id) DO UPDATE SET current_queue_id=COALESCE(music_player_state.current_queue_id,EXCLUDED.current_queue_id), updated_at=NOW()", (int(bid), item_id))

@@ -1677,18 +1677,18 @@ function renderMusicQueue(queue) {
 let sn7MusicQueuePollTimer = null;
 
 function startMusicQueuePolling() {
-  if (sn7MusicQueuePollTimer) clearInterval(sn7MusicQueuePollTimer);
+  if (sn7MusicQueuePollTimer) return;
+  // O chat do bot atualiza a fila no banco imediatamente. Mantemos o painel
+  // sincronizado em ~1s enquanto a aba Música estiver aberta, em vez de
+  // depender de uma nova navegação/modal para buscar o estado.
   sn7MusicQueuePollTimer = setInterval(() => {
-    const modal = $("sn7MusicQueueModal");
-    if (!modal || modal.hasAttribute("hidden")) {
-      if (sn7MusicQueuePollTimer) {
-        clearInterval(sn7MusicQueuePollTimer);
-        sn7MusicQueuePollTimer = null;
-      }
+    const musicTab = document.querySelector('nav button[data-tab="music"]');
+    if (!musicTab || !musicTab.classList.contains("active")) {
+      stopMusicQueuePolling();
       return;
     }
     loadMusic().catch(() => {});
-  }, 2500);
+  }, 1000);
 }
 
 function stopMusicQueuePolling() {
@@ -1719,6 +1719,7 @@ async function loadMusic() {
   if (sn7MusicLoadPromise) return sn7MusicLoadPromise;
   sn7MusicLoadPromise = musicApi("").then((data) => {
     musicRender(data);
+    startMusicQueuePolling();
     return data;
   }).catch((error) => {
     const source = $("sn7MusicSourceStatus");
@@ -1914,7 +1915,12 @@ function closeMusicQueue(event) {
   if (!modal) return;
   modal.setAttribute("hidden", "");
   document.body.classList.remove("sn7-modal-open");
-  stopMusicQueuePolling();
+  // A fila aberta é só uma das formas de visualizar a Música. Se a aba
+  // Música continuar ativa, o painel principal também precisa permanecer
+  // sincronizado depois de fechar o modal.
+  const musicTab = document.querySelector('nav button[data-tab="music"]');
+  if (musicTab && musicTab.classList.contains("active")) startMusicQueuePolling();
+  else stopMusicQueuePolling();
 }
 
 function openMusicConfig() {

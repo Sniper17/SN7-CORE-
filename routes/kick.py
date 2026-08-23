@@ -933,13 +933,42 @@ def _expire_pending_bets(bid):
 
 
 def _format_balance(bid, user):
+    # !pontos é um dos comandos mais usados. Antes eram necessárias duas
+    # consultas separadas para saldo/rank, além do ensure_player. Agora saldo
+    # e posição saem de uma única leitura indexada do PostgreSQL.
     ch = get_channel(bid)
-    p = get_player(bid, user)
-    rank = get_rank(bid, user)
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT p.points,
+                       CASE WHEN p.points > 0 THEN
+                           1 + (
+                               SELECT COUNT(*)
+                                 FROM players higher
+                                WHERE higher.broadcaster_user_id=%s
+                                  AND higher.points > 0
+                                  AND higher.points > p.points
+                           )
+                       ELSE NULL END AS rank
+                  FROM players p
+                 WHERE p.broadcaster_user_id=%s
+                   AND p.username=%s
+                 LIMIT 1
+                """,
+                (int(bid), int(bid), user),
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+
+    points = int(row[0] or 0) if row else 0
+    rank = int(row[1]) if row and row[1] is not None else None
     emoji = str(ch["currency_emoji"] or "").strip()
     return {
         "user": _mention(user),
-        "points": int(p["points"]),
+        "points": points,
         "currency": ch["currency_name"],
         "emoji": emoji,
         "emoji_text": f" {emoji}" if emoji else "",

@@ -352,7 +352,7 @@ body.sn7-modal-open{overflow:hidden}
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
 const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
-<script src="/static/js/app.js?v=sn7-1.9.15"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.16"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -445,15 +445,18 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   function writePlatformCache(data){
     try{localStorage.setItem(PROFILE_CACHE_KEY,JSON.stringify({time:Date.now(),broadcaster_id:BROADCASTER_ID,data}));}catch(_){}
   }
-  function setPlatformAvatar(iconId,fallback,url,provider){
+  function setPlatformAvatar(iconId,fallback,url,provider,connected=true){
     const el=q(iconId);
     if(!el)return;
     el.innerHTML="";
     const direct=String(url||"").trim();
     const cached=provider && readPlatformCache()?.data?.platforms?.[provider]?.user?.avatar_url || "";
-    const source=provider==="kick" && BROADCASTER_ID
+    // Nunca use o proxy da Kick quando o card já foi marcado como
+    // desconectado. Isso evitava que a foto antiga continuasse aparecendo
+    // mesmo depois do DELETE da conexão.
+    const source=provider==="kick" && connected && BROADCASTER_ID
       ? `/kick/profile/avatar?v=${encodeURIComponent(String(BROADCASTER_ID))}`
-      : (direct || cached);
+      : (direct || (connected ? cached : ""));
     if(source){
       const img=document.createElement("img");
       img.src=source; img.alt="Foto da conta"; img.loading="eager"; img.decoding="async";
@@ -477,7 +480,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     const on=!!data?.connected; const active=!!data?.active;
     const fallback=provider==="twitch"?"T":provider==="youtube"?"▶":"K";
     const iconId=provider==="twitch"?"sn7TwitchPlatformIcon":provider==="youtube"?"sn7YoutubePlatformIcon":"sn7KickPlatformIcon";
-    setPlatformAvatar(iconId,fallback,data?.user?.avatar_url||data?.user?.profile_picture_url||"",provider);
+    setPlatformAvatar(iconId,fallback,data?.user?.avatar_url||data?.user?.profile_picture_url||"",provider,on);
     st.textContent=on?(active?"BOT ATIVO":"CONECTADO"):"NÃO CONECTADO";
     st.classList.toggle("active",on);
     tx.textContent=on?((data.user?.display_name||data.user?.username||label)+(active?" • bot ativo":" • bot desligado")):"Conta ainda não conectada";
@@ -576,17 +579,11 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     }
   }
   async function loadBotStatus(force=false){
+    // O status inferior é do canal, não da Kick. Delegamos para o snapshot
+    // agregado para não voltar a mostrar "Bot desligado" quando, por exemplo,
+    // a Kick foi desconectada mas o bot continua ativo na Twitch.
     if(!BROADCASTER_ID)return;
-    try{
-      const r=await fetch("/kick/bot/status",{credentials:"same-origin",cache:force?"no-store":"default"});
-      const d=await r.json();
-      if(d&&d.authenticated){
-        bot(!!d.active);
-        renderKickPlatform(true,!!d.active,window.__sn7KickProfile||window.SN7_INITIAL_PROFILE||null);
-      } else if(BROADCASTER_ID) {
-        renderKickPlatform(true,false,window.__sn7KickProfile||window.SN7_INITIAL_PROFILE||null);
-      }
-    }catch(_){}
+    try{ await loadPlatformStatus(force); }catch(_){}
   }
   function applyPlatformIdentity(data){
     if(data?.platforms?.kick?.connected) return;
@@ -609,7 +606,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
       renderKickPlatform(!!d.platforms?.kick?.connected,!!d.platforms?.kick?.active,d.platforms?.kick?.user||window.__sn7KickProfile||null);
       platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",d.platforms?.twitch||{connected:false},"Twitch","sn7TwitchDisconnect");
       platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",d.platforms?.youtube||{connected:false},"YouTube","sn7YoutubeDisconnect");
-      if(d.platforms?.kick) bot(!!d.platforms.kick.active);
+      bot(!!d.bot_active);
       applyPlatformIdentity(d);
       return;
     }
@@ -634,7 +631,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     renderKickPlatform(!!data.platforms?.kick?.connected,!!data.platforms?.kick?.active,data.platforms?.kick?.user||window.__sn7KickProfile||null);
     platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",data.platforms?.twitch||{connected:false},"Twitch","sn7TwitchDisconnect");
     platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",data.platforms?.youtube||{connected:false},"YouTube","sn7YoutubeDisconnect");
-    if(data.platforms?.kick) bot(!!data.platforms.kick.active);
+    bot(!!data.bot_active);
     applyPlatformIdentity(data);
   }
   async function fetchJsonWithTimeout(url, options={}, timeoutMs=2500){
