@@ -9,7 +9,7 @@ import socket
 import requests
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa, ed25519
-from flask import Blueprint, jsonify, redirect, request, session
+from flask import Blueprint, Response, jsonify, redirect, request, session
 
 from core.database import get_conn
 from core.services import ensure_channel, ensure_player, get_channel, get_player, get_rank, award_watch_presence, add_points, get_point_rewards
@@ -193,7 +193,7 @@ def _get_connection(broadcaster_id):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                """SELECT broadcaster_user_id, username, profile_picture_url, access_token, refresh_token, expires_at, scope
+                """SELECT broadcaster_user_id, username, profile_picture_url, access_token, refresh_token, expires_at, scope, bot_active
                    FROM kick_connections WHERE broadcaster_user_id=%s""",
                 (int(broadcaster_id),),
             )
@@ -205,7 +205,7 @@ def _get_connection(broadcaster_id):
     return {
         "broadcaster_user_id": row[0], "username": row[1], "profile_picture_url": row[2] or "",
         "access_token": row[3], "refresh_token": row[4],
-        "expires_at": row[5] or 0, "scope": row[6] or "",
+        "expires_at": row[5] or 0, "scope": row[6] or "", "bot_active": bool(row[7]),
     }
 
 
@@ -1578,6 +1578,23 @@ def _unsubscribe_chat(access_token):
     return {"ok": True, "active": False, "deleted_subscription_ids": ids}
 
 
+def _save_bot_state(broadcaster_id, active):
+    """Persiste o último estado confirmado do bot para sobreviver a reinícios do Render."""
+    try:
+        conn = get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE kick_connections SET bot_active=%s, updated_at=NOW() WHERE broadcaster_user_id=%s",
+                    (bool(active), int(broadcaster_id)),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as exc:
+        print(f"[KICK-BOT] não foi possível persistir estado: {exc}", flush=True)
+
+
 def _bot_active(access_token, broadcaster_id=None):
     try:
         bid = int(broadcaster_id) if broadcaster_id is not None else None
@@ -1591,6 +1608,7 @@ def _bot_active(access_token, broadcaster_id=None):
     active = bool(_chat_subscription_ids(access_token))
     if bid is not None:
         _bot_status_cache[bid] = (now, active)
+        _save_bot_state(bid, active)
     return active
 
 
@@ -1618,6 +1636,84 @@ def _save_username(broadcaster_id, username):
         conn.commit()
     finally:
         conn.close()
+
+
+
+def _safe_remote_image_url(url):
+    """Valida uma URL de imagem remota antes de o servidor fazer proxy."""
+    value = str(url or "").strip()
+    try:
+        parsed = urlparse(value)
+        if parsed.scheme != "https" or not parsed.hostname:
+            return ""
+        host = parsed.hostname.lower().rstrip(".")
+        try:
+            infos = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+            for info in infos:
+                ip = ipaddress.ip_address(info[4][0])
+                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                    return ""
+        except Exception:
+            return ""
+        return value
+    except Exception:
+        return ""
+
+
+@kick_bp.get("/profile/avatar")
+def profile_avatar():
+    """Entrega o avatar pela mesma origem do painel para evitar bloqueios de CDN/hotlink."""
+    bid = get_session_broadcaster_id(validate=False)
+    if bid is None:
+        return jsonify({"ok": False, "error": "Faça login com a Kick primeiro."}), 401
+
+    try:
+        conn = _get_connection(int(bid))
+        snapshot = session.get("kick_profile") if isinstance(session.get("kick_profile"), dict) else {}
+        url = (conn or {}).get("profile_picture_url") or snapshot.get("profile_picture_url") or ""
+        url = _safe_remote_image_url(url)
+        if not url:
+            return jsonify({"ok": False, "error": "Avatar da Kick não disponível."}), 404
+
+        response = requests.get(
+            url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (compatible; SN7-Core/1.8.9)",
+                "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+                "Referer": "https://kick.com/",
+            },
+            timeout=8,
+            allow_redirects=True,
+        )
+        if response.status_code >= 400:
+            return jsonify({"ok": False, "error": "A imagem do perfil não pôde ser carregada."}), 502
+
+        if not _safe_remote_image_url(response.url):
+            return jsonify({"ok": False, "error": "Redirecionamento de imagem inválido."}), 502
+
+        content_type = str(response.headers.get("Content-Type") or "").split(";")[0].lower()
+        body = response.content
+        magic_ok = (
+            body.startswith(b"\x89PNG\r\n\x1a\n") or
+            body.startswith(b"\xff\xd8\xff") or
+            (body.startswith(b"RIFF") and body[8:12] == b"WEBP") or
+            body.startswith(b"GIF8")
+        )
+        if not content_type.startswith("image/") and not magic_ok:
+            return jsonify({"ok": False, "error": "A Kick não retornou uma imagem válida."}), 502
+        if len(body) > 8 * 1024 * 1024:
+            return jsonify({"ok": False, "error": "Imagem do perfil muito grande."}), 502
+
+        mimetype = content_type[6:] if content_type.startswith("image/") else "webp"
+        return Response(
+            body,
+            status=200,
+            mimetype=mimetype,
+            headers={"Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff"},
+        )
+    except Exception as exc:
+        print(f"[KICK-PROFILE] proxy do avatar falhou broadcaster={bid}: {exc}", flush=True)
+        return jsonify({"ok": False, "error": "Não foi possível carregar a foto do perfil."}), 502
 
 
 @kick_bp.get("/me")
@@ -1720,7 +1816,10 @@ def bot_status():
         # Se a consulta externa falhar, não inventamos "desligado". Mantemos
         # o último estado conhecido durante o TTL do cache.
         cached = _bot_status_cache.get(int(bid))
-        active = bool(cached[1]) if cached else False
+        if cached:
+            active = bool(cached[1])
+        else:
+            active = bool(conn.get("bot_active"))
     return jsonify({"ok": True, "authenticated": True, "active": bool(active)})
 
 
@@ -1742,6 +1841,7 @@ def bot_toggle():
         else:
             result = _unsubscribe_chat(conn["access_token"])
         _bot_status_cache[int(bid)] = (time.time(), bool(desired))
+        _save_bot_state(bid, desired)
         return jsonify({"ok": True, "active": desired, "result": result})
     except Exception as exc:
         print(f"[KICK-BOT] toggle falhou broadcaster={bid}: {exc}", flush=True)

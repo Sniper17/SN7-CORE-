@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS kick_connections (
     broadcaster_user_id BIGINT UNIQUE NOT NULL,
     username TEXT NOT NULL DEFAULT '',
     profile_picture_url TEXT NOT NULL DEFAULT '',
+    bot_active BOOLEAN NOT NULL DEFAULT FALSE,
     access_token TEXT,
     refresh_token TEXT,
     expires_at BIGINT NOT NULL DEFAULT 0,
@@ -227,6 +228,7 @@ def init_db():
                 cur.execute(SCHEMA)
                 cur.execute("ALTER TABLE music_connections ADD COLUMN IF NOT EXISTS avatar_url TEXT NOT NULL DEFAULT ''")
                 cur.execute("ALTER TABLE kick_connections ADD COLUMN IF NOT EXISTS profile_picture_url TEXT NOT NULL DEFAULT ''")
+                cur.execute("ALTER TABLE kick_connections ADD COLUMN IF NOT EXISTS bot_active BOOLEAN NOT NULL DEFAULT FALSE")
                 cur.execute("ALTER TABLE chat_connections ADD COLUMN IF NOT EXISTS bot_active BOOLEAN NOT NULL DEFAULT FALSE")
                 cur.execute("ALTER TABLE chat_connections ADD COLUMN IF NOT EXISTS cursor TEXT NOT NULL DEFAULT ''")
                 ensure_point_rewards_table(conn)

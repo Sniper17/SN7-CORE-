@@ -1268,7 +1268,11 @@ async function ensureSpotifyPlayer() {
   });
   sn7SpotifyPlayer.addListener("account_error", ({message}) => {
     const source = $("sn7MusicSourceStatus");
-    if (source) source.textContent = `⚠ Spotify: ${message} (Premium necessário)`;
+    if (source) source.textContent = `⚠ Spotify: ${message || "Conta não elegível"} (Premium necessário)`;
+  });
+  sn7SpotifyPlayer.addListener("autoplay_failed", () => {
+    const source = $("sn7MusicSourceStatus");
+    if (source) source.textContent = "⚠ O navegador bloqueou a reprodução. Toque em Reproduzir novamente.";
   });
   sn7SpotifyPlayer.addListener("playback_error", ({message}) => {
     const source = $("sn7MusicSourceStatus");
@@ -1308,6 +1312,9 @@ async function musicPlaySpotify(current) {
     throw new Error("Faixa do Spotify inválida.");
   }
   const player = await ensureSpotifyPlayer();
+  if (typeof player.activateElement === "function") {
+    try { await player.activateElement(); } catch (_) {}
+  }
   if (!sn7SpotifyDeviceId) throw new Error("Spotify ainda está preparando o dispositivo. Tente novamente.");
   const tokenData = await musicApi("/spotify/player-token");
   const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(sn7SpotifyDeviceId)}`, {

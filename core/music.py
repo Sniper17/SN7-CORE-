@@ -189,7 +189,12 @@ def _spotify_search_track(bid, query):
             items = search(query)
             if not items:
                 raise ValueError(f'Não encontrei "{query}" no Spotify.')
-            track = max(items, key=score)
+            prefix = [item for item in items if norm(item.get('name')).startswith(qnorm)]
+            if prefix:
+                prefix.sort(key=lambda item: (len(norm(item.get('name')).split()), -score(item)))
+                track = prefix[0]
+            else:
+                track = max(items, key=score)
 
         best_score = score(track)
         if best_score < 100 or not any(
