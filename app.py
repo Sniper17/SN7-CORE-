@@ -21,7 +21,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.8.9"
+SN7_VERSION = "1.9.0"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
@@ -41,6 +41,12 @@ def response_headers(response):
     # Assets recebem cache longo porque o dashboard usa versões na URL.
     if request.path.startswith("/static/"):
         response.headers.setdefault("Cache-Control", SN7_STATIC_CACHE)
+    elif request.path in {"/", "/dashboard", "/perfil"}:
+        # O HTML do painel nunca deve ficar preso no cache do navegador/proxy.
+        # Os assets continuam com cache longo porque usam ?v=SN7_VERSION.
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+    response.headers.setdefault("X-SN7-Version", SN7_VERSION)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
