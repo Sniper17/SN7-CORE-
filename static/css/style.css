@@ -1467,3 +1467,317 @@ main{
   .sn7-command-row,
   .tab{transition:none!important;animation:none!important}
 }
+
+
+/* ============================================================
+   SN7 CORE 1.9.1 — NAV ICONS + PAGE TITLE + MOBILE DOCK
+   Final override layer. Replaces legacy Unicode navigation visuals
+   without changing navigation behavior or application logic.
+   ============================================================ */
+
+/* Page header: icon and title are separate elements, never glued. */
+.topbar h1#title{
+  display:flex !important;
+  align-items:center !important;
+  gap:11px !important;
+  min-width:0 !important;
+}
+.sn7-page-title-icon{
+  width:32px !important;
+  height:32px !important;
+  min-width:32px !important;
+  flex:0 0 32px !important;
+  display:grid !important;
+  place-items:center !important;
+  border:1px solid rgba(155,140,255,.18) !important;
+  border-radius:10px !important;
+  background:rgba(155,140,255,.09) !important;
+  color:#d8d3ff !important;
+}
+.sn7-page-title-svg{
+  width:19px !important;
+  height:19px !important;
+  display:block !important;
+  fill:none !important;
+  stroke:currentColor !important;
+  stroke-width:1.8 !important;
+  stroke-linecap:round !important;
+  stroke-linejoin:round !important;
+}
+.sn7-page-title-text{
+  min-width:0 !important;
+  display:block !important;
+}
+
+/* Desktop / tablet navigation icons. */
+.sidebar nav button > .sn7-nav-icon{
+  width:32px !important;
+  min-width:32px !important;
+  height:32px !important;
+  flex:0 0 32px !important;
+  margin:0 !important;
+  display:grid !important;
+  place-items:center !important;
+  border:1px solid rgba(255,255,255,.055) !important;
+  border-radius:10px !important;
+  background:rgba(255,255,255,.025) !important;
+  color:#7f899b !important;
+  font-size:0 !important;
+  line-height:1 !important;
+  overflow:hidden !important;
+  transition:transform .20s var(--sn7-ease),background .20s ease,color .20s ease,border-color .20s ease !important;
+}
+.sidebar nav button > .sn7-nav-icon svg{
+  width:18px !important;
+  height:18px !important;
+  display:block !important;
+  fill:none !important;
+  stroke:currentColor !important;
+  stroke-width:1.8 !important;
+  stroke-linecap:round !important;
+  stroke-linejoin:round !important;
+}
+.sidebar nav button.active > .sn7-nav-icon{
+  color:#d8d3ff !important;
+  background:rgba(155,140,255,.12) !important;
+  border-color:rgba(155,140,255,.17) !important;
+  transform:scale(1.04) !important;
+}
+.sidebar nav button:hover > .sn7-nav-icon{
+  color:var(--text) !important;
+}
+
+/* Profile avatar is allowed to replace its SVG with the real image. */
+.sidebar nav button > .sn7-nav-profile-icon{
+  overflow:hidden !important;
+  padding:0 !important;
+}
+.sidebar nav button > .sn7-nav-profile-icon img{
+  width:100% !important;
+  height:100% !important;
+  display:block !important;
+  object-fit:cover !important;
+  border-radius:inherit !important;
+}
+
+/* Explicit spacing between icon and navigation label. */
+.sidebar nav button .sn7-nav-label{
+  margin:0 !important;
+  padding:0 !important;
+  display:block !important;
+  flex:1 1 auto !important;
+  min-width:0 !important;
+  white-space:nowrap !important;
+  overflow:visible !important;
+  text-overflow:clip !important;
+}
+
+/* Prevent the old generic span rules from affecting the new SVG icons. */
+.sidebar nav button > span:not(.sn7-nav-icon){
+  width:auto !important;
+  min-width:0 !important;
+}
+
+/* ---------- MOBILE: navigation is ALWAYS a bottom dock ---------- */
+@media (max-width:700px){
+  body{
+    padding-bottom:calc(106px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .layout{
+    display:block !important;
+    min-height:100dvh !important;
+  }
+
+  .sidebar{
+    position:fixed !important;
+    top:auto !important;
+    left:10px !important;
+    right:10px !important;
+    bottom:calc(10px + env(safe-area-inset-bottom)) !important;
+    inset-inline:10px !important;
+    width:auto !important;
+    height:78px !important;
+    min-height:78px !important;
+    max-height:78px !important;
+    z-index:2147483000 !important;
+    margin:0 !important;
+    padding:7px !important;
+    display:block !important;
+    border:1px solid rgba(255,255,255,.09) !important;
+    border-radius:25px !important;
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012) 48%),
+      rgba(12,15,22,.96) !important;
+    box-shadow:
+      0 22px 55px rgba(0,0,0,.40),
+      0 5px 16px rgba(0,0,0,.22),
+      inset 0 1px 0 rgba(255,255,255,.055) !important;
+    backdrop-filter:blur(22px) saturate(135%) !important;
+    -webkit-backdrop-filter:blur(22px) saturate(135%) !important;
+    overflow:visible !important;
+  }
+
+  .sidebar nav{
+    width:100% !important;
+    height:64px !important;
+    min-height:64px !important;
+    display:grid !important;
+    grid-template-columns:repeat(6,minmax(0,1fr)) !important;
+    gap:4px !important;
+    padding:0 !important;
+    margin:0 !important;
+  }
+
+  .sidebar nav button{
+    position:relative !important;
+    width:100% !important;
+    min-width:0 !important;
+    min-height:64px !important;
+    height:64px !important;
+    margin:0 !important;
+    padding:5px 2px 6px !important;
+    display:flex !important;
+    flex-direction:column !important;
+    justify-content:center !important;
+    align-items:center !important;
+    gap:4px !important;
+    border:1px solid transparent !important;
+    border-radius:18px !important;
+    background:transparent !important;
+    color:#8f98a8 !important;
+    text-align:center !important;
+    font-size:8.5px !important;
+    font-weight:700 !important;
+    line-height:1.05 !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    transform:none !important;
+  }
+
+  .sidebar nav button::before{
+    left:50% !important;
+    top:auto !important;
+    bottom:3px !important;
+    width:20px !important;
+    height:2px !important;
+    transform:translateX(-50%) scaleX(.2) !important;
+    opacity:0 !important;
+  }
+
+  .sidebar nav button.active{
+    transform:translateY(-2px) !important;
+    background:
+      linear-gradient(145deg,rgba(155,140,255,.18),rgba(155,140,255,.055)),
+      rgba(255,255,255,.012) !important;
+    border-color:rgba(155,140,255,.23) !important;
+    box-shadow:
+      0 9px 22px rgba(0,0,0,.24),
+      inset 0 1px 0 rgba(255,255,255,.05) !important;
+  }
+
+  .sidebar nav button.active::before{
+    transform:translateX(-50%) scaleX(1) !important;
+    opacity:.95 !important;
+  }
+
+  .sidebar nav button > .sn7-nav-icon{
+    width:29px !important;
+    min-width:29px !important;
+    height:29px !important;
+    flex:0 0 29px !important;
+    margin:0 !important;
+    border-radius:10px !important;
+    font-size:0 !important;
+  }
+
+  .sidebar nav button > .sn7-nav-icon svg{
+    width:17px !important;
+    height:17px !important;
+    stroke-width:1.8 !important;
+  }
+
+  .sidebar nav button .sn7-nav-label{
+    width:100% !important;
+    min-width:0 !important;
+    flex:0 0 auto !important;
+    margin:0 !important;
+    padding:0 !important;
+    font-size:8.5px !important;
+    line-height:1.05 !important;
+    text-align:center !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    white-space:nowrap !important;
+  }
+
+  .topbar{
+    position:relative !important;
+  }
+
+  .topbar h1#title{
+    gap:9px !important;
+    font-size:25px !important;
+  }
+
+  .sn7-page-title-icon{
+    width:29px !important;
+    height:29px !important;
+    min-width:29px !important;
+    flex-basis:29px !important;
+    border-radius:9px !important;
+  }
+
+  .sn7-page-title-svg{
+    width:17px !important;
+    height:17px !important;
+  }
+
+  main{
+    padding-bottom:calc(20px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (max-width:380px){
+  .sidebar{
+    left:6px !important;
+    right:6px !important;
+    inset-inline:6px !important;
+    bottom:calc(8px + env(safe-area-inset-bottom)) !important;
+    height:74px !important;
+    min-height:74px !important;
+    max-height:74px !important;
+    padding:6px !important;
+    border-radius:23px !important;
+  }
+  .sidebar nav{
+    height:62px !important;
+    min-height:62px !important;
+    gap:2px !important;
+  }
+  .sidebar nav button{
+    height:62px !important;
+    min-height:62px !important;
+    border-radius:16px !important;
+  }
+  .sidebar nav button > .sn7-nav-icon{
+    width:27px !important;
+    min-width:27px !important;
+    height:27px !important;
+    flex-basis:27px !important;
+  }
+  .sidebar nav button > .sn7-nav-icon svg{
+    width:16px !important;
+    height:16px !important;
+  }
+  .sidebar nav button .sn7-nav-label{
+    font-size:8px !important;
+  }
+}
+
+@media (min-width:701px){
+  /* Desktop header has a real visual gap, not a Unicode character stuck to text. */
+  .topbar h1#title{
+    padding-left:1px !important;
+  }
+}

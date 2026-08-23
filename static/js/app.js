@@ -106,7 +106,23 @@ function activateTab(tab, options = {}) {
   }
 
   const title = $("title");
-  if (title) title.textContent = button.textContent.trim();
+  if (title) {
+    const label = button.querySelector(".sn7-nav-label");
+    const navIcon = button.querySelector(".sn7-nav-icon");
+    const titleIcon = title.querySelector(".sn7-page-title-icon");
+    const titleText = title.querySelector(".sn7-page-title-text");
+    if (titleText) titleText.textContent = label?.textContent?.trim() || button.getAttribute("aria-label") || "";
+    if (titleIcon) {
+      titleIcon.replaceChildren();
+      if (navIcon) {
+        const clone = navIcon.cloneNode(true);
+        clone.removeAttribute("id");
+        clone.classList.remove("sn7-nav-icon", "sn7-nav-profile-icon");
+        clone.classList.add("sn7-page-title-svg");
+        titleIcon.appendChild(clone);
+      }
+    }
+  }
 
   if (options.persist !== false) saveActiveTab(button.dataset.tab);
 
