@@ -118,11 +118,23 @@ function activateTab(tab, options = {}) {
     if (titleIcon) {
       titleIcon.replaceChildren();
       if (navIcon) {
-        const clone = navIcon.cloneNode(true);
-        clone.removeAttribute("id");
-        clone.classList.remove("sn7-nav-icon", "sn7-nav-profile-icon");
-        clone.classList.add("sn7-page-title-svg");
-        titleIcon.appendChild(clone);
+        // Nunca copiamos a foto de perfil para o cabeçalho. Quando a conta
+        // está conectada, o ícone da navegação contém um <img>; copiar esse
+        // elemento fazia a foto ocupar uma área enorme no topo da página.
+        const sourceSvg = navIcon.querySelector("svg");
+        if (sourceSvg) {
+          const clone = sourceSvg.cloneNode(true);
+          clone.removeAttribute("id");
+          clone.classList.add("sn7-page-title-svg");
+          titleIcon.appendChild(clone);
+        } else if (button.dataset.tab === "profile") {
+          const fallback = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          fallback.setAttribute("viewBox", "0 0 24 24");
+          fallback.setAttribute("aria-hidden", "true");
+          fallback.classList.add("sn7-page-title-svg");
+          fallback.innerHTML = '<circle cx="12" cy="8.2" r="3.2"></circle><path d="M5.2 20a6.8 6.8 0 0 1 13.6 0"></path>';
+          titleIcon.appendChild(fallback);
+        }
       }
     }
   }

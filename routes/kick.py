@@ -1,5 +1,7 @@
 import base64
 import hashlib
+import hmac
+import json
 import secrets
 import time
 from urllib.parse import urlencode, quote, urlparse
@@ -23,7 +25,6 @@ KICK_API = "https://api.kick.com/public/v1"
 KICK_ID = "https://id.kick.com"
 KICK_PUBLIC_KEY_URL = f"{KICK_API}/public-key"
 
-_oauth_states = {}
 _public_key_pem = None
 
 # Cache curto do estado da live para não consultar a API da Kick a cada mensagem.
@@ -145,12 +146,68 @@ def _scopes():
     return "user:read chat:write events:subscribe"
 
 
-def _pkce_pair():
-    verifier = secrets.token_urlsafe(64)
-    challenge = base64.urlsafe_b64encode(
+def _pkce_challenge(verifier):
+    return base64.urlsafe_b64encode(
         hashlib.sha256(verifier.encode("ascii")).digest()
     ).rstrip(b"=").decode("ascii")
-    return verifier, challenge
+
+
+def _oauth_signing_secret():
+    # O state do OAuth da Kick não depende mais do cookie da sessão. Isso é
+    # importante quando a sessão já contém dados de outra plataforma e o
+    # navegador/Render precisa trocar o cookie durante o redirecionamento.
+    # Preferimos o segredo global da aplicação e usamos o client secret como
+    # fallback para instalações antigas que ainda não configuraram
+    # FLASK_SECRET_KEY.
+    secret = _env("FLASK_SECRET_KEY") or _client_secret()
+    return secret.encode("utf-8") if secret else b"sn7-kick-oauth"
+
+
+def _make_kick_oauth_state(broadcaster_id):
+    payload = {
+        "v": 1,
+        "iat": int(time.time()),
+        "nonce": secrets.token_urlsafe(18),
+        "broadcaster_id": int(broadcaster_id) if broadcaster_id is not None else None,
+        "next": "profile",
+    }
+    raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    body = base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+    signature = hmac.new(_oauth_signing_secret(), body.encode("ascii"), hashlib.sha256).digest()
+    sig = base64.urlsafe_b64encode(signature).rstrip(b"=").decode("ascii")
+    return f"{body}.{sig}"
+
+
+def _read_kick_oauth_state(state):
+    try:
+        body, sig = str(state or "").split(".", 1)
+        expected = hmac.new(_oauth_signing_secret(), body.encode("ascii"), hashlib.sha256).digest()
+        supplied = base64.urlsafe_b64decode(sig + "=" * (-len(sig) % 4))
+        if not hmac.compare_digest(supplied, expected):
+            return None
+        raw = base64.urlsafe_b64decode(body + "=" * (-len(body) % 4))
+        payload = json.loads(raw.decode("utf-8"))
+        if payload.get("v") != 1:
+            return None
+        if int(time.time()) - int(payload.get("iat") or 0) > 600:
+            return None
+        if not payload.get("nonce"):
+            return None
+        return payload
+    except Exception:
+        return None
+
+
+def _kick_pkce_verifier(state):
+    # O verifier é derivado do state assinado e nunca precisa ser salvo no
+    # cookie da sessão. Assim o callback continua funcionando mesmo se o
+    # navegador trocar/encolher o cookie durante o OAuth.
+    digest = hmac.new(
+        _oauth_signing_secret(),
+        ("kick-pkce:" + str(state)).encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+    return base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
 
 
 def _save_connection(user, token_data):
@@ -1897,8 +1954,16 @@ def login():
     if next_page != "profile":
         next_page = "profile"
 
-    verifier, challenge = _pkce_pair()
-    state = secrets.token_urlsafe(32)
+    # Guarda no state assinado o ID da conta SN7 que iniciou a conexão.
+    # Assim, ao adicionar a Kick depois da Twitch/YouTube, o callback sabe
+    # exatamente qual canal deve receber a nova integração sem depender do
+    # cookie da sessão.
+    previous_id = get_session_broadcaster_id(validate=False)
+    state = _make_kick_oauth_state(previous_id)
+    verifier = _kick_pkce_verifier(state)
+    challenge = _pkce_challenge(verifier)
+    # Mantemos as chaves antigas apenas para compatibilidade com sessões já
+    # abertas; o callback novo não depende delas.
     session["kick_oauth_state"] = state
     session["kick_code_verifier"] = verifier
     session["kick_oauth_next"] = next_page
@@ -1923,11 +1988,17 @@ def callback():
     error = params.get("error")
     if error:
         return jsonify({"ok": False, "error": error, "description": params.get("error_description", "")}), 400
-    state = params.get("state", "")
-    expected = session.pop("kick_oauth_state", "")
-    verifier = session.pop("kick_code_verifier", "")
-    if not state or state != expected or not verifier:
+    state = str(params.get("state", "") or "")
+    state_data = _read_kick_oauth_state(state)
+    # Limpa os valores legados da sessão, mas não depende deles para validar
+    # o retorno. Isso elimina o erro intermitente de "state inválido" ao
+    # conectar Kick depois de Twitch/YouTube.
+    session.pop("kick_oauth_state", None)
+    session.pop("kick_code_verifier", None)
+    session.pop("kick_oauth_next", None)
+    if not state_data:
         return jsonify({"ok": False, "error": "OAuth state inválido ou expirado."}), 400
+    verifier = _kick_pkce_verifier(state)
     try:
         token_data = _exchange_code(params.get("code", ""), verifier)
         user = _kick_user(token_data["access_token"])
@@ -1936,7 +2007,9 @@ def callback():
         # Se a sessão começou pela Twitch/YouTube, o canal recebeu um ID
         # temporário. Ao entrar na Kick, transformamos esse ID no ID definitivo
         # da Kick antes de salvar a conexão.
-        previous_id = get_session_broadcaster_id(validate=False)
+        previous_id = state_data.get("broadcaster_id")
+        if previous_id is None:
+            previous_id = get_session_broadcaster_id(validate=False)
         if previous_id is not None and int(previous_id) != broadcaster_id:
             try:
                 migrate_channel_id(int(previous_id), broadcaster_id)
