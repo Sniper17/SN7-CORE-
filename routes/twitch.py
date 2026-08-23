@@ -299,14 +299,30 @@ def _subscribe(conn):
     if len(secret) < 10 or len(secret) > 100:
         raise RuntimeError("TWITCH_EVENTSUB_SECRET precisa ter entre 10 e 100 caracteres.")
 
-    # channel.chat.message via Webhook exige um USER access token com
-    # autorização de chat. O app token (client_credentials) não serve
-    # para criar esta subscription.
+    # EventSub com transport=webhook exige APP ACCESS TOKEN.
+    # A autorização da conta continua sendo necessária: o usuário deve ter
+    # concedido user:bot e channel:bot (ou ter status de moderador) para que
+    # o app token possa criar a subscription de chat.
     user_token = str(conn.get("access_token") or "").strip()
     if not user_token:
         raise RuntimeError("A sessão da Twitch não possui access token. Conecte a Twitch novamente.")
 
-    subscriptions = _list_eventsub(user_token)
+    granted = {
+        part.strip()
+        for part in str(conn.get("scope") or "").split()
+        if part.strip()
+    }
+    required = {"user:read:chat", "user:write:chat", "user:bot", "channel:bot"}
+    missing = sorted(required - granted)
+    if missing:
+        raise RuntimeError(
+            "A autorização da Twitch está incompleta. "
+            "Conecte a Twitch novamente para conceder: "
+            + ", ".join(missing)
+        )
+
+    app_token = _app_token()
+    subscriptions = _list_eventsub(app_token)
 
     # Não apaga uma inscrição existente. Isso evita uma janela sem chat
     # enquanto a Twitch valida uma nova inscrição.
@@ -337,7 +353,7 @@ def _subscribe(conn):
 
     response = requests.post(
         f"{TWITCH_API}/eventsub/subscriptions",
-        headers=_eventsub_headers(user_token),
+        headers=_eventsub_headers(app_token),
         json=payload,
         timeout=15,
     )
@@ -360,10 +376,8 @@ def _subscribe(conn):
 
 def _unsubscribe(conn):
     try:
-        user_token = str(conn.get("access_token") or "").strip()
-        if not user_token:
-            return
-        for sub in _list_eventsub(user_token):
+        app_token = _app_token()
+        for sub in _list_eventsub(app_token):
             if not _subscription_matches(sub, conn["external_user_id"]):
                 continue
             sub_id = sub.get("id")
@@ -466,9 +480,9 @@ def login():
         "client_id": cid,
         "redirect_uri": _redirect_uri(),
         "response_type": "code",
-        # Necessários para channel.chat.message e para enviar respostas
-        # pelo próprio usuário autenticado.
-        "scope": "user:read:chat user:write:chat",
+        # Chat via EventSub Webhook: a criação da subscription usa APP
+        # access token, mas a conta precisa autorizar user:bot e channel:bot.
+        "scope": "user:read:chat user:write:chat user:bot channel:bot",
         "state": state,
     }
     return redirect(f"{TWITCH_OAUTH}/authorize?{urlencode(params)}")
