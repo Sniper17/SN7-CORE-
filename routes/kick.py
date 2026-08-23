@@ -287,6 +287,89 @@ def _kick_user(access_token):
     return users[0]
 
 
+def _usable_profile_picture(url):
+    """Retorna uma foto real, ignorando fallbacks conhecidos da Kick."""
+    value = str(url or "").strip()
+    if not value:
+        return ""
+    lowered = value.lower()
+    fallback_markers = (
+        "default-profile-pictures",
+        "default-avatar",
+        "default2.jpeg",
+        "default2.webp",
+    )
+    if any(marker in lowered for marker in fallback_markers):
+        return ""
+    return value
+
+
+def _resolve_profile_picture(access_token, broadcaster_id, user=None, existing=""):
+    """Resolve o avatar real sem alterar o fluxo de OAuth ou do bot."""
+    user = user or {}
+    direct = _usable_profile_picture(
+        user.get("profile_picture")
+        or user.get("profile_picture_url")
+        or user.get("profile_pic")
+        or user.get("avatar_url")
+    )
+    if direct:
+        return direct
+
+    stored = _usable_profile_picture(existing)
+    if stored:
+        return stored
+
+    # Última tentativa com o próprio token OAuth: /users é a fonte oficial
+    # do campo profile_picture e não depende de o canal estar ao vivo.
+    try:
+        response = requests.get(
+            f"{KICK_API}/users",
+            headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
+            params={"id": int(broadcaster_id)},
+            timeout=6,
+        )
+        if response.status_code < 400:
+            data = response.json() or {}
+            for row in (data.get("data") or []):
+                candidate = _usable_profile_picture(
+                    row.get("profile_picture")
+                    or row.get("profile_picture_url")
+                    or row.get("avatar_url")
+                )
+                if candidate:
+                    return candidate
+    except Exception as exc:
+        print(f"[KICK-PROFILE] consulta OAuth do avatar falhou: {exc}", flush=True)
+
+    # Fallback público para instalações em que o token OAuth não devolve a
+    # foto por alguma particularidade da sessão. Não depende da live estar ativa.
+    try:
+        app_token = _kick_app_access_token()
+        if not app_token:
+            return ""
+        response = requests.get(
+            f"{KICK_API}/users",
+            headers={"Authorization": f"Bearer {app_token}", "Accept": "application/json"},
+            params={"id": int(broadcaster_id)},
+            timeout=6,
+        )
+        if response.status_code >= 400:
+            return ""
+        data = response.json() or {}
+        for row in (data.get("data") or []):
+            candidate = _usable_profile_picture(
+                row.get("profile_picture")
+                or row.get("profile_picture_url")
+                or row.get("avatar_url")
+            )
+            if candidate:
+                return candidate
+    except Exception as exc:
+        print(f"[KICK-PROFILE] fallback público do avatar falhou: {exc}", flush=True)
+    return ""
+
+
 def _exchange_code(code, verifier):
     response = requests.post(
         f"{KICK_ID}/oauth/token",
@@ -1588,7 +1671,12 @@ def profile_refresh():
     try:
         user = _kick_user(conn["access_token"])
         username = str(user.get("username") or user.get("slug") or user.get("channel_slug") or user.get("name") or user.get("display_name") or conn.get("username") or "Kick").strip()
-        avatar = str(user.get("profile_picture") or user.get("profile_picture_url") or user.get("profile_pic") or user.get("avatar_url") or conn.get("profile_picture_url") or "").strip()
+        avatar = _resolve_profile_picture(
+            conn["access_token"],
+            bid,
+            user=user,
+            existing=conn.get("profile_picture_url") or "",
+        )
         if username: _save_username(bid, username)
         if avatar: _save_profile_picture(bid, avatar)
         session["kick_profile"] = {"id": int(bid), "username": username, "profile_picture_url": avatar}
@@ -1700,10 +1788,17 @@ def callback():
 
         # Login e ativação do bot são ações separadas.
         session["kick_broadcaster_id"] = broadcaster_id
+        avatar = _resolve_profile_picture(
+            token_data.get("access_token"),
+            broadcaster_id,
+            user=user,
+        )
+        if avatar:
+            _save_profile_picture(broadcaster_id, avatar)
         session["kick_profile"] = {
             "id": int(broadcaster_id),
             "username": str(user.get("username") or user.get("slug") or user.get("channel_slug") or user.get("name") or user.get("display_name") or "Kick").strip(),
-            "profile_picture_url": str(user.get("profile_picture") or user.get("profile_picture_url") or user.get("profile_pic") or user.get("avatar_url") or "").strip(),
+            "profile_picture_url": avatar,
         }
         session.permanent = True
         session.pop("kick_oauth_next", None)
