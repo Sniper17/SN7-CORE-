@@ -58,3 +58,24 @@ Build:
 Start:
 
 `gunicorn app:app`
+
+
+## Twitch Bot
+
+O SN7 Core usa OAuth da Twitch para conectar a conta do streamer e EventSub
+`channel.chat.message` via webhook para receber mensagens em tempo real.
+
+Variáveis necessárias no Render:
+
+- `TWITCH_CLIENT_ID`
+- `TWITCH_CLIENT_SECRET`
+- `TWITCH_REDIRECT_URI=https://sn7-core.onrender.com/twitch/callback`
+- `TWITCH_EVENTSUB_CALLBACK=https://sn7-core.onrender.com/twitch/eventsub`
+- `TWITCH_EVENTSUB_SECRET` — segredo aleatório com 10 a 100 caracteres.
+
+Na aplicação da Twitch, a Redirect URL deve ser exatamente a mesma de
+`TWITCH_REDIRECT_URI` e usar HTTPS.
+
+O fluxo é: Perfil SN7 → Conectar Twitch → autorizar `user:read:chat` e
+`user:write:chat` → voltar ao SN7 → Ligar bot. O bot usa o mesmo motor de
+comandos do Kick/YouTube.
