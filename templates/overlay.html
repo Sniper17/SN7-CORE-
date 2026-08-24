@@ -111,8 +111,9 @@
   async function loadCurrent(current,volume,playing){
     const url=current.source_url||""; stopOtherMedia(current.provider);
     if(current.provider==="youtube"){const id=getYouTubeId(url); if(!id)throw new Error("Link do YouTube inválido."); loadYouTube(id,playing);}
+    else if(current.provider==="spotify"){const id=getSpotifyTrackId(url); if(!id)throw new Error("Faixa do Spotify inválida."); await loadSpotify(id,playing);}
     else if(current.provider==="link"){ if(!/^https?:\/\//i.test(url)||!/\.(mp3|m4a|aac|ogg|wav|opus)(\?.*)?$/i.test(url))throw new Error("Link direto de áudio inválido."); await loadAudio(url,playing,volume);}
-    else throw new Error("Esta fonte não é compatível com o player do OBS. Use YouTube ou link direto de áudio.");
+    else throw new Error("Esta fonte não é compatível com o player do OBS. Use YouTube, Spotify ou link direto de áudio.");
     state.currentId=current.id; state.provider=current.provider; state.audioUrl=url; state.lastEndedId=null; state.loadError=false;
   }
   function stopOtherMedia(provider){ if(provider!=="youtube"&&state.yt){try{state.yt.stopVideo()}catch(_){}} if(provider!=="spotify"&&state.spotifyPlayer){try{state.spotifyPlayer.pause()}catch(_){}} if(provider!=="link"&&state.audio){state.audio.pause()} }

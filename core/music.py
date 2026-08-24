@@ -306,7 +306,16 @@ def add_from_chat(bid, query, user):
             position = int(max_position or 0) + 1
             cur.execute("INSERT INTO music_queue(broadcaster_user_id,provider,title,artist,source_url,added_by,status,position) VALUES(%s,%s,%s,%s,%s,%s,'queued',%s) RETURNING id", (int(bid), provider, title[:200], artist[:160], source_url[:1000], str(user)[:80], position))
             item_id = cur.fetchone()[0]
-            cur.execute("INSERT INTO music_player_state(broadcaster_user_id,current_queue_id) VALUES(%s,%s) ON CONFLICT (broadcaster_user_id) DO UPDATE SET current_queue_id=COALESCE(music_player_state.current_queue_id,EXCLUDED.current_queue_id), updated_at=NOW()", (int(bid), item_id))
+            # Primeira música: vira a atual e inicia automaticamente.
+            cur.execute(
+                "INSERT INTO music_player_state(broadcaster_user_id,current_queue_id,is_playing) "
+                "VALUES(%s,%s,TRUE) "
+                "ON CONFLICT (broadcaster_user_id) DO UPDATE SET "
+                "current_queue_id=COALESCE(music_player_state.current_queue_id,EXCLUDED.current_queue_id), "
+                "is_playing=CASE WHEN music_player_state.current_queue_id IS NULL THEN TRUE ELSE music_player_state.is_playing END, "
+                "updated_at=NOW()",
+                (int(bid), item_id),
+            )
         conn.commit()
         return {'id': item_id, 'title': title[:200], 'artist': artist[:160], 'provider': provider}, position
     finally:

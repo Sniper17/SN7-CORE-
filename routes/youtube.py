@@ -345,8 +345,8 @@ def toggle(bid):
         return jsonify({"ok": False, "error": "Conecte o YouTube primeiro."}), 403
     desired = bool((request.get_json(silent=True) or {}).get("active"))
     try:
-        if desired and not _find_live_chat(conn):
-            return jsonify({"ok": False, "error": "O YouTube precisa estar ao vivo para ativar o bot."}), 409
+        # O bot pode ficar ativado mesmo com a live offline. O worker
+        # aguarda e começa automaticamente quando a transmissão iniciar.
         db = get_conn()
         try:
             with db.cursor() as cur:
@@ -354,7 +354,11 @@ def toggle(bid):
             db.commit()
         finally:
             db.close()
-        return jsonify({"ok": True, "active": desired})
+        return jsonify({
+            "ok": True,
+            "active": desired,
+            "waiting_for_live": bool(desired and not _find_live_chat(conn)),
+        })
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 502
 

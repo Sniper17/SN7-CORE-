@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.19">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.20">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -210,7 +210,7 @@ body.sn7-modal-open{overflow:hidden}
         <div class="sn7-config-modal-card sn7-music-config-card" onclick="event.stopPropagation()">
           <button type="button" class="sn7-config-close" aria-label="Fechar" onclick="closeMusicConfig()">×</button>
           <h3>Fontes de música</h3>
-          <p>Escolha as fontes que o bot poderá aceitar. O YouTube e links diretos são reproduzidos pelo player do OBS. Spotify e SoundCloud ficam disponíveis para conexão e metadados, mas não são usados como fonte de reprodução no OBS.</p>
+          <p>Escolha as fontes que o bot poderá aceitar. YouTube, Spotify e links diretos são reproduzidos pelo player do OBS. SoundCloud fica disponível para conexão e metadados e poderá ser usado quando a reprodução oficial estiver habilitada.</p>
           <div class="sn7-music-source-grid">
             <div class="sn7-source-card">
               <span class="sn7-source-icon" id="musicYoutubeAvatar"><span>▶</span></span>
@@ -352,7 +352,7 @@ body.sn7-modal-open{overflow:hidden}
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
 const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
-<script src="/static/js/app.js?v=sn7-1.9.19"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.20"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);

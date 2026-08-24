@@ -288,6 +288,16 @@ def add_music(broadcaster_id):
                 VALUES (%s,%s,%s,%s,%s,%s,'queued',%s) RETURNING id
             ''', (int(broadcaster_id), provider, title, artist, source_url, added_by, position))
             item_id = cur.fetchone()[0]
+            # Primeira música: vira a atual e inicia automaticamente.
+            cur.execute(
+                "INSERT INTO music_player_state (broadcaster_user_id,current_queue_id,is_playing) "
+                "VALUES (%s,%s,TRUE) "
+                "ON CONFLICT (broadcaster_user_id) DO UPDATE SET "
+                "current_queue_id=COALESCE(music_player_state.current_queue_id,EXCLUDED.current_queue_id), "
+                "is_playing=CASE WHEN music_player_state.current_queue_id IS NULL THEN TRUE ELSE music_player_state.is_playing END, "
+                "updated_at=NOW()",
+                (int(broadcaster_id), item_id),
+            )
         conn.commit()
     finally:
         conn.close()
