@@ -545,7 +545,10 @@ function renderCommands() {
     bets: rowsFor("bets").length, slots: rowsFor("slots").length, coinflip: rowsFor("coinflip").length, polls: rowsFor("polls").length, quiz: rowsFor("quiz").length, race: rowsFor("race").length, target: rowsFor("target").length, secret: rowsFor("secret").length, survival: rowsFor("survival").length, steal: rowsFor("steal").length, vault: rowsFor("vault").length, jackpot: rowsFor("jackpot").length, custom: rowsFor("custom").length,
   };
   Object.entries(counts).forEach(([key, count]) => {
-    const el = document.getElementById(`${key === "bets" || key === "slots" ? key : key}CommandsCount`);
+    // Os subdrawers de Mini Games usam o ID singular (ex.: quizCommandCount),
+    // enquanto as gavetas comuns usam o plural. Atualizamos ambos para manter
+    // os contadores corretos em todas as categorias.
+    const el = document.getElementById(`${key}CommandCount`) || document.getElementById(`${key}CommandsCount`);
     if (el) el.textContent = count;
   });
   const miniCount = document.getElementById("minigamesCommandCount");
@@ -558,7 +561,12 @@ function syncMiniGamesFromCommandCache() {
   const platform = sn7MiniGamesPlatform;
   const settings = sn7MiniGamesSettings[platform];
   if (!settings) return;
-  const status = {bets:commandCache.find(x=>x.command_key==="duel")?.enabled===true,slots:commandCache.find(x=>x.command_key==="slots")?.enabled===true,coinflip:commandCache.find(x=>x.command_key==="coinflip")?.enabled===true,polls:commandCache.find(x=>x.command_key==="poll")?.enabled===true,quiz:commandCache.find(x=>x.command_key==="quiz")?.enabled===true,race:commandCache.find(x=>x.command_key==="race")?.enabled===true,target:commandCache.find(x=>x.command_key==="target")?.enabled===true,secret:commandCache.find(x=>x.command_key==="secret")?.enabled===true,survival:commandCache.find(x=>x.command_key==="survival")?.enabled===true,steal:commandCache.find(x=>x.command_key==="steal")?.enabled===true,vault:commandCache.find(x=>x.command_key==="vault")?.enabled===true,jackpot:commandCache.find(x=>x.command_key==="jackpot")?.enabled===true};
+  const gameKeys={
+    bets:["duel","bet_accept","bet_decline"], slots:["slots"], coinflip:["coinflip","coinflip_coroa"],
+    polls:["poll","vote"], quiz:["quiz","quiz_answer"], race:["race"], target:["target"], secret:["secret"],
+    survival:["survival"], steal:["steal"], vault:["vault"], jackpot:["jackpot"]
+  };
+  const status=Object.fromEntries(Object.entries(gameKeys).map(([game,keys])=>[game,keys.every(key=>commandCache.find(x=>x.command_key===key)?.enabled===true)]));
   sn7MiniGamesCommandStatus[platform] = status;
   updateMiniGamesStatus(settings, status);
 }
@@ -1231,6 +1239,27 @@ async function saveSettings() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".sn7-minigame-card").forEach((card) => {
+    const toggleInfo = () => {
+      const info = card.querySelector(".sn7-minigame-info");
+      if (!info) return;
+      const open = info.hidden;
+      info.hidden = !open;
+      card.classList.toggle("sn7-minigame-card-open", open);
+    };
+    card.addEventListener("click", (event) => {
+      if (event.target.closest("button")) return;
+      toggleInfo();
+    });
+    card.addEventListener("keydown", (event) => {
+      if (event.target.closest("button")) return;
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        toggleInfo();
+      }
+    });
+  });
+
   injectCommandStyles();
 
   document.querySelector("#sn7MiniGamesEditor .sn7-config-close")?.addEventListener("click", () => {
@@ -1890,7 +1919,12 @@ function musicConnect(provider) {
 async function musicDisconnect(provider) {
   if (!musicHasChannel()) return;
   const label = provider === "youtube" ? "YouTube" : provider === "spotify" ? "Spotify" : "SoundCloud";
-  if (!confirm(`Desconectar ${label} do SN7?`)) return;
+  const ok = await sn7ConfirmAction(
+    `Desconectar ${label}?`,
+    `A conta do ${label} será desconectada deste canal.`,
+    "Desconectar"
+  );
+  if (!ok) return;
   try {
     const data = await apiJson(`/api/music/${BROADCASTER_ID}/disconnect/${encodeURIComponent(provider)}`, {method:"POST"});
     musicRenderConnections(data);
@@ -2179,7 +2213,12 @@ async function removeMusicItem(id) {
 }
 
 async function clearMusicQueue() {
-  if (!confirm("Limpar todas as músicas que estão na fila?")) return;
+  const ok = await sn7ConfirmAction(
+    "Limpar fila de músicas?",
+    "Todas as músicas que estão aguardando na fila serão removidas.",
+    "Limpar fila"
+  );
+  if (!ok) return;
   const button = document.querySelector(".sn7-queue-clear");
   const card = document.querySelector(".sn7-music-queue-card");
   const loader = $("sn7MusicQueueLoading");

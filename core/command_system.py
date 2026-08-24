@@ -368,10 +368,10 @@ def get_minigame_command_status(bid):
     finally:
         conn.close()
 
-    # O estado do jogo é representado pelo comando principal.
-    # Os demais comandos da mesma gaveta continuam sincronizados ao alternar o jogo.
+    # O card só fica ativo quando TODOS os comandos públicos daquele jogo
+    # estão ativos. Assim, desligar um único comando também desliga o card.
     return {
-        game: rows.get(keys[0], False)
+        game: all(rows.get(key, False) for key in keys)
         for game, keys in MINIGAME_COMMAND_KEYS.items()
     }
 
@@ -391,6 +391,41 @@ def find_command(bid, typed):
         if typed in [str(alias).lower() for alias in item.get("aliases") or []]:
             return item
     return None
+
+
+def _sync_minigame_from_command(cur, bid, changed_key):
+    game_keys = {
+        "bets": ("duel", "bet_accept", "bet_decline"),
+        "slots": ("slots",),
+        "coinflip": ("coinflip", "coinflip_coroa"),
+        "polls": ("poll", "vote"),
+        "quiz": ("quiz", "quiz_answer"),
+        "race": ("race",),
+        "target": ("target",),
+        "secret": ("secret",),
+        "survival": ("survival",),
+        "steal": ("steal",),
+        "vault": ("vault",),
+        "jackpot": ("jackpot",),
+    }
+    game = next((name for name, keys in game_keys.items() if changed_key in keys), None)
+    if not game:
+        return
+    keys = game_keys[game]
+    cur.execute(
+        "SELECT command_key,enabled FROM command_configs WHERE broadcaster_user_id=%s AND command_key = ANY(%s)",
+        (bid, list(keys)),
+    )
+    states = {str(row[0]): bool(row[1]) for row in cur.fetchall()}
+    active = all(states.get(key, False) for key in keys)
+    field = f"{game}_enabled"
+    # Import local para evitar ciclo no carregamento do módulo.
+    from core.minigames import SUPPORTED_PLATFORMS
+    for platform in SUPPORTED_PLATFORMS:
+        cur.execute(
+            f"UPDATE minigame_settings SET {field}=%s,updated_at=NOW() WHERE broadcaster_user_id=%s AND platform=%s",
+            (active, bid, platform),
+        )
 
 
 def update_command(bid, key, command=None, response=None, enabled=None, description=None, reset_aliases=False, aliases=None):
@@ -522,6 +557,12 @@ def update_command(bid, key, command=None, response=None, enabled=None, descript
                     "UPDATE channels SET currency_command=%s,updated_at=NOW() WHERE broadcaster_user_id=%s",
                     (command, int(bid)),
                 )
+
+            # Mini Games e comandos precisam permanecer sincronizados nos dois sentidos.
+            # Os comandos do Core são globais por canal; portanto a configuração do
+            # Mini Game é refletida em todas as plataformas conectadas.
+            if enabled is not None:
+                _sync_minigame_from_command(cur, int(bid), key)
 
             if reset_aliases:
                 cur.execute(

@@ -6,6 +6,8 @@ automations_bp=Blueprint('automations',__name__)
 
 @automations_bp.get('/<int:broadcaster_id>')
 def get_all(broadcaster_id):
+    try: require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc: return jsonify({'ok':False,'error':str(exc)}),403
     return jsonify({'ok':True,'automations':list_automations(broadcaster_id)})
 
 @automations_bp.post('/<int:broadcaster_id>')
