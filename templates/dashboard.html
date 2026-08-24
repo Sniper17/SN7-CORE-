@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.23">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.26">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -82,11 +82,15 @@ body.sn7-modal-open{overflow:hidden}
         </span>
         <span class="sn7-nav-label" data-short="Ranking">Ranking</span>
       </button>
-      <button type="button" data-tab="minigames" aria-label="Jogos">
+      <button type="button" data-tab="music" aria-label="Música">
+        <span class="sn7-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="3.2"/><circle cx="16.5" cy="16" r="3.2"/></svg></span>
+        <span class="sn7-nav-label" data-short="Música">Música</span>
+      </button>
+      <button type="button" data-tab="minigames" aria-label="Mini Games">
         <span class="sn7-nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" focusable="false"><path d="m7.5 8.5 2-2h5l2 2"/><path d="M7.5 8.5h9a4.2 4.2 0 0 1 3.9 5.7l-1.2 3.1a2.4 2.4 0 0 1-4.3.3L14 16h-4l-2.9 1.6a2.4 2.4 0 0 1-4.3-.3l-1.2-3.1a4.2 4.2 0 0 1 3.9-5.7Z"/><path d="M7.3 11.2v3.2M5.7 12.8h3.2M15.9 12.2h.1M18.1 14h.1"/></svg>
         </span>
-        <span class="sn7-nav-label" data-short="Jogos">Jogos</span>
+        <span class="sn7-nav-label" data-short="Mini Games">Mini Games</span>
       </button>
       <button type="button" data-tab="commands" aria-label="Comandos">
         <span class="sn7-nav-icon" aria-hidden="true">
@@ -101,7 +105,7 @@ body.sn7-modal-open{overflow:hidden}
         <span class="sn7-nav-label" data-short="Perfil">Perfil</span>
       </button>
     </nav>
-    <div class="sidebar-footer">SN7 CORE <span>v1.9.23</span></div>
+    <div class="sidebar-footer">SN7 CORE <span>v1.9.26</span></div>
   </aside>
 
   <main>
@@ -109,9 +113,9 @@ body.sn7-modal-open{overflow:hidden}
       <div>
         <div class="eyebrow">PAINEL DO CANAL</div>
         <h1 id="title"><span class="sn7-page-title-icon" aria-hidden="true"></span><span class="sn7-page-title-text">Início</span></h1>
-        <p>Configure a economia e as ferramentas da sua live.</p>
+        <p>Configure a economia, música e ferramentas da sua live.</p>
       </div>
-      <span class="status"><i></i> ONLINE</span>
+      <div class="sn7-desktop-profile-wrap"><button type="button" class="sn7-desktop-profile" onclick="activateTab('profile')" aria-label="Abrir perfil"><span id="sn7DesktopProfileIcon" class="sn7-desktop-profile-icon" aria-hidden="true">◉</span><span class="sn7-desktop-profile-label">Perfil</span><span class="sn7-desktop-profile-chevron">⌄</span></button><span class="status"><i></i> ONLINE</span></div>
     </header>
     <section id="overview" class="tab active">
       <div class="sn7-welcome">
@@ -125,14 +129,13 @@ body.sn7-modal-open{overflow:hidden}
       <div class="sn7-points-cards">
         <button type="button" class="sn7-points-card" onclick="openPointsEditor()"><span class="sn7-points-card-icon">◉</span><span class="sn7-points-card-body"><small>Sistema de pontos</small><strong id="pointsCardName">Pontos</strong><em id="pointsCardCommand">!pontos</em></span><span class="sn7-points-card-arrow">Editar →</span></button>
         <button type="button" class="sn7-points-card" onclick="openRewardsEditor()"><span class="sn7-points-card-icon">◷</span><span class="sn7-points-card-body"><small>Recompensas por assistir</small><strong>Presença, subs e KICKs</strong><em id="rewardsCardSummary">Configure os bônus</em></span><span class="sn7-points-card-arrow">Editar →</span></button>
-        <button type="button" class="sn7-points-card" onclick="openApostaEditor()"><span class="sn7-points-card-icon">⚔</span><span class="sn7-points-card-body"><small>Aposta</small><strong id="apostaCardCommand">!aposta</strong><em>Comando e mensagem do chat</em></span><span class="sn7-points-card-arrow">Editar →</span></button>
+
       </div>
 
       <div id="sn7PointsEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" aria-label="Fechar">×</button><h3>Sistema de pontos</h3><p>Configure como o sistema aparece e responde no chat.</p><div class="form-grid"><label>Nome dos pontos<input id="currency_name" value="Pontos" placeholder="Pontos" autocomplete="off"></label><label>Comando principal<input id="currency_command" value="!pontos" placeholder="!pontos" autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>Emoji<input id="currency_emoji" placeholder="" autocomplete="off"></label></div><label>Mensagem do saldo<div id="points_response_preview" class="sn7-response-preview"></div><button id="points_response_edit" type="button" class="sn7-edit-response" onclick="togglePointsResponseEditor()">Editar mensagem</button><textarea id="points_response" class="sn7-points-response sn7-response-editor" maxlength="500" placeholder="Mensagem que o bot enviará ao consultar o saldo" hidden></textarea><div id="points_response_help" class="sn7-help" hidden>Use $(user), $(points), $(currency), $(emoji_text) e $(rank_text).</div></label><div class="save-row"><p id="settingsMsg"></p><button type="button" class="sn7-danger" onclick="resetPointsSettings()">Redefinir configuração</button><button type="button" class="btn" onclick="saveSettingsAndClose('sn7PointsEditor', this)">Salvar alterações</button></div></div></div>
 
       <div id="sn7RewardsEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" aria-label="Fechar">×</button><h3>Recompensas por assistir</h3><p>O Core usa a interação no chat como sinal de presença e aplica o intervalo configurado. Na Twitch, subs e Bits geram bônus; no YouTube, novos membros e Super Chats geram bônus.</p><div class="form-grid"><label>Pontos por assistir<input id="watch_points" type="number" min="0" inputmode="numeric" value="1"></label><label>Intervalo da presença (minutos)<input id="watch_interval_minutes" type="number" min="1" max="240" inputmode="numeric" value="10"></label><label>Bônus ao assinar/renovar<input id="sub_bonus" type="number" min="0" inputmode="numeric" value="500"></label><label>Bônus por KICK enviado<input id="kicks_bonus_per_kick" type="number" min="0" inputmode="numeric" value="1"></label><label>Bônus por Bit (Twitch)<input id="bits_bonus_per_bit" type="number" min="0" inputmode="numeric" value="1"></label><label>Bônus por unidade de Super Chat (YouTube)<input id="superchat_bonus_per_unit" type="number" min="0" inputmode="numeric" value="1"></label></div><div class="save-row"><p id="rewardsMsg"></p><button type="button" class="sn7-danger" onclick="resetRewardsSettings()">Redefinir configuração</button><button type="button" class="btn" onclick="saveSettingsAndClose('sn7RewardsEditor', this)">Salvar alterações</button></div></div></div>
 
-      <div id="sn7ApostaEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" aria-label="Fechar">×</button><h3>Aposta</h3><p>Configure o comando e a mensagem enviada quando alguém usa a aposta.</p><label>Comando<input id="aposta_command" value="!aposta" placeholder="!aposta" autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>Mensagem da aposta<textarea id="aposta_response" maxlength="500" placeholder="Ex.: ⚔️ $(user) apostou contra $(target) e $(winner) venceu!"></textarea></label><div class="save-row"><p id="apostaMsg"></p><button type="button" class="sn7-danger" onclick="resetApostaSettings()">Redefinir configuração</button><button type="button" class="btn" onclick="saveApostaSettings()">Salvar alterações</button></div></div></div>
     </section>
 
     <section id="ranking" class="tab">
@@ -147,6 +150,18 @@ body.sn7-modal-open{overflow:hidden}
     </section>
 
     <section id="minigames" class="tab">
+      <div class="sn7-points-cards sn7-minigames-cards">
+        <button type="button" class="sn7-points-card" onclick="openApostaEditor()"><span class="sn7-points-card-icon">⚔</span><span class="sn7-points-card-body"><small>Mini Game</small><strong id="apostaCardCommand">!aposta</strong><em>Duelo/aposta entre espectadores</em></span><span class="sn7-points-card-arrow">Editar →</span></button>
+        <button type="button" class="sn7-points-card" onclick="openTab('commands')"><span class="sn7-points-card-icon">🎲</span><span class="sn7-points-card-body"><small>Mais jogos</small><strong>Comandos e interações</strong><em>Crie e organize comandos para novos mini games.</em></span><span class="sn7-points-card-arrow">Abrir →</span></button>
+      </div>
+      <div class="sn7-minigames-note"><strong>🎮 Mini Games</strong><span>Os jogos usam os pontos da plataforma do espectador. Novos mini games poderão ser adicionados aqui sem misturar as configurações do player.</span></div>
+
+      <div id="sn7ApostaEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" aria-label="Fechar">×</button><h3>Aposta</h3><p>Configure o comando e a mensagem enviada quando alguém usa a aposta.</p><label>Comando<input id="aposta_command" value="!aposta" placeholder="!aposta" autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>Mensagem da aposta<textarea id="aposta_response" maxlength="500" placeholder="Ex.: ⚔️ $(user) apostou contra $(target) e $(winner) venceu!"></textarea></label><div class="save-row"><p id="apostaMsg"></p><button type="button" class="sn7-danger" onclick="resetApostaSettings()">Redefinir configuração</button><button type="button" class="btn" onclick="saveApostaSettings()">Salvar alterações</button></div></div></div>
+
+
+    </section>
+
+    <section id="music" class="tab">
       <div class="sn7-music-shell">
         <div class="sn7-music-player" id="sn7MusicPlayer">
           <div class="sn7-music-topline">
@@ -355,7 +370,7 @@ body.sn7-modal-open{overflow:hidden}
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
 const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
-<script src="/static/js/app.js?v=sn7-1.9.25"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.26"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -385,7 +400,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   function out(){
     q("sn7ProfileLoggedIn").hidden=true;q("sn7ProfileLoggedOut").hidden=false;
     setAvatar(q("sn7ChannelAvatar"), "S", "");
-    setAvatar(q("sn7NavProfileIcon"), "◉", "");
+    setAvatar(q("sn7NavProfileIcon"), "◉", ""); setAvatar(q("sn7DesktopProfileIcon"), "◉", "");
     renderKickPlatform(false,false,null);
   }
   function setAvatar(el, fallback, url, provider="kick"){
@@ -424,7 +439,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     const avatarUrl=u.profile_picture_url||u.profile_picture||u.avatar_url||"";
     window.__sn7KickProfile={id:u.id??BROADCASTER_ID,username,profile_picture_url:avatarUrl};
     setAvatar(q("sn7ChannelAvatar"), initials, avatarUrl);
-    setAvatar(q("sn7NavProfileIcon"), initials, avatarUrl);
+    setAvatar(q("sn7NavProfileIcon"), initials, avatarUrl); setAvatar(q("sn7DesktopProfileIcon"), initials, avatarUrl);
     if(BROADCASTER_ID) renderKickPlatform(true,false,window.__sn7KickProfile);
   }
   function bot(a){
@@ -705,7 +720,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     const initials=(name.charAt(0)||"S").toUpperCase();
     const avatar=u.avatar_url||u.profile_picture_url||"";
     setAvatar(q("sn7ChannelAvatar"),initials,avatar,candidate===data.platforms.twitch?"twitch":"youtube");
-    setAvatar(q("sn7NavProfileIcon"),initials,avatar,candidate===data.platforms.twitch?"twitch":"youtube");
+    setAvatar(q("sn7NavProfileIcon"),initials,avatar,candidate===data.platforms.twitch?"twitch":"youtube"); setAvatar(q("sn7DesktopProfileIcon"),initials,avatar,candidate===data.platforms.twitch?"twitch":"youtube");
   }
 
   async function loadPlatformStatus(force=false){

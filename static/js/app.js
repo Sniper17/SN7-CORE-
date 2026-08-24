@@ -126,7 +126,7 @@ function activateTab(tab, options = {}) {
     const titleText = title.querySelector(".sn7-page-title-text");
     if (titleText) {
       const baseLabel = label?.textContent?.trim() || button.getAttribute("aria-label") || "";
-      titleText.textContent = button.dataset.tab === "minigames" ? "Jogos / Música" : baseLabel;
+      titleText.textContent = button.dataset.tab === "minigames" ? "Mini Games" : baseLabel;
     }
     if (titleIcon) {
       titleIcon.replaceChildren();
@@ -149,6 +149,7 @@ function activateTab(tab, options = {}) {
             overview: '<path d="M3.5 10.6 12 3.5l8.5 7.1"/><path d="M5.5 9.7v9.8a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.7"/><path d="M9.5 20.5v-5.8h5v5.8"/>',
             economy: '<circle cx="12" cy="12" r="7.8"/><path d="M12 8v8M9.2 10.2c.8-1.1 4.8-1.1 5.6.3.9 1.7-1.1 2.4-2.8 2.7-1.7.3-3.7.8-2.9 2.5.7 1.5 4.9 1.6 5.8.1"/>',
             ranking: '<path d="M7 20V10h4v10M13 20V4h4v16M3 20h18"/>',
+            music: '<path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="3.2"/><circle cx="16.5" cy="16" r="3.2"/>',
             minigames: '<path d="m7.5 8.5 2-2h5l2 2"/><path d="M7.5 8.5h9a4.2 4.2 0 0 1 3.9 5.7l-1.2 3.1a2.4 2.4 0 0 1-4.3.3L14 16h-4l-2.9 1.6a2.4 2.4 0 0 1-4.3-.3l-1.2-3.1a4.2 4.2 0 0 1 3.9-5.7Z"/>',
             commands: '<path d="m8 8 4 4-4 4M13 16h4"/><rect x="3.5" y="4" width="17" height="16" rx="3"/>',
             profile: '<circle cx="12" cy="8.2" r="3.2"/><path d="M5.2 20a6.8 6.8 0 0 1 13.6 0"/>'
@@ -161,6 +162,10 @@ function activateTab(tab, options = {}) {
   }
 
   if (options.persist !== false) saveActiveTab(button.dataset.tab);
+
+  if (window.matchMedia && window.matchMedia("(max-width: 700px)").matches) {
+    try { button.scrollIntoView({ behavior: options.scroll === false ? "auto" : "smooth", inline: "center", block: "nearest" }); } catch (_) {}
+  }
 
   if (options.scroll !== false) {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2214,10 +2219,10 @@ async function saveMusicConfig() {
 
 /* O player é pré-carregado junto do boot, mas não cria áudio/rede de mídia até necessário. */
 (function setupMusicTabLoader(){
-  document.querySelectorAll('nav button[data-tab="minigames"]').forEach((button) => {
+  document.querySelectorAll('nav button[data-tab="music"]').forEach((button) => {
     button.addEventListener("click", () => loadMusic().catch(() => {}));
   });
-  if (document.querySelector('section#minigames.active')) loadMusic().catch(() => {});
+  if (document.querySelector('section#music.active')) loadMusic().catch(() => {});
   // Prefetch the lightweight connection status so opening the modal feels instant.
   if (musicHasChannel()) loadMusicConnections().catch(() => {});
   const params = new URLSearchParams(window.location.search);
@@ -2225,7 +2230,7 @@ async function saveMusicConfig() {
   const oauthError = params.get("music_error");
   if (connected || oauthError) {
     setTimeout(() => {
-      if (typeof activateTab === "function") activateTab("minigames");
+      if (typeof activateTab === "function") activateTab("music");
       openMusicConfig();
       const msg = $("musicConfigMsg");
       if (msg) {
