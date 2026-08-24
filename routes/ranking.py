@@ -7,6 +7,9 @@ ranking_bp = Blueprint("ranking", __name__)
 
 @ranking_bp.get("/<int:broadcaster_id>")
 def ranking(broadcaster_id):
+    platform = str(request.args.get("platform") or "kick").strip().lower()
+    if platform not in {"kick", "twitch", "youtube"}:
+        return jsonify({"ok": False, "error": "Plataforma inválida."}), 400
     channel = get_channel(broadcaster_id)
     limit = max(1, min(int(request.args.get("limit", channel["rank_limit"])), 50))
     conn = get_conn()
@@ -17,11 +20,12 @@ def ranking(broadcaster_id):
                 SELECT username, points
                   FROM players
                  WHERE broadcaster_user_id=%s
+                   AND platform=%s
                    AND points>0
                  ORDER BY points DESC, username ASC
                  LIMIT %s
                 """,
-                (broadcaster_id, limit),
+                (broadcaster_id, platform, limit),
             )
             rows = [
                 {"position": i + 1, "username": r[0], "points": r[1]}
@@ -41,16 +45,20 @@ def ranking(broadcaster_id):
 
 @ranking_bp.get("/<int:broadcaster_id>/user")
 def user_rank(broadcaster_id):
+    platform = str(request.args.get("platform") or "kick").strip().lower()
+    if platform not in {"kick", "twitch", "youtube"}:
+        return jsonify({"ok": False, "error": "Plataforma inválida."}), 400
     username = request.args.get("username", "").strip().lstrip("@")
     if not username:
         return jsonify({"ok": False, "error": "username obrigatório"}), 400
 
-    rank = get_rank(broadcaster_id, username)
+    rank = get_rank(broadcaster_id, username, platform)
     return jsonify({
         "ok": True,
         "username": username,
         "rank": rank,
         "ranked": rank is not None,
+        "platform": platform,
     })
 
 

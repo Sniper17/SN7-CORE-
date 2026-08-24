@@ -908,7 +908,7 @@ def _render_response(template, values, args=None):
     return " ".join(text.split())
 
 
-def _expire_pending_bets(bid):
+def _expire_pending_bets(bid, platform="kick"):
     """Cancela apostas pendentes que passaram dos 90 segundos sem remover pontos."""
     expired = []
     conn = get_conn()
@@ -919,11 +919,12 @@ def _expire_pending_bets(bid):
                 UPDATE pending_bets
                    SET status='cancelled'
                  WHERE broadcaster_user_id=%s
+                   AND platform=%s
                    AND status='pending'
                    AND expires_at < NOW()
                 RETURNING challenger, defender, amount
                 """,
-                (int(bid),),
+                (int(bid), str(platform or "kick").lower()),
             )
             expired = cur.fetchall()
         conn.commit()
@@ -932,7 +933,7 @@ def _expire_pending_bets(bid):
     return expired
 
 
-def _format_balance(bid, user):
+def _format_balance(bid, user, platform="kick"):
     # !pontos é um dos comandos mais usados. Antes eram necessárias duas
     # consultas separadas para saldo/rank, além do ensure_player. Agora saldo
     # e posição saem de uma única leitura indexada do PostgreSQL.
@@ -948,16 +949,18 @@ def _format_balance(bid, user):
                                SELECT COUNT(*)
                                  FROM players higher
                                 WHERE higher.broadcaster_user_id=%s
+                                  AND higher.platform=%s
                                   AND higher.points > 0
                                   AND higher.points > p.points
                            )
                        ELSE NULL END AS rank
                   FROM players p
                  WHERE p.broadcaster_user_id=%s
+                   AND p.platform=%s
                    AND p.username=%s
                  LIMIT 1
                 """,
-                (int(bid), int(bid), user),
+                (int(bid), str(platform or "kick").lower(), int(bid), str(platform or "kick").lower(), user),
             )
             row = cur.fetchone()
     finally:
@@ -975,10 +978,12 @@ def _format_balance(bid, user):
         "rank": rank if rank is not None else "",
         "rank_text": f" Sua posição no ranking é #{rank}." if rank is not None else "",
     }
-def _format_ranking(bid):
+def _format_ranking(bid, platform="kick"):
  ch=get_channel(bid);limit=max(1,min(int(ch['rank_limit']),10));c=get_conn()
  try:
-  with c.cursor() as x:x.execute('SELECT username,points FROM players WHERE broadcaster_user_id=%s AND points>0 ORDER BY points DESC,username ASC LIMIT %s',(int(bid),limit));rows=x.fetchall()
+  with c.cursor() as x:
+   x.execute('SELECT username,points FROM players WHERE broadcaster_user_id=%s AND platform=%s AND points>0 ORDER BY points DESC,username ASC LIMIT %s',(int(bid),str(platform or "kick").lower(),limit))
+   rows=x.fetchall()
  finally:c.close()
  if not rows:return f"🏆 Ranking: ninguém possui {ch['currency_name']} ainda."
  return '🏆 Ranking: '+' • '.join(f'{i}. {n} {p}' for i,(n,p) in enumerate(rows,1))
@@ -1024,6 +1029,9 @@ def _process_chat(payload, send_chat=None):
         conn_for_channel = _get_connection(kick_bid)
         bid = int(conn_for_channel.get("sn7_profile_id") if conn_for_channel else kick_bid)
 
+    platform = str(payload.get("platform") or "kick").strip().lower()
+    if platform not in {"kick", "twitch", "youtube"}:
+        platform = "kick"
     user = str(sender.get("username") or sender.get("slug") or "").strip()
     content = str(payload.get("content") or "").strip()
     if not bid or not user:
@@ -1031,7 +1039,7 @@ def _process_chat(payload, send_chat=None):
 
     # Expira apostas antigas na primeira interação seguinte. Nenhum ponto é removido.
     try:
-        expired_bets = _expire_pending_bets(bid)
+        expired_bets = _expire_pending_bets(bid, platform)
         for challenger, defender, amount in expired_bets:
             send_chat(
                 bid,
@@ -1045,7 +1053,7 @@ def _process_chat(payload, send_chat=None):
     platform = str(payload.get("platform") or "kick").lower()
     if platform == "kick" and _kick_channel_is_live(kick_bid):
         try:
-            presence_bonus = award_watch_presence(bid, user, uid)
+            presence_bonus = award_watch_presence(bid, user, uid, "kick")
             if presence_bonus:
                 print(f"[SN7-REWARDS] {user} +{presence_bonus} por presença em live", flush=True)
         except Exception as exc:
@@ -1058,7 +1066,7 @@ def _process_chat(payload, send_chat=None):
         bid,
         str(broadcaster.get("username") or broadcaster.get("channel_slug") or ""),
     )
-    ensure_player(bid, user, uid)
+    ensure_player(bid, user, uid, platform)
 
     pieces = content.split()
     cmd = pieces[0].lower()
@@ -1163,11 +1171,11 @@ def _process_chat(payload, send_chat=None):
                 return
 
         if key == "points":
-            send_chat(bid, _render_response(cfg["response"], _format_balance(bid, user)))
+            send_chat(bid, _render_response(cfg["response"], _format_balance(bid, user, platform)))
             return
 
         if key == "ranking":
-            send_chat(bid, _render_response(cfg["response"], {"ranking": _format_ranking(bid)}))
+            send_chat(bid, _render_response(cfg["response"], {"ranking": _format_ranking(bid, platform)}))
             return
 
         if key == "cmds":
@@ -1217,26 +1225,27 @@ def _process_chat(payload, send_chat=None):
                 )
                 return
 
-            ensure_player(bid, target_value)
+            ensure_player(bid, target_value, platform=platform)
 
             conn = get_conn()
             try:
                 with conn.cursor() as cur:
                     # Remove apostas expiradas do mesmo canal.
                     cur.execute(
-                        "DELETE FROM pending_bets WHERE broadcaster_user_id=%s AND (status<>'pending' OR expires_at<NOW())",
-                        (bid,),
+                        "DELETE FROM pending_bets WHERE broadcaster_user_id=%s AND platform=%s AND (status<>'pending' OR expires_at<NOW())",
+                        (bid, platform),
                     )
 
                     cur.execute(
                         """
                         SELECT id FROM pending_bets
                          WHERE broadcaster_user_id=%s
+                           AND platform=%s
                            AND status='pending'
                            AND (challenger=%s OR defender=%s OR challenger=%s OR defender=%s)
                          LIMIT 1
                         """,
-                        (bid, user, user, target_value, target_value),
+                        (bid, platform, user, user, target_value, target_value),
                     )
                     existing = cur.fetchone()
                     if existing:
@@ -1249,10 +1258,10 @@ def _process_chat(payload, send_chat=None):
                     cur.execute(
                         """
                         SELECT points FROM players
-                         WHERE broadcaster_user_id=%s AND username=%s
+                         WHERE broadcaster_user_id=%s AND platform=%s AND username=%s
                         FOR UPDATE
                         """,
-                        (bid, user),
+                        (bid, platform, user),
                     )
                     row = cur.fetchone()
                     current_points = int(row[0] or 0) if row else 0
@@ -1267,11 +1276,11 @@ def _process_chat(payload, send_chat=None):
                     cur.execute(
                         """
                         INSERT INTO pending_bets
-                            (broadcaster_user_id, challenger, defender, amount)
-                        VALUES (%s,%s,%s,%s)
+                            (broadcaster_user_id, platform, challenger, defender, amount)
+                        VALUES (%s,%s,%s,%s,%s)
                         RETURNING id
                         """,
-                        (bid, user, target_value, amount_value),
+                        (bid, platform, user, target_value, amount_value),
                     )
                     bet_id = cur.fetchone()[0]
                 conn.commit()
@@ -1319,6 +1328,7 @@ def _process_chat(payload, send_chat=None):
                         SELECT id, challenger, defender, amount
                           FROM pending_bets
                          WHERE broadcaster_user_id=%s
+                           AND platform=%s
                            AND defender=%s
                            AND status='pending'
                            AND expires_at>=NOW()
@@ -1326,7 +1336,7 @@ def _process_chat(payload, send_chat=None):
                          LIMIT 1
                          FOR UPDATE
                         """,
-                        (bid, user),
+                        (bid, platform, user),
                     )
                     bet = cur.fetchone()
 
@@ -1349,10 +1359,11 @@ def _process_chat(payload, send_chat=None):
                             SELECT username, points
                               FROM players
                              WHERE broadcaster_user_id=%s
+                               AND platform=%s
                                AND username IN (%s,%s)
                              FOR UPDATE
                             """,
-                            (bid, challenger, defender),
+                            (bid, platform, challenger, defender),
                         )
                         balances = {row[0]: int(row[1] or 0) for row in cur.fetchall()}
                         challenger_points = balances.get(challenger, 0)
@@ -1385,17 +1396,17 @@ def _process_chat(payload, send_chat=None):
                                 """
                                 UPDATE players
                                    SET points=points+%s, duels=duels+1, updated_at=NOW()
-                                 WHERE broadcaster_user_id=%s AND username=%s
+                                 WHERE broadcaster_user_id=%s AND platform=%s AND username=%s
                                 """,
-                                (amount, bid, winner),
+                                (amount, bid, platform, winner),
                             )
                             cur.execute(
                                 """
                                 UPDATE players
                                    SET points=GREATEST(0,points-%s), duels=duels+1, updated_at=NOW()
-                                 WHERE broadcaster_user_id=%s AND username=%s
+                                 WHERE broadcaster_user_id=%s AND platform=%s AND username=%s
                                 """,
-                                (amount, bid, loser),
+                                (amount, bid, platform, loser),
                             )
                             cur.execute(
                                 "UPDATE pending_bets SET status='accepted' WHERE id=%s",
@@ -1404,11 +1415,11 @@ def _process_chat(payload, send_chat=None):
                             cur.execute(
                                 """
                                 INSERT INTO duel_events
-                                    (broadcaster_user_id,attacker,defender,winner,
+                                    (broadcaster_user_id,platform,attacker,defender,winner,
                                      winner_points_delta,loser_points_delta)
-                                VALUES (%s,%s,%s,%s,%s,%s)
+                                VALUES (%s,%s,%s,%s,%s,%s,%s)
                                 """,
-                                (bid, challenger, defender, winner, amount, -amount),
+                                (bid, platform, challenger, defender, winner, amount, -amount),
                             )
                             first_message = (
                                 f"✅ {_mention(user)} aceitou a aposta de {_mention(challenger)}. 🎲 Rolando dados..."
@@ -1518,7 +1529,7 @@ def _process_chat(payload, send_chat=None):
                 send_chat(bid, "❌ A quantidade precisa ser maior que 0.")
                 return
 
-            ensure_player(bid, target)
+            ensure_player(bid, target, platform=platform)
             conn = get_conn()
             try:
                 with conn.cursor() as cur:
@@ -1527,10 +1538,10 @@ def _process_chat(payload, send_chat=None):
                         f"""
                         UPDATE players
                            SET points={expression}, updated_at=NOW()
-                         WHERE broadcaster_user_id=%s AND username=%s
+                         WHERE broadcaster_user_id=%s AND platform=%s AND username=%s
                          RETURNING points
                         """,
-                        (amount, bid, target),
+                        (amount, bid, platform, target),
                     )
                     row = cur.fetchone()
                 conn.commit()
@@ -1631,7 +1642,7 @@ def _process_webhook(payload, event_type):
         username = str(subscriber.get("username") or subscriber.get("slug") or "").strip()
         uid = subscriber.get("user_id")
         if username and rewards["sub_bonus"] > 0:
-            add_points(bid, username, rewards["sub_bonus"], uid)
+            add_points(bid, username, rewards["sub_bonus"], uid, "kick")
             print(f"[SN7-REWARDS] {username} +{rewards['sub_bonus']} por assinatura ({event_type})", flush=True)
         return
 
@@ -1644,7 +1655,7 @@ def _process_webhook(payload, event_type):
         except (TypeError, ValueError): amount = 0
         bonus = amount * rewards["kicks_bonus_per_kick"]
         if username and bonus > 0:
-            add_points(bid, username, bonus, uid)
+            add_points(bid, username, bonus, uid, "kick")
             print(f"[SN7-REWARDS] {username} +{bonus} por {amount} KICK(s)", flush=True)
 
 

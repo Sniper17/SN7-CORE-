@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS channels (
 CREATE TABLE IF NOT EXISTS players (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT NOT NULL,
+    platform TEXT NOT NULL DEFAULT 'kick',
     kick_user_id BIGINT,
     username TEXT NOT NULL,
     points BIGINT NOT NULL DEFAULT 0,
@@ -36,11 +37,19 @@ CREATE TABLE IF NOT EXISTS players (
     duels INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (broadcaster_user_id, username)
+    UNIQUE (broadcaster_user_id, platform, username)
 );
 
+ALTER TABLE players ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'kick';
+ALTER TABLE players DROP CONSTRAINT IF EXISTS players_broadcaster_user_id_username_key;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_players_channel_platform_username
+ON players (broadcaster_user_id, platform, username);
+
 CREATE INDEX IF NOT EXISTS idx_players_channel_points
-ON players (broadcaster_user_id, points DESC);
+ON players (broadcaster_user_id, platform, points DESC);
+
+ALTER TABLE pending_bets ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'kick';
+ALTER TABLE duel_events ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'kick';
 
 CREATE INDEX IF NOT EXISTS idx_players_channel_kick_user
 ON players (broadcaster_user_id, kick_user_id)
@@ -59,6 +68,7 @@ CREATE TABLE IF NOT EXISTS custom_commands (
 CREATE TABLE IF NOT EXISTS duel_events (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT NOT NULL,
+    platform TEXT NOT NULL DEFAULT 'kick',
     attacker TEXT NOT NULL,
     defender TEXT NOT NULL,
     winner TEXT NOT NULL,
@@ -70,6 +80,7 @@ CREATE TABLE IF NOT EXISTS duel_events (
 CREATE TABLE IF NOT EXISTS pending_bets (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT NOT NULL,
+    platform TEXT NOT NULL DEFAULT 'kick',
     challenger TEXT NOT NULL,
     defender TEXT NOT NULL,
     amount BIGINT NOT NULL CHECK (amount > 0),

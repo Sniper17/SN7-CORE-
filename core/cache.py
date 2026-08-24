@@ -17,17 +17,18 @@ _rewards = {}
 _rewards_lock = RLock()
 
 
-def player_key(broadcaster_id, kick_user_id=None, username=None):
+def player_key(broadcaster_id, kick_user_id=None, username=None, platform="kick"):
+    platform = str(platform or "kick").strip().lower()
     if kick_user_id is not None:
         try:
-            return ("id", int(broadcaster_id), int(kick_user_id))
+            return ("id", platform, int(broadcaster_id), int(kick_user_id))
         except (TypeError, ValueError):
             pass
-    return ("name", int(broadcaster_id), str(username or "").strip().lower())
+    return ("name", platform, int(broadcaster_id), str(username or "").strip().lower())
 
 
-def get_player_identity(broadcaster_id, kick_user_id=None, username=None):
-    key = player_key(broadcaster_id, kick_user_id, username)
+def get_player_identity(broadcaster_id, kick_user_id=None, username=None, platform="kick"):
+    key = player_key(broadcaster_id, kick_user_id, username, platform)
     now = time.monotonic()
     with _players_lock:
         item = _players.get(key)
@@ -40,8 +41,9 @@ def get_player_identity(broadcaster_id, kick_user_id=None, username=None):
         return dict(item)
 
 
-def remember_player_identity(broadcaster_id, kick_user_id, username):
-    key = player_key(broadcaster_id, kick_user_id, username)
+def remember_player_identity(broadcaster_id, kick_user_id, username, platform="kick"):
+    platform = str(platform or "kick").strip().lower()
+    key = player_key(broadcaster_id, kick_user_id, username, platform)
     item = {
         "broadcaster_user_id": int(broadcaster_id),
         "kick_user_id": int(kick_user_id) if kick_user_id is not None else None,
@@ -53,7 +55,7 @@ def remember_player_identity(broadcaster_id, kick_user_id, username):
         # Mantemos também uma chave por nick para as rotas antigas que ainda
         # recebem apenas username. O ID da Kick continua sendo a identidade.
         if item["username"]:
-            keys.append(("name", int(broadcaster_id), item["username"].lower()))
+            keys.append(("name", platform, int(broadcaster_id), item["username"].lower()))
         for cache_key in keys:
             _players[cache_key] = item
             _players.move_to_end(cache_key)
@@ -61,8 +63,8 @@ def remember_player_identity(broadcaster_id, kick_user_id, username):
             _players.popitem(last=False)
 
 
-def forget_player(broadcaster_id, kick_user_id=None, username=None):
-    key = player_key(broadcaster_id, kick_user_id, username)
+def forget_player(broadcaster_id, kick_user_id=None, username=None, platform="kick"):
+    key = player_key(broadcaster_id, kick_user_id, username, platform)
     with _players_lock:
         _players.pop(key, None)
 

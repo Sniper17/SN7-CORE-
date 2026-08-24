@@ -310,8 +310,8 @@ function injectCommandStyles() {
     .sn7-subtle{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer}
     .sn7-subtle:hover{color:#fff;border-color:#394253;background:#171c25}
     .sn7-empty{padding:12px 8px;color:var(--muted);font-size:12px}
-    .sn7-modal{position:fixed;inset:0;background:rgba(0,0,0,.68);display:flex;align-items:center;justify-content:center;padding:16px;z-index:9999}
-    .sn7-box{width:min(620px,100%);max-height:90vh;overflow:auto;background:#11151d;border:1px solid var(--border);border-radius:16px;padding:20px}
+    .sn7-modal{position:fixed;inset:0;background:rgba(0,0,0,.68);display:flex;align-items:center;justify-content:center;padding:16px 16px calc(16px + env(safe-area-inset-bottom));z-index:2147483200;box-sizing:border-box}
+    .sn7-box{width:min(620px,100%);max-height:calc(100svh - 32px);overflow:auto;background:#11151d;border:1px solid var(--border);border-radius:16px;padding:20px}
     .sn7-box h3{margin:0}
     .sn7-box label{display:block;margin-top:14px;font-size:12px}
     .sn7-box input,.sn7-box textarea{width:100%;margin-top:7px;box-sizing:border-box}
@@ -855,25 +855,112 @@ async function saveSettingsAndClose(modalId, button) {
   }
 }
 
+function injectRankingStyles() {
+  if ($("sn7-ranking-platform-style")) return;
+  const style = document.createElement("style");
+  style.id = "sn7-ranking-platform-style";
+  style.textContent = `
+    .sn7-ranking-platform-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:980px}
+    .sn7-ranking-platform-card{appearance:none;width:100%;text-align:left;color:inherit;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;cursor:pointer;min-height:170px;transition:transform .16s ease,border-color .16s ease,background .16s ease}
+    .sn7-ranking-platform-card:hover{transform:translateY(-1px);border-color:#394253;background:#141923}
+    .sn7-ranking-platform-card:active{transform:scale(.985)}
+    .sn7-ranking-platform-top{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+    .sn7-ranking-platform-logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-weight:900;font-size:19px;flex:0 0 42px;background:#1b202a;border:1px solid #303744;overflow:hidden}.sn7-ranking-platform-logo svg{width:32px;height:32px;display:block}
+    .sn7-ranking-platform-card.kick .sn7-ranking-platform-logo{color:#53e88a}
+    .sn7-ranking-platform-card.twitch .sn7-ranking-platform-logo{color:#b78cff}
+    .sn7-ranking-platform-card.youtube .sn7-ranking-platform-logo{color:#ff6b73}
+    .sn7-ranking-platform-name{font-weight:800;font-size:16px}
+    .sn7-ranking-platform-sub{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+    .sn7-ranking-mini{display:grid;gap:7px}
+    .sn7-ranking-mini-row{display:flex;gap:8px;align-items:center;font-size:12px}
+    .sn7-ranking-mini-pos{width:22px;color:#8f98a8;font-weight:800}
+    .sn7-ranking-mini-user{min-width:0;flex:1;overflow-wrap:anywhere}
+    .sn7-ranking-mini-points{font-weight:800;white-space:nowrap}
+    .sn7-ranking-platform-empty{color:var(--muted);font-size:12px;padding:8px 0}
+    .sn7-ranking-platform-loading{color:var(--muted);font-size:12px;padding:8px 0}
+    .sn7-platform-ranking-modal{position:fixed;inset:0;z-index:2147483200;background:rgba(3,5,9,.78);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
+    .sn7-platform-ranking-card{position:relative;width:min(620px,100%);max-height:calc(100svh - 32px);overflow:auto;background:#11151d;border:1px solid #2a303c;border-radius:18px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.5);box-sizing:border-box}
+    .sn7-platform-ranking-close{position:absolute;right:10px;top:9px;width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:#8f98a8;font-size:25px;cursor:pointer}
+    .sn7-platform-ranking-close:hover{background:#1b202a;color:#fff}
+    .sn7-platform-ranking-head{display:flex;align-items:center;gap:11px;padding-right:38px;margin-bottom:16px}
+    .sn7-platform-ranking-head h3{margin:0;font-size:21px}
+    .sn7-platform-ranking-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
+    .sn7-platform-ranking-list{display:grid;gap:9px}
+    @media(max-width:760px){.sn7-ranking-platform-grid{grid-template-columns:1fr}.sn7-ranking-platform-card{min-height:0}}
+  `;
+  document.head.appendChild(style);
+}
+
+function rankingPlatformIcon(platform) {
+  if (platform === "kick") return '<svg viewBox="0 0 42 42" aria-hidden="true"><rect x="4" y="4" width="34" height="34" rx="10" fill="currentColor"/><path d="M13 11h5v8l7-8h6l-8 9 8 11h-6l-7-8v8h-5z" fill="#0b0d12"/></svg>';
+  if (platform === "twitch") return '<svg viewBox="0 0 42 42" aria-hidden="true"><path d="M8 5h27v23l-8 7h-7l-5 4v-4H8z" fill="currentColor"/><path d="M13 10h18v14l-5 5h-6l-4 3v-3h-3z" fill="#11151d"/><path d="M18 13h3v8h-3zm7 0h3v8h-3z" fill="currentColor"/></svg>';
+  return '<svg viewBox="0 0 42 42" aria-hidden="true"><rect x="4" y="8" width="34" height="26" rx="8" fill="currentColor"/><path d="M17 14l11 7-11 7z" fill="#11151d"/></svg>';
+}
+
+function rankingPlatformLabel(platform) {
+  return platform === "kick" ? "Kick" : platform === "twitch" ? "Twitch" : "YouTube";
+}
+
+function renderRankingRows(rows, currency, compact = false) {
+  if (!rows.length) return `<div class="${compact ? "sn7-ranking-platform-empty" : "sn7-ranking-empty"}">Nenhum usuário com pontos ainda.</div>`;
+  const visible = compact ? rows.slice(0, 3) : rows;
+  return visible.map((item) => `
+    <div class="${compact ? "sn7-ranking-mini-row" : "sn7-ranking-row"}">
+      <div class="${compact ? "sn7-ranking-mini-pos" : "sn7-ranking-position"}">#${esc(item.position)}</div>
+      <div class="${compact ? "sn7-ranking-mini-user" : "sn7-ranking-user"}">${esc(item.username)}</div>
+      <div class="${compact ? "sn7-ranking-mini-points" : "sn7-ranking-points"}">${Number(item.points || 0).toLocaleString("pt-BR")} ${esc(currency)}</div>
+    </div>
+  `).join("");
+}
+
+async function openPlatformRanking(platform) {
+  injectRankingStyles();
+  const modal = document.createElement("div");
+  modal.className = "sn7-platform-ranking-modal";
+  modal.innerHTML = `
+    <div class="sn7-platform-ranking-card" role="dialog" aria-modal="true">
+      <button type="button" class="sn7-platform-ranking-close" aria-label="Fechar">×</button>
+      <div class="sn7-platform-ranking-head">
+        <span class="sn7-ranking-platform-logo">${rankingPlatformIcon(platform)}</span>
+        <div><h3>Ranking ${rankingPlatformLabel(platform)}</h3><p>Pontos exclusivos desta plataforma.</p></div>
+      </div>
+      <div class="sn7-platform-ranking-list"><div class="sn7-ranking-loading">Carregando ranking...</div></div>
+    </div>`;
+  document.body.appendChild(modal);
+  const close = () => modal.remove();
+  modal.querySelector(".sn7-platform-ranking-close").onclick = close;
+  modal.onclick = (event) => { if (event.target === modal) close(); };
+  try {
+    const data = await apiJson(`/api/ranking/${BROADCASTER_ID}?limit=50&platform=${encodeURIComponent(platform)}`);
+    const rows = Array.isArray(data.ranking) ? data.ranking : [];
+    modal.querySelector(".sn7-platform-ranking-list").innerHTML = renderRankingRows(rows, data.currency || "Pontos");
+  } catch (error) {
+    modal.querySelector(".sn7-platform-ranking-list").innerHTML = `<div class="sn7-ranking-empty">⚠ ${esc(error.message)}</div>`;
+  }
+}
+
 async function loadRanking() {
   const list = $("sn7RankingList");
-  if (!list || typeof BROADCASTER_ID === "undefined" || BROADCASTER_ID === null) return;
-  list.innerHTML = '<div class="sn7-ranking-loading">Carregando ranking...</div>';
+  if (!list) return;
+  injectRankingStyles();
+  list.innerHTML = '<div class="sn7-ranking-loading">Carregando rankings...</div>';
+  const platforms = ["kick", "twitch", "youtube"];
   try {
-    const data = await apiJson(`/api/ranking/${BROADCASTER_ID}?limit=50`);
-    const rows = Array.isArray(data.ranking) ? data.ranking : [];
-    if (!rows.length) {
-      list.innerHTML = '<div class="sn7-ranking-empty">Nenhum usuário com pontos ainda.</div>';
-      return;
-    }
-    const currency = data.currency || "Pontos";
-    list.innerHTML = rows.map((item) => `
-      <div class="sn7-ranking-row">
-        <div class="sn7-ranking-position">#${esc(item.position)}</div>
-        <div class="sn7-ranking-user">${esc(item.username)}</div>
-        <div class="sn7-ranking-points">${Number(item.points || 0).toLocaleString("pt-BR")} ${esc(currency)}</div>
-      </div>
+    const results = await Promise.all(platforms.map(async (platform) => {
+      const data = await apiJson(`/api/ranking/${BROADCASTER_ID}?limit=50&platform=${encodeURIComponent(platform)}`);
+      return { platform, data, rows: Array.isArray(data.ranking) ? data.ranking : [] };
+    }));
+    list.innerHTML = results.map(({platform, data, rows}) => `
+      <button type="button" class="sn7-ranking-platform-card ${platform}" onclick="openPlatformRanking('${platform}')">
+        <div class="sn7-ranking-platform-top">
+          <span class="sn7-ranking-platform-logo">${rankingPlatformIcon(platform)}</span>
+          <div><div class="sn7-ranking-platform-name">${rankingPlatformLabel(platform)}</div>
+          <span class="sn7-ranking-platform-sub">Ranking e pontos da plataforma</span></div>
+        </div>
+        <div class="sn7-ranking-mini">${renderRankingRows(rows, data.currency || "Pontos", true)}</div>
+      </button>
     `).join("");
+    if (!results.length) list.innerHTML = '<div class="sn7-ranking-empty">Nenhuma plataforma disponível.</div>';
   } catch (error) {
     list.innerHTML = `<div class="sn7-ranking-empty">⚠ ${esc(error.message)}</div>`;
   }

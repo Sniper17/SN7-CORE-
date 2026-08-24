@@ -74,7 +74,7 @@ def get_channel(broadcaster_id):
         conn.close()
 
 
-def ensure_player(broadcaster_id, username, kick_user_id=None):
+def ensure_player(broadcaster_id, username, kick_user_id=None, platform="kick"):
     """Garante o cadastro sem usar o nick como identidade.
 
     Depois do primeiro encontro, as mensagens normais não consultam o banco:
@@ -82,9 +82,12 @@ def ensure_player(broadcaster_id, username, kick_user_id=None):
     somente nesse momento fazemos uma atualização no PostgreSQL.
     """
     bid = int(broadcaster_id)
+    platform = str(platform or "kick").strip().lower()
+    if platform not in {"kick", "twitch", "youtube"}:
+        platform = "kick"
     name = str(username or "").strip()
     uid = int(kick_user_id) if kick_user_id is not None else None
-    cached = get_player_identity(bid, uid, name)
+    cached = get_player_identity(bid, uid, name, platform)
 
     if cached:
         if cached.get("username") == name:
@@ -98,14 +101,14 @@ def ensure_player(broadcaster_id, username, kick_user_id=None):
                         """
                         UPDATE players
                            SET username=%s, updated_at=NOW()
-                         WHERE broadcaster_user_id=%s AND kick_user_id=%s
+                         WHERE broadcaster_user_id=%s AND platform=%s AND kick_user_id=%s
                         """,
-                        (name, bid, uid),
+                        (name, bid, platform, uid),
                     )
                 conn.commit()
             finally:
                 conn.close()
-        remember_player_identity(bid, uid, name)
+        remember_player_identity(bid, uid, name, platform)
         return
 
     conn = get_conn()
@@ -117,11 +120,11 @@ def ensure_player(broadcaster_id, username, kick_user_id=None):
                     """
                     SELECT id, username
                       FROM players
-                     WHERE broadcaster_user_id=%s AND kick_user_id=%s
+                     WHERE broadcaster_user_id=%s AND platform=%s AND kick_user_id=%s
                      LIMIT 1
                     FOR UPDATE
                     """,
-                    (bid, uid),
+                    (bid, platform, uid),
                 )
                 row = cur.fetchone()
 
@@ -140,11 +143,11 @@ def ensure_player(broadcaster_id, username, kick_user_id=None):
                     """
                     SELECT id, kick_user_id
                       FROM players
-                     WHERE broadcaster_user_id=%s AND username=%s
+                     WHERE broadcaster_user_id=%s AND platform=%s AND username=%s
                      LIMIT 1
                     FOR UPDATE
                     """,
-                    (bid, name),
+                    (bid, platform, name),
                 )
                 row = cur.fetchone()
 
@@ -162,21 +165,21 @@ def ensure_player(broadcaster_id, username, kick_user_id=None):
                     cur.execute(
                         """
                         INSERT INTO players
-                            (broadcaster_user_id, kick_user_id, username)
-                        VALUES (%s,%s,%s)
+                            (broadcaster_user_id, platform, kick_user_id, username)
+                        VALUES (%s,%s,%s,%s)
                         """,
-                        (bid, uid, name),
+                        (bid, platform, uid, name),
                     )
         conn.commit()
     finally:
         conn.close()
 
-    remember_player_identity(bid, uid, name)
+    remember_player_identity(bid, uid, name, platform)
 
 
-def get_player(broadcaster_id, username):
+def get_player(broadcaster_id, username, platform="kick"):
     # ensure_player só consulta o banco na primeira vez ou quando o nick muda.
-    ensure_player(broadcaster_id, username)
+    ensure_player(broadcaster_id, username, platform=platform)
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -184,9 +187,9 @@ def get_player(broadcaster_id, username):
                 """
                 SELECT username, points, streak, duels
                   FROM players
-                 WHERE broadcaster_user_id=%s AND username=%s
+                 WHERE broadcaster_user_id=%s AND platform=%s AND username=%s
                 """,
-                (int(broadcaster_id), username)
+                (int(broadcaster_id), str(platform or "kick").lower(), username)
             )
             row = cur.fetchone()
             return (
@@ -202,7 +205,7 @@ def get_player(broadcaster_id, username):
         conn.close()
 
 
-def get_rank(broadcaster_id, username):
+def get_rank(broadcaster_id, username, platform="kick"):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -210,9 +213,9 @@ def get_rank(broadcaster_id, username):
                 """
                 SELECT points
                   FROM players
-                 WHERE broadcaster_user_id=%s AND username=%s
+                 WHERE broadcaster_user_id=%s AND platform=%s AND username=%s
                 """,
-                (int(broadcaster_id), username)
+                (int(broadcaster_id), str(platform or "kick").lower(), username)
             )
             row = cur.fetchone()
             if not row or int(row[0] or 0) <= 0:
@@ -223,13 +226,14 @@ def get_rank(broadcaster_id, username):
                 SELECT COUNT(*) + 1
                   FROM players p
                  WHERE p.broadcaster_user_id=%s
+                   AND p.platform=%s
                    AND p.points>0
                    AND p.points>
                        (SELECT points
                           FROM players
-                         WHERE broadcaster_user_id=%s AND username=%s)
+                         WHERE broadcaster_user_id=%s AND platform=%s AND username=%s)
                 """,
-                (int(broadcaster_id), int(broadcaster_id), username)
+                (int(broadcaster_id), str(platform or "kick").lower(), int(broadcaster_id), str(platform or "kick").lower(), username)
             )
             return cur.fetchone()[0]
     finally:
@@ -307,11 +311,11 @@ def update_point_rewards(broadcaster_id, values):
     return get_point_rewards(broadcaster_id)
 
 
-def add_points(broadcaster_id, username, amount, kick_user_id=None):
+def add_points(broadcaster_id, username, amount, kick_user_id=None, platform="kick"):
     amount = int(amount)
     if amount == 0:
         return
-    ensure_player(broadcaster_id, username, kick_user_id)
+    ensure_player(broadcaster_id, username, kick_user_id, platform)
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -319,22 +323,22 @@ def add_points(broadcaster_id, username, amount, kick_user_id=None):
                 """
                 UPDATE players
                    SET points=GREATEST(0,points+%s), updated_at=NOW()
-                 WHERE broadcaster_user_id=%s AND username=%s
+                 WHERE broadcaster_user_id=%s AND platform=%s AND username=%s
                 """,
-                (amount, int(broadcaster_id), username),
+                (amount, int(broadcaster_id), str(platform or "kick").lower(), username),
             )
         conn.commit()
     finally:
         conn.close()
 
 
-def award_watch_presence(broadcaster_id, username, kick_user_id=None):
+def award_watch_presence(broadcaster_id, username, kick_user_id=None, platform="kick"):
     rewards = get_point_rewards(broadcaster_id)
     if rewards["watch_points"] <= 0:
         return 0
 
     # Nenhuma leitura de cadastro por mensagem; o cache resolve usuários já vistos.
-    ensure_player(broadcaster_id, username, kick_user_id)
+    ensure_player(broadcaster_id, username, kick_user_id, platform)
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -342,7 +346,7 @@ def award_watch_presence(broadcaster_id, username, kick_user_id=None):
                 """
                 UPDATE players
                    SET points=points+%s, last_view_reward_at=NOW(), updated_at=NOW()
-                 WHERE broadcaster_user_id=%s AND username=%s
+                 WHERE broadcaster_user_id=%s AND platform=%s AND username=%s
                    AND (
                        last_view_reward_at IS NULL
                        OR last_view_reward_at <= NOW() - (%s * INTERVAL '1 minute')
@@ -352,6 +356,7 @@ def award_watch_presence(broadcaster_id, username, kick_user_id=None):
                 (
                     rewards["watch_points"],
                     int(broadcaster_id),
+                    str(platform or "kick").lower(),
                     username,
                     rewards["watch_interval_minutes"],
                 ),
