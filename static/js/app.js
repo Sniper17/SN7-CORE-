@@ -116,6 +116,9 @@ function activateTab(tab, options = {}) {
     if (button.dataset.tab === "music" && typeof window.loadMusic === "function") {
       window.loadMusic().catch(() => {});
     }
+    if (button.dataset.tab === "minigames" && typeof window.loadMiniGames === "function") {
+      window.loadMiniGames().catch(() => {});
+    }
   }
 
   const title = $("title");
@@ -221,7 +224,9 @@ function renderChatPreview(template, settings, sample = {}) {
     amount: 10,
     new_points: 193,
     commands: "!cmds !ranking",
-    duel_result: "⚔️ Exemplo de duelo",
+    duel_result: "⚔️ Exemplo de aposta",
+    slots_result: "🍒🍋🍒 ganhou 150 Pontos (+50)",
+    new_points: 233,
     ranking: "🏆 1. Usuário 500 • 2. Player 350",
   };
   Object.entries(values).forEach(([key, value]) => {
@@ -280,6 +285,90 @@ function updateEconomyCards(settings = {}) {
   if ($("rewardsCardSummary")) {
     const n = Number(watch);
     $("rewardsCardSummary").textContent = `${watch} ponto${n === 1 ? "" : "s"} • sub +${sub} • KICK +${kicks}/cada`;
+  }
+}
+
+let sn7MiniGamesPlatform = "kick";
+const sn7MiniGamesSettings = {};
+
+async function loadMiniGames(platform = sn7MiniGamesPlatform) {
+  sn7MiniGamesPlatform = platform;
+  const status = $("sn7SlotsStatus");
+  if (status) status.textContent = "CARREGANDO";
+  try {
+    const data = await apiJson(`/api/minigames/${BROADCASTER_ID}?platform=${encodeURIComponent(platform)}`);
+    sn7MiniGamesSettings[platform] = data.settings || {};
+    updateMiniGamesStatus(data.settings || {});
+    if (document.getElementById("sn7MiniGamesEditor")?.classList.contains("open")) fillMiniGamesForm(data.settings || {});
+    return data.settings;
+  } catch (error) {
+    if (status) status.textContent = "OFFLINE";
+    throw error;
+  }
+}
+
+function updateMiniGamesStatus(settings) {
+  const status = $("sn7SlotsStatus");
+  if (!status) return;
+  status.textContent = settings.enabled ? "ATIVO" : "DESATIVADO";
+  status.classList.toggle("sn7-minigame-status-off", !settings.enabled);
+}
+
+function fillMiniGamesForm(settings = {}) {
+  const keys = ["slot_bankroll", "slot_bankroll_max", "slot_hourly_refill", "slot_min_bet", "slot_max_bet", "slot_cooldown_seconds"];
+  keys.forEach((key) => { if ($(key)) $(key).value = settings[key] ?? ""; });
+  if ($("minigames_enabled")) $("minigames_enabled").checked = settings.enabled !== false;
+}
+
+function openMiniGamesConfig() {
+  const modal = $("sn7MiniGamesEditor");
+  if (!modal) return;
+  modal.hidden = false;
+  modal.classList.add("open");
+  document.querySelectorAll("[data-mini-platform]").forEach((button) => {
+    button.onclick = () => {
+      document.querySelectorAll("[data-mini-platform]").forEach((x) => x.classList.remove("active"));
+      button.classList.add("active");
+      sn7MiniGamesPlatform = button.dataset.miniPlatform;
+      const cached = sn7MiniGamesSettings[sn7MiniGamesPlatform];
+      if (cached) fillMiniGamesForm(cached);
+      else loadMiniGames(sn7MiniGamesPlatform).catch(() => {});
+    };
+  });
+  loadMiniGames(sn7MiniGamesPlatform).catch((error) => {
+    if ($("minigamesMsg")) setSaveMessage("minigamesMsg", `⚠ ${error.message}`, false);
+  });
+}
+
+async function saveMiniGamesConfig() {
+  const payload = {
+    platform: sn7MiniGamesPlatform,
+    enabled: Boolean($("minigames_enabled")?.checked),
+    slot_bankroll: $("slot_bankroll")?.value,
+    slot_bankroll_max: $("slot_bankroll_max")?.value,
+    slot_hourly_refill: $("slot_hourly_refill")?.value,
+    slot_min_bet: $("slot_min_bet")?.value,
+    slot_max_bet: $("slot_max_bet")?.value,
+    slot_cooldown_seconds: $("slot_cooldown_seconds")?.value,
+  };
+  const button = document.querySelector("#sn7MiniGamesEditor .save-row .btn");
+  if (button) button.disabled = true;
+  sn7ShowOperationLoader();
+  try {
+    const data = await apiJson(`/api/minigames/${BROADCASTER_ID}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    sn7MiniGamesSettings[sn7MiniGamesPlatform] = data.settings || {};
+    fillMiniGamesForm(data.settings || {});
+    updateMiniGamesStatus(data.settings || {});
+    setSaveMessage("minigamesMsg", "✓ Configuração salva.", true);
+  } catch (error) {
+    setSaveMessage("minigamesMsg", `⚠ ${error.message}`, false);
+  } finally {
+    if (button) button.disabled = false;
+    sn7HideOperationLoader();
   }
 }
 
@@ -344,6 +433,24 @@ function injectCommandStyles() {
     .sn7-remove-all{margin-top:8px}
     .sn7-help{font-size:11px;color:var(--muted);margin-top:6px}
     .sn7-points-response{min-height:105px!important;background:#0b0d12!important;color:#fff!important;border:1px solid #303744!important}
+    .sn7-command-drawer{border-bottom:1px solid var(--border)}
+    .sn7-command-drawer:last-child{border-bottom:0}
+    .sn7-command-drawer-toggle{width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:16px 18px;border:0;background:transparent;color:#fff;text-align:left;cursor:pointer}
+    .sn7-command-drawer-toggle:hover{background:rgba(255,255,255,.025)}
+    .sn7-command-drawer-toggle.open{background:#11161f}
+    .sn7-command-drawer-toggle>span:nth-child(2){min-width:0}
+    .sn7-command-drawer-toggle strong{display:block;font-size:14px}
+    .sn7-command-drawer-toggle small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+    .sn7-command-drawer-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:#1a202b;font-size:16px}
+    .sn7-command-drawer-count,.sn7-command-subdrawer-toggle b{min-width:24px;padding:3px 7px;border-radius:999px;background:#1a202b;color:#aeb6c5;text-align:center;font-size:10px}
+    .sn7-command-drawer-toggle i,.sn7-command-subdrawer-toggle i{font-style:normal;color:#70798a;transition:transform .18s ease}
+    .sn7-command-drawer-toggle.open i,.sn7-command-subdrawer-toggle[aria-expanded="true"] i{transform:rotate(180deg)}
+    .sn7-command-drawer-body{padding:0 18px 12px}
+    .sn7-command-subdrawer{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin:8px 0}
+    .sn7-command-subdrawer-toggle{width:100%;display:flex;align-items:center;gap:10px;padding:11px 12px;border:0;background:#0e131a;color:#fff;text-align:left;cursor:pointer}
+    .sn7-command-subdrawer-toggle span{flex:1;font-size:12px;font-weight:700}
+    .sn7-command-subdrawer-body{padding:0 10px 8px}
+    @media(max-width:700px){.sn7-command-drawer-toggle{padding:14px}.sn7-command-drawer-body{padding:0 12px 10px}}
     @media(max-width:700px){
       .sn7-command-category{padding:16px}
       .sn7-command-row{align-items:flex-start}
@@ -359,24 +466,54 @@ function buildCommandCatalog() {
   if (!section) return;
   section.innerHTML = `
     <div class="panel sn7-command-panel">
-      <div class="sn7-command-category">
-        <div class="sn7-command-head"><h3>🌐 Públicos</h3></div>
-        <div id="publicCommandsList"></div>
-      </div>
-      <div class="sn7-command-category">
-        <div class="sn7-command-head"><h3>🛡️ ADM / MOD</h3></div>
-        <div id="modCommandsList"></div>
-      </div>
-      <div class="sn7-command-category">
-        <div class="sn7-command-head">
-          <h3>✨ Personalizados</h3>
-          <button class="sn7-subtle" type="button" onclick="newCommand()">＋ Novo comando</button>
+      ${commandDrawerMarkup("public", "🌐", "Comandos públicos", "Comandos que qualquer espectador pode usar.", "publicCommandsList")}
+      ${commandDrawerMarkup("music", "🎵", "Comandos de música", "Fila e controles do player.", "musicCommandsList")}
+      <div class="sn7-command-drawer sn7-command-drawer-minigames">
+        <button type="button" class="sn7-command-drawer-toggle" aria-expanded="false" onclick="toggleCommandDrawer('minigames')">
+          <span class="sn7-command-drawer-icon">🎮</span><span><strong>Mini Games</strong><small>Apostas, Slots e próximos jogos.</small></span><b class="sn7-command-drawer-count" id="minigamesCommandCount">0</b><i>⌄</i>
+        </button>
+        <div class="sn7-command-drawer-body" id="minigamesDrawerBody" hidden>
+          <div class="sn7-command-subdrawer">
+            <button type="button" class="sn7-command-subdrawer-toggle" aria-expanded="false" onclick="toggleCommandDrawer('bets')"><span>🎲 Apostas</span><b id="betsCommandCount">0</b><i>⌄</i></button>
+            <div class="sn7-command-subdrawer-body" id="betsDrawerBody" hidden><div id="betsCommandsList"></div></div>
+          </div>
+          <div class="sn7-command-subdrawer">
+            <button type="button" class="sn7-command-subdrawer-toggle" aria-expanded="false" onclick="toggleCommandDrawer('slots')"><span>🎰 Slots</span><b id="slotsCommandCount">0</b><i>⌄</i></button>
+            <div class="sn7-command-subdrawer-body" id="slotsDrawerBody" hidden><div id="slotsCommandsList"></div></div>
+          </div>
         </div>
-        <p id="commandPanelStatus" class="sn7-command-status"></p>
-        <div id="customCommandsList"></div>
+      </div>
+      ${commandDrawerMarkup("admin", "🛡️", "Comandos ADM", "Ferramentas de administração e economia.", "adminCommandsList")}
+      <div class="sn7-command-drawer">
+        <button type="button" class="sn7-command-drawer-toggle" aria-expanded="false" onclick="toggleCommandDrawer('custom')">
+          <span class="sn7-command-drawer-icon">✨</span><span><strong>Comandos personalizados</strong><small>Comandos criados para esta live.</small></span><b class="sn7-command-drawer-count" id="customCommandsCount">0</b><i>⌄</i>
+        </button>
+        <div class="sn7-command-drawer-body" id="customDrawerBody" hidden>
+          <div class="sn7-command-head"><p id="commandPanelStatus" class="sn7-command-status"></p><button class="sn7-subtle" type="button" onclick="newCommand()">＋ Novo comando</button></div>
+          <div id="customCommandsList"></div>
+        </div>
       </div>
     </div>`;
   injectCommandStyles();
+}
+
+function commandDrawerMarkup(key, icon, title, subtitle, listId) {
+  return `<div class="sn7-command-drawer">
+    <button type="button" class="sn7-command-drawer-toggle" aria-expanded="false" onclick="toggleCommandDrawer('${key}')">
+      <span class="sn7-command-drawer-icon">${icon}</span><span><strong>${title}</strong><small>${subtitle}</small></span><b class="sn7-command-drawer-count" id="${key}CommandsCount">0</b><i>⌄</i>
+    </button>
+    <div class="sn7-command-drawer-body" id="${key}DrawerBody" hidden><div id="${listId}"></div></div>
+  </div>`;
+}
+
+function toggleCommandDrawer(key) {
+  const body = document.getElementById(`${key}DrawerBody`);
+  const button = body?.previousElementSibling;
+  if (!body || !button) return;
+  const open = body.hidden;
+  body.hidden = !open;
+  button.setAttribute("aria-expanded", open ? "true" : "false");
+  button.classList.toggle("open", open);
 }
 
 function renderCommandListPreview(command) {
@@ -394,19 +531,24 @@ function renderCommandListPreview(command) {
 function renderCommands() {
   const groups = {
     public: $("publicCommandsList"),
-    mod: $("modCommandsList"),
+    music: $("musicCommandsList"),
+    admin: $("adminCommandsList"),
     custom: $("customCommandsList"),
+    bets: $("betsCommandsList"),
+    slots: $("slotsCommandsList"),
   };
-  for (const [category, element] of Object.entries(groups)) {
+  const rowsFor = (group) => {
+    if (group === "bets") return commandCache.filter((x) => x.command_key === "duel" || x.command_key === "bet_accept" || x.command_key === "bet_decline");
+    if (group === "slots") return commandCache.filter((x) => x.command_key === "slots");
+    if (group === "admin") return commandCache.filter((x) => x.category === "admin" || x.category === "mod");
+    return commandCache.filter((x) => x.category === group);
+  };
+
+  for (const [group, element] of Object.entries(groups)) {
     if (!element) continue;
-    const rows = commandCache.filter((command) => command.category === category);
-    if (!rows.length) {
-      element.innerHTML = `<div class="sn7-empty">Nenhum comando nesta categoria.</div>`;
-      continue;
-    }
-    element.innerHTML = rows.map((command) => `
-      <div class="sn7-command-row ${command.enabled ? "" : "disabled"}"
-           onclick="openCommand('${encodeURIComponent(command.command_key)}')">
+    const rows = rowsFor(group);
+    element.innerHTML = rows.length ? rows.map((command) => `
+      <div class="sn7-command-row ${command.enabled ? "" : "disabled"}" onclick="openCommand('${encodeURIComponent(command.command_key)}')">
         <div>
           <code>${esc(command.command_key === "duel" ? "!aposta" : command.command)}</code>
           <small>${esc(command.description)}</small>
@@ -414,15 +556,20 @@ function renderCommands() {
           ${command.aliases?.length ? `<div class="sn7-aliases">Variantes: ${command.aliases.map(esc).join(", ")}</div>` : ""}
         </div>
         <span class="sn7-command-status-badge ${command.enabled ? "" : "offline"}"><i class="sn7-status-dot"></i>${command.enabled ? "Ativo" : "Desativado"}</span>
-      </div>`).join("");
+      </div>`).join("") : `<div class="sn7-empty">Nenhum comando nesta categoria.</div>`;
   }
 
-  const customCount = commandCache.filter((x) => x.category === "custom" && x.enabled).length;
-  if ($("commandCount")) $("commandCount").textContent = customCount;
-  if ($("commandPanelStatus")) {
-    $("commandPanelStatus").textContent =
-      `${customCount} comando${customCount === 1 ? "" : "s"} personalizado${customCount === 1 ? "" : "s"} ativo${customCount === 1 ? "" : "s"}.`;
-  }
+  const counts = {
+    public: rowsFor("public").length, music: rowsFor("music").length, admin: rowsFor("admin").length,
+    bets: rowsFor("bets").length, slots: rowsFor("slots").length, custom: rowsFor("custom").length,
+  };
+  Object.entries(counts).forEach(([key, count]) => {
+    const el = document.getElementById(`${key === "bets" || key === "slots" ? key : key}CommandsCount`);
+    if (el) el.textContent = count;
+  });
+  const miniCount = document.getElementById("minigamesCommandCount");
+  if (miniCount) miniCount.textContent = counts.bets + counts.slots;
+  if ($("commandPanelStatus")) $("commandPanelStatus").textContent = `${counts.custom} comando${counts.custom === 1 ? "" : "s"} personalizado${counts.custom === 1 ? "" : "s"}.`;
 }
 
 let commandsLoadPromise = null;
@@ -1098,6 +1245,17 @@ async function saveSettings() {
 document.addEventListener("DOMContentLoaded", () => {
   injectCommandStyles();
 
+  document.querySelector("#sn7MiniGamesEditor .sn7-config-close")?.addEventListener("click", () => {
+    const modal = $("sn7MiniGamesEditor");
+    if (modal) { modal.classList.remove("open"); modal.hidden = true; }
+  });
+  document.querySelector("#sn7MiniGamesEditor")?.addEventListener("click", (event) => {
+    if (event.target?.id === "sn7MiniGamesEditor") {
+      event.currentTarget.classList.remove("open");
+      event.currentTarget.hidden = true;
+    }
+  });
+
   // Registra a navegação antes de restaurar a aba.
   // Assim, F5 no Android mantém a última tela aberta.
   setupTabPersistence();
@@ -1131,6 +1289,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (activeTab === "music" && typeof window.loadMusic === "function") window.loadMusic().catch(() => {});
       if (activeTab === "ranking" && typeof startRankingPolling === "function") startRankingPolling();
       if (activeTab === "profile" && typeof window.sn7LoadProfile === "function") window.sn7LoadProfile().catch(() => {});
+      if (activeTab === "minigames" && typeof window.loadMiniGames === "function") window.loadMiniGames().catch(() => {});
       if (typeof window.sn7RestoreSavedModal === "function") {
         window.sn7RestoreSavedModal().catch(() => {});
       }

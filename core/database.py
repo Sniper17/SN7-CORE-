@@ -216,6 +216,23 @@ CREATE TABLE IF NOT EXISTS music_connections (
 CREATE INDEX IF NOT EXISTS idx_music_connections_channel
     ON music_connections(broadcaster_user_id, provider);
 
+CREATE TABLE IF NOT EXISTS minigame_settings (
+    broadcaster_user_id BIGINT NOT NULL,
+    platform TEXT NOT NULL DEFAULT 'kick',
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    slot_bankroll BIGINT NOT NULL DEFAULT 10000,
+    slot_bankroll_max BIGINT NOT NULL DEFAULT 50000,
+    slot_hourly_refill BIGINT NOT NULL DEFAULT 1000,
+    slot_min_bet BIGINT NOT NULL DEFAULT 10,
+    slot_max_bet BIGINT NOT NULL DEFAULT 1000,
+    slot_cooldown_seconds INTEGER NOT NULL DEFAULT 5,
+    last_slot_refill_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (broadcaster_user_id, platform)
+);
+CREATE INDEX IF NOT EXISTS idx_minigame_settings_channel
+    ON minigame_settings(broadcaster_user_id, platform);
+
 -- Safe migrations for databases created before Music OAuth/public controls.
 ALTER TABLE music_settings
     ADD COLUMN IF NOT EXISTS public_commands BOOLEAN NOT NULL DEFAULT FALSE;
@@ -332,7 +349,7 @@ def migrate_channel_id(old_id, new_id):
         "channels", "players", "custom_commands", "duel_events", "pending_bets",
         "kick_connections", "chat_connections", "command_configs", "command_aliases",
         "obs_connections", "music_settings", "music_queue", "music_player_state",
-        "music_connections", "point_rewards",
+        "music_connections", "point_rewards", "minigame_settings",
     ]
     conn = get_conn()
     try:

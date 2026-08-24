@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.26">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.27">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -140,7 +140,7 @@ body.sn7-modal-open{overflow:hidden}
         <span class="sn7-nav-label" data-short="Perfil">Perfil</span>
       </button>
     </nav>
-    <div class="sidebar-footer">SN7 CORE <span>v1.9.26</span></div>
+    <div class="sidebar-footer">SN7 CORE <span>v1.9.27</span></div>
   </aside>
 
   <main>
@@ -303,29 +303,86 @@ body.sn7-modal-open{overflow:hidden}
           <div>
             <span class="sn7-section-kicker">INTERAÇÃO</span>
             <h2>Mini Games</h2>
-            <p>Jogos e brincadeiras da live ficarão reunidos aqui, separados do player de música.</p>
+            <p>Cara ou coroa, apostas, slots, sorteios, enquetes e outras brincadeiras da live.</p>
           </div>
+          <button type="button" class="btn sn7-minigames-config" onclick="openMiniGamesConfig()">⚙ Configurar</button>
         </div>
         <div class="sn7-minigames-grid">
+          <article class="sn7-minigame-card sn7-minigame-active">
+            <span class="sn7-minigame-icon">🎲</span>
+            <div><strong>Apostas</strong><small>Dispute pontos com outro espectador.</small><code>!aposta @usuário quantidade</code></div>
+            <span class="sn7-minigame-status">ATIVO</span>
+          </article>
+          <article class="sn7-minigame-card sn7-minigame-active">
+            <span class="sn7-minigame-icon">🎰</span>
+            <div><strong>Slots</strong><small>Cassino da live com prêmio proporcional à aposta.</small><code>!slots quantidade</code></div>
+            <span id="sn7SlotsStatus" class="sn7-minigame-status">CARREGANDO</span>
+          </article>
           <article class="sn7-minigame-card">
-            <span class="sn7-minigame-icon">⚔</span>
-            <div><strong>Duelo</strong><small>Disputas rápidas entre espectadores.</small></div>
+            <span class="sn7-minigame-icon">🪙</span>
+            <div><strong>Cara ou coroa</strong><small>Jogo rápido de sorte.</small></div>
             <span class="sn7-minigame-status">EM BREVE</span>
           </article>
           <article class="sn7-minigame-card">
-            <span class="sn7-minigame-icon">🎲</span>
-            <div><strong>Apostas</strong><small>Interações com pontos da live.</small></div>
-            <span class="sn7-minigame-status">ATIVO NO CHAT</span>
+            <span class="sn7-minigame-icon">🎁</span>
+            <div><strong>Sorteios</strong><small>Premiações para quem estiver na live.</small></div>
+            <span class="sn7-minigame-status">EM BREVE</span>
           </article>
           <article class="sn7-minigame-card">
-            <span class="sn7-minigame-icon">🏦</span>
-            <div><strong>Assalto ao Banco</strong><small>Minigame de equipe para a comunidade.</small></div>
+            <span class="sn7-minigame-icon">📊</span>
+            <div><strong>Enquetes</strong><small>Votações rápidas para a comunidade.</small></div>
             <span class="sn7-minigame-status">EM BREVE</span>
           </article>
         </div>
       </div>
+      <div id="sn7MiniGamesEditor" class="sn7-config-modal" hidden>
+        <div class="sn7-config-modal-card sn7-minigames-config-card">
+          <button type="button" class="sn7-config-close" aria-label="Fechar">×</button>
+          <h3>Configuração dos Mini Games</h3>
+          <p>O saldo do cassino é separado por plataforma. Controle o banco e os limites para não inflar a economia.</p>
+          <div class="sn7-minigame-platform-tabs" role="tablist">
+            <button type="button" data-mini-platform="kick" class="active">Kick</button>
+            <button type="button" data-mini-platform="twitch">Twitch</button>
+            <button type="button" data-mini-platform="youtube">YouTube</button>
+          </div>
+          <div id="sn7MiniGamesSettingsForm">
+            <label class="sn7-mini-switch"><input id="minigames_enabled" type="checkbox" checked><span>Mini Games ativos nesta plataforma</span></label>
+            <div class="form-grid">
+              <label>Saldo atual do cassino<input id="slot_bankroll" type="number" min="0" inputmode="numeric"></label>
+              <label>Limite máximo do cassino<input id="slot_bankroll_max" type="number" min="1" inputmode="numeric"></label>
+              <label>Pontos adicionados por hora<input id="slot_hourly_refill" type="number" min="0" inputmode="numeric"></label>
+              <label>Aposta mínima<input id="slot_min_bet" type="number" min="1" inputmode="numeric"></label>
+              <label>Aposta máxima<input id="slot_max_bet" type="number" min="1" inputmode="numeric"></label>
+              <label>Espera entre jogadas (seg.)<input id="slot_cooldown_seconds" type="number" min="1" max="60" inputmode="numeric"></label>
+            </div>
+            <div class="sn7-minigame-note">🎰 Os Slots usam probabilidades difíceis por padrão. O prêmio é calculado sobre o valor apostado e nunca ultrapassa o saldo disponível do cassino.</div>
+            <div class="save-row"><p id="minigamesMsg"></p><button type="button" class="btn" onclick="saveMiniGamesConfig()">Salvar alterações</button></div>
+          </div>
+        </div>
+      </div>
     </section>
 
+    <style>
+      .sn7-minigames-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+      .sn7-minigames-config{margin:0;white-space:nowrap}
+      .sn7-minigames-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}
+      .sn7-minigame-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:15px;border:1px solid var(--border);border-radius:15px;background:#0f131a;min-width:0}
+      .sn7-minigame-card.sn7-minigame-active{border-color:#303a4b}
+      .sn7-minigame-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#191f2b;font-size:20px}
+      .sn7-minigame-card strong{display:block;font-size:14px}
+      .sn7-minigame-card small{display:block;color:var(--muted);font-size:11px;line-height:1.4;margin-top:3px}
+      .sn7-minigame-card code{display:block;margin-top:6px;color:#aeb6c5;font-size:10px;white-space:normal;overflow-wrap:anywhere}
+      .sn7-minigame-status{font-size:9px;font-weight:800;color:#8f98a8;border:1px solid var(--border);border-radius:999px;padding:5px 7px;white-space:nowrap}
+      .sn7-minigame-active .sn7-minigame-status{color:#55d98b;border-color:#2c6548;background:#102219}
+      .sn7-minigames-config-card{max-width:720px}
+      .sn7-minigame-platform-tabs{display:flex;gap:7px;margin:16px 0 14px;padding:4px;border:1px solid var(--border);border-radius:12px;background:#0c1016}
+      .sn7-minigame-platform-tabs button{flex:1;border:0;background:transparent;color:var(--muted);padding:9px;border-radius:8px;font-weight:700;cursor:pointer}
+      .sn7-minigame-platform-tabs button.active{background:#1a2030;color:#fff}
+      .sn7-mini-switch{display:flex!important;align-items:center;gap:9px;margin:0 0 14px!important}
+      .sn7-mini-switch input{width:18px;height:18px;accent-color:#55d98b}
+      .sn7-minigame-note{margin-top:13px;padding:11px 12px;border:1px solid var(--border);border-radius:11px;background:#0c1016;color:var(--muted);font-size:11px;line-height:1.5}
+      @media(max-width:700px){.sn7-minigames-head{flex-direction:column}.sn7-minigames-config{width:100%}.sn7-minigames-grid{grid-template-columns:1fr}.sn7-minigame-card{grid-template-columns:auto minmax(0,1fr);}.sn7-minigame-status{grid-column:2;justify-self:start}}
+    </style>
     <section id="commands" class="tab"></section>
 
     <section id="profile" class="tab">
@@ -431,7 +488,7 @@ body.sn7-modal-open{overflow:hidden}
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
 const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
-<script src="/static/js/app.js?v=sn7-1.9.23"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.27"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);

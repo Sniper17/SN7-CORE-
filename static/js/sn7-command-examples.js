@@ -19,24 +19,28 @@
     rank_limit: 5,
     duel_win_points: 10,
     duel_loss_points: 3,
-    point_rewards: { watch_points: 1, watch_interval_minutes: 10, sub_bonus: 500, kicks_bonus_per_kick: 1 }
+    point_rewards: { watch_points: 1, watch_interval_minutes: 10, sub_bonus: 500, kicks_bonus_per_kick: 1, bits_bonus_per_bit: 1, superchat_bonus_per_unit: 1 }
   };
 
   const DEMO_COMMANDS = [
     { command_key:"points", command:"!pontos", description:"Consulta seu saldo de pontos.", response:"$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)", enabled:true, category:"public", is_system:true, aliases:[] },
     { command_key:"ranking", command:"!ranking", description:"Mostra o ranking do canal.", response:"$(ranking)", enabled:true, category:"public", is_system:true, aliases:[] },
-    { command_key:"duel", command:"!aposta", description:"Inicia uma aposta contra outro usuário.", response:"$(duel_result)", enabled:true, category:"public", is_system:true, aliases:[] },
+    { command_key:"duel", command:"!aposta", description:"Inicia uma aposta contra outro usuário.", response:"$(duel_result)", enabled:true, category:"minigames", is_system:true, aliases:[] },
+    { command_key:"bet_accept", command:"!aceitar", description:"Aceita uma aposta pendente.", response:"$(bet_result)", enabled:true, category:"minigames", is_system:true, aliases:[] },
+    { command_key:"bet_decline", command:"!recusar", description:"Recusa uma aposta pendente.", response:"$(bet_result)", enabled:true, category:"minigames", is_system:true, aliases:[] },
+    { command_key:"slots", command:"!slots", description:"Aposta pontos no cassino virtual da live.", response:"🎰 $(user) apostou $(amount) $(currency): $(slots_result). Saldo: $(new_points) $(currency).", enabled:true, category:"minigames", is_system:true, aliases:[] },
     { command_key:"cmds", command:"!cmds", description:"Lista os comandos personalizados da live.", response:"$(commands)", enabled:true, category:"public", is_system:true, aliases:[] },
-    { command_key:"addcmd", command:"!addcmd", description:"Cria ou atualiza um comando personalizado.", response:"✅ $(command) configurado.", enabled:true, category:"mod", is_system:true, aliases:[] },
-    { command_key:"addpoint", command:"!addpoint", description:"Adiciona pontos a um usuário.", response:"🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency).", enabled:true, category:"mod", is_system:true, aliases:[] },
-    { command_key:"settpoint", command:"!setpoint", description:"Define o saldo de um usuário.", response:"🪙 Saldo de $(target): $(new_points) $(currency).", enabled:true, category:"mod", is_system:true, aliases:[] },
-    { command_key:"delcmd", command:"!delcmd", description:"Remove um comando personalizado.", response:"🗑️ $(command) removido.", enabled:true, category:"mod", is_system:true, aliases:[] }
+    { command_key:"addcmd", command:"!addcmd", description:"Cria ou atualiza um comando personalizado.", response:"✅ $(command) configurado.", enabled:true, category:"admin", is_system:true, aliases:[] },
+    { command_key:"addpoint", command:"!addpoint", description:"Adiciona pontos a um usuário.", response:"🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency).", enabled:true, category:"admin", is_system:true, aliases:[] },
+    { command_key:"settpoint", command:"!setpoint", description:"Define o saldo de um usuário.", response:"🪙 Saldo de $(target): $(new_points) $(currency).", enabled:true, category:"admin", is_system:true, aliases:[] },
+    { command_key:"delcmd", command:"!delcmd", description:"Remove um comando personalizado.", response:"🗑️ $(command) removido.", enabled:true, category:"admin", is_system:true, aliases:[] }
   ];
 
   const EXAMPLES = {
     "!pontos": ["!pontos @user", "@user tem 19.283 Pontos e sua posição no ranking é #4."],
     "!ranking": ["!ranking", "🏆 1. @user 19.283 • 2. Player 10.000"],
-    "!aposta": ["!aposta @user", "⚔️ @user venceu a aposta contra @oponente!"],
+    "!aposta": ["!aposta @user 100", "🎲 @user desafiou @oponente com 100 Pontos."],
+    "!slots": ["!slots 100", "🎰 🍒🍋🍒 ganhou 150 Pontos (+50). Saldo: 19.333 Pontos."],
     "!cmds": ["!cmds", "📜 Comandos: !meta !aposta !ranking"],
     "!addcmd": ["!addcmd !discord Entre no Discord", "✅ !discord configurado."],
     "!addpoint": ["!addpoint @user 1000", "@user tinha 20 Pontos e agora tem 1.020 Pontos."],
@@ -103,6 +107,17 @@
           } catch (_) {
             return jsonResponse({ ok:false, error:"Dados inválidos." }, 400);
           }
+        }
+      }
+
+      if (path === "/api/minigames/null") {
+        const defaults = { enabled:true, slot_bankroll:10000, slot_bankroll_max:50000, slot_hourly_refill:1000, slot_min_bet:10, slot_max_bet:1000, slot_cooldown_seconds:5 };
+        if (method === "GET") return jsonResponse({ ok:true, platform:"kick", settings:defaults, demo:true });
+        if (method === "PUT") {
+          try {
+            const body = JSON.parse(options.body || "{}");
+            return jsonResponse({ ok:true, platform:body.platform || "kick", settings:{ ...defaults, ...body }, demo:true });
+          } catch (_) { return jsonResponse({ ok:false, error:"Dados inválidos." }, 400); }
         }
       }
 

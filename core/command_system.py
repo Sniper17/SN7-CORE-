@@ -11,22 +11,23 @@ DEFAULT_APOSTA_RESPONSE = "$(user) está apostando $(amount) $(currency) contra 
 SYSTEM = {
     "points": ("!pontos", "Consulta seu saldo de pontos.", "public", DEFAULT_POINTS_RESPONSE),
     "ranking": ("!ranking", "Mostra o ranking do canal.", "public", "$(ranking)"),
-    "duel": ("!aposta", "Inicia uma aposta contra outro usuário.", "public", DEFAULT_APOSTA_RESPONSE),
-    "bet_accept": ("!aceitar", "Aceita uma aposta pendente.", "public", "$(bet_result)"),
-    "bet_decline": ("!recusar", "Recusa uma aposta pendente.", "public", "$(bet_result)"),
+    "duel": ("!aposta", "Inicia uma aposta contra outro usuário.", "minigames", DEFAULT_APOSTA_RESPONSE),
+    "slots": ("!slots", "Aposta pontos no cassino virtual da live.", "minigames", "🎰 $(user) apostou $(amount) $(currency): $(slots_result). Saldo: $(new_points) $(currency)."),
+    "bet_accept": ("!aceitar", "Aceita uma aposta pendente.", "minigames", "$(bet_result)"),
+    "bet_decline": ("!recusar", "Recusa uma aposta pendente.", "minigames", "$(bet_result)"),
     "cmds": ("!cmds", "Lista os comandos personalizados da live.", "public", "$(commands)"),
     "wzclass": ("!wzclass", "Consulta a classe Warzone usando os dados internos do Core.", "public", "$(wzclass)"),
-    "addmusic": ("!addmusic", "Adiciona uma música à fila. Use nome do artista e da música ou um link de uma fonte permitida.", "public", "🎵 $(user) adicionou $(music) à fila. Posição: #$(queue_position)."),
-    "skipmusic": ("!skip", "Pula a música que está tocando e passa para a próxima da fila.", "public", "⏭️ Música pulada. Próxima: $(music)."),
-    "musicqueue": ("!queue", "Mostra a música atual e as próximas da fila.", "public", "🎵 $(queue)"),
-    "nowplaying": ("!nowplaying", "Mostra a música que está tocando agora.", "public", "🎵 Tocando agora: $(music)."),
-    "pausemusic": ("!pause", "Pausa a música atual do player.", "mod", "⏸️ Música pausada."),
-    "resumemusic": ("!resume", "Continua a música pausada.", "mod", "▶️ Música retomada."),
-    "clearmusic": ("!clearqueue", "Limpa a fila de músicas do canal.", "mod", "🧹 Fila de músicas limpa."),
-    "addcmd": ("!addcmd", "Cria ou atualiza um comando personalizado.", "mod", "✅ $(command) configurado."),
-    "addpoint": ("!addpoint", "Adiciona pontos a um usuário.", "mod", "🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency)."),
-    "settpoint": ("!setpoint", "Define o saldo de um usuário.", "mod", "🪙 Saldo de $(target): $(new_points) $(currency)."),
-    "delcmd": ("!delcmd", "Remove um comando personalizado.", "mod", "🗑️ $(command) removido."),
+    "addmusic": ("!addmusic", "Adiciona uma música à fila. Use nome do artista e da música ou um link de uma fonte permitida.", "music", "🎵 $(user) adicionou $(music) à fila. Posição: #$(queue_position)."),
+    "skipmusic": ("!skip", "Pula a música que está tocando e passa para a próxima da fila.", "music", "⏭️ Música pulada. Próxima: $(music)."),
+    "musicqueue": ("!queue", "Mostra a música atual e as próximas da fila.", "music", "🎵 $(queue)"),
+    "nowplaying": ("!nowplaying", "Mostra a música que está tocando agora.", "music", "🎵 Tocando agora: $(music)."),
+    "pausemusic": ("!pause", "Pausa a música atual do player.", "music", "⏸️ Música pausada."),
+    "resumemusic": ("!resume", "Continua a música pausada.", "music", "▶️ Música retomada."),
+    "clearmusic": ("!clearqueue", "Limpa a fila de músicas do canal.", "music", "🧹 Fila de músicas limpa."),
+    "addcmd": ("!addcmd", "Cria ou atualiza um comando personalizado.", "admin", "✅ $(command) configurado."),
+    "addpoint": ("!addpoint", "Adiciona pontos a um usuário.", "admin", "🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency)."),
+    "settpoint": ("!setpoint", "Define o saldo de um usuário.", "admin", "🪙 Saldo de $(target): $(new_points) $(currency)."),
+    "delcmd": ("!delcmd", "Remove um comando personalizado.", "admin", "🗑️ $(command) removido."),
 }
 
 
@@ -106,6 +107,36 @@ def ensure_command_defaults(bid):
                  WHERE broadcaster_user_id=%s
                    AND command_key='duel'
                    AND LOWER(command)='!duelo'
+                """,
+                (bid,),
+            )
+
+            # Organização do painel: categorias antigas são migradas sem alterar
+            # a palavra de ativação nem a permissão real do comando.
+            cur.execute(
+                """
+                UPDATE command_configs
+                   SET category='admin', updated_at=NOW()
+                 WHERE broadcaster_user_id=%s
+                   AND command_key IN ('addcmd','addpoint','settpoint','delcmd')
+                """,
+                (bid,),
+            )
+            cur.execute(
+                """
+                UPDATE command_configs
+                   SET category='music', updated_at=NOW()
+                 WHERE broadcaster_user_id=%s
+                   AND command_key IN ('addmusic','skipmusic','musicqueue','nowplaying','pausemusic','resumemusic','clearmusic')
+                """,
+                (bid,),
+            )
+            cur.execute(
+                """
+                UPDATE command_configs
+                   SET category='minigames', updated_at=NOW()
+                 WHERE broadcaster_user_id=%s
+                   AND command_key IN ('duel','bet_accept','bet_decline','slots')
                 """,
                 (bid,),
             )
@@ -228,7 +259,7 @@ def list_commands(bid):
                 SELECT id,broadcaster_user_id,command_key,command,description,response,enabled,category,is_system
                   FROM command_configs
                  WHERE broadcaster_user_id=%s
-                 ORDER BY CASE category WHEN 'public' THEN 1 WHEN 'mod' THEN 2 ELSE 3 END, command
+                 ORDER BY CASE category WHEN 'public' THEN 1 WHEN 'music' THEN 2 WHEN 'minigames' THEN 3 WHEN 'admin' THEN 4 WHEN 'mod' THEN 4 ELSE 5 END, command
                 """,
                 (int(bid),),
             )

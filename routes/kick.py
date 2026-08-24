@@ -1177,6 +1177,49 @@ def _process_chat(payload, send_chat=None):
                 send_chat(bid, cfg["response"] or "🧹 Fila de músicas limpa.")
                 return
 
+        if key == "slots":
+            if not args:
+                send_chat(bid, f"🎰 Use {cfg['command']} quantidade. Ex.: {cfg['command']} 100")
+                return
+            try:
+                amount = int(str(args[0]).replace(".", "").replace(",", ""))
+            except ValueError:
+                send_chat(bid, f"🎰 Quantidade inválida. Ex.: {cfg['command']} 100")
+                return
+
+            try:
+                from core.minigames import play_slots
+                result = play_slots(bid, user, amount, platform, uid)
+            except Exception as exc:
+                print(f"[SLOTS] erro: {exc}", flush=True)
+                send_chat(bid, "🎰 O cassino está indisponível agora. Tente novamente em alguns segundos.")
+                return
+
+            if not result.get("ok"):
+                send_chat(bid, result.get("error") or "🎰 Não foi possível jogar agora.")
+                return
+
+            if result["profit"] > 0:
+                slots_result = f"{result['symbols']} ganhou {result['payout']} {currency} (+{result['profit']})"
+            elif result["profit"] == 0:
+                slots_result = f"{result['symbols']} devolveu {result['payout']} {currency}"
+            else:
+                slots_result = f"{result['symbols']} perdeu {result['amount']} {currency}"
+
+            values = {
+                "user": _mention(user),
+                "amount": result["amount"],
+                "currency": currency,
+                "slots_result": slots_result,
+                "new_points": result["points"],
+                "house": result["house"],
+            }
+            send_chat(bid, _render_response(cfg["response"], values))
+            if result.get("refill"):
+                hours = result.get("refill_hours") or 1
+                send_chat(bid, f"⏱️ O cassino recebeu +{result['refill']} {currency} por {hours}h de live. Banco: {result['house']} {currency}.")
+            return
+
         if key == "points":
             send_chat(bid, _render_response(cfg["response"], _format_balance(bid, user, platform)))
             return
