@@ -3,6 +3,7 @@ import hmac
 import os
 import secrets
 import threading
+from concurrent.futures import ThreadPoolExecutor
 import time
 from urllib.parse import urlencode
 
@@ -18,6 +19,14 @@ twitch_bp = Blueprint("twitch", __name__)
 TWITCH_API = "https://api.twitch.tv/helix"
 TWITCH_OAUTH = "https://id.twitch.tv/oauth2"
 EVENTSUB_TYPE = "channel.chat.message"
+
+# EventSub deve receber 204 rapidamente. O processamento do comando e a
+# resposta no chat rodam fora da requisição HTTP, evitando que a Twitch fique
+# esperando PostgreSQL/Twitch API e reduzindo reentregas.
+_chat_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="sn7-twitch-chat")
+_conn_cache = {}
+_conn_cache_ttl = 30.0
+_conn_cache_lock = threading.RLock()
 EVENTSUB_VERSION = "1"
 
 # EventSub deve ser processado de forma idempotente. Em caso de inscrições
@@ -78,6 +87,13 @@ def _configured():
 
 
 def _conn(bid):
+    bid = int(bid)
+    now = time.monotonic()
+    with _conn_cache_lock:
+        cached = _conn_cache.get(bid)
+        if cached and cached["expires_at"] > now:
+            return dict(cached["value"])
+
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -101,7 +117,7 @@ def _conn(bid):
     if not row:
         return None
 
-    return {
+    value = {
         "broadcaster_user_id": int(row[0]),
         "external_user_id": str(row[1] or ""),
         "username": str(row[2] or ""),
@@ -114,6 +130,14 @@ def _conn(bid):
         "scope": row[9] or "",
         "bot_active": bool(row[10]),
     }
+    with _conn_cache_lock:
+        _conn_cache[bid] = {"value": dict(value), "expires_at": time.monotonic() + _conn_cache_ttl}
+    return value
+
+
+def _forget_conn_cache(bid):
+    with _conn_cache_lock:
+        _conn_cache.pop(int(bid), None)
 
 
 def _refresh(conn):
@@ -642,6 +666,7 @@ def toggle(bid):
             db.commit()
         finally:
             db.close()
+        _forget_conn_cache(bid)
 
         return jsonify({"ok": True, "active": desired, "eventsub": result})
     except Exception as exc:
@@ -693,6 +718,7 @@ def disconnect(bid):
             db.commit()
         finally:
             db.close()
+        _forget_conn_cache(bid)
         return jsonify({"ok": True, "connected": False, "active": False})
     except Exception as exc:
         print(f"[TWITCH-OAUTH] disconnect falhou broadcaster={bid}: {exc}", flush=True)
@@ -768,17 +794,27 @@ def eventsub():
     if not bid:
         return ("", 204)
 
+    # Tudo que pode bloquear (PostgreSQL, refresh de token, motor de comando e
+    # envio da resposta) fica fora do request do EventSub.
+    try:
+        _chat_executor.submit(_process_twitch_event, bid, event)
+    except Exception as exc:
+        print(f"[TWITCH-EVENTSUB] fila de processamento falhou: {exc}", flush=True)
+
+    return ("", 204)
+
+
+def _process_twitch_event(bid, event):
     try:
         conn = _refresh(_conn(bid))
         if not conn or not conn["bot_active"]:
-            return ("", 204)
+            return
 
         badges = event.get("badges") or []
         is_moderator = any(
             str((badge or {}).get("set_id") or "").lower() == "moderator"
             for badge in badges
         )
-
         sender = {
             "user_id": event.get("chatter_user_id"),
             "username": event.get("chatter_user_login")
@@ -787,21 +823,13 @@ def eventsub():
             "is_broadcaster": str(event.get("chatter_user_id") or "")
             == str(event.get("broadcaster_user_id") or ""),
         }
-
         normalized = {
-            "broadcaster": {
-                # Este é o ID externo da Twitch, usado apenas para o contexto
-                # da mensagem. O motor de comandos recebe abaixo o ID interno
-                # do perfil SN7.
-                "user_id": bid,
-                "username": conn["username"],
-            },
+            "broadcaster": {"user_id": bid, "username": conn["username"]},
             "sender": sender,
             "content": str((event.get("message") or {}).get("text") or ""),
             "sn7_profile_id": conn["broadcaster_user_id"],
             "platform": "twitch",
         }
-
         print(
             f"[TWITCH-CHAT] {sender.get('username') or 'usuário'}: "
             f"{normalized['content']} -> perfil {conn['broadcaster_user_id']}",
@@ -810,5 +838,3 @@ def eventsub():
         _process_chat(normalized, lambda _bid, message: _send_chat(conn, message))
     except Exception as exc:
         print(f"[TWITCH-CHAT] event processing falhou: {exc}", flush=True)
-
-    return ("", 204)

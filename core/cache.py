@@ -149,3 +149,37 @@ def set_cached_channel(broadcaster_id, value):
 def forget_channel(broadcaster_id):
     with _channels_lock:
         _channels.pop(int(broadcaster_id), None)
+
+# Cache curto dos rankings para o painel e comandos. A gravação de pontos
+# invalida este cache, então o painel não fica preso em dados antigos.
+_RANKING_TTL = 1.0
+_rankings = {}
+_rankings_lock = RLock()
+
+
+def _ranking_key(broadcaster_id, platform, limit, all_platforms=False):
+    return (int(broadcaster_id), str(platform or "kick").strip().lower(), int(limit), bool(all_platforms))
+
+
+def get_cached_ranking(broadcaster_id, platform="kick", limit=50, all_platforms=False):
+    now = time.monotonic()
+    key = _ranking_key(broadcaster_id, platform, limit, all_platforms)
+    with _rankings_lock:
+        item = _rankings.get(key)
+        if not item or item["expires_at"] <= now:
+            _rankings.pop(key, None)
+            return None
+        return item["value"]
+
+
+def set_cached_ranking(broadcaster_id, value, platform="kick", limit=50, all_platforms=False):
+    key = _ranking_key(broadcaster_id, platform, limit, all_platforms)
+    with _rankings_lock:
+        _rankings[key] = {"value": value, "expires_at": time.monotonic() + _RANKING_TTL}
+
+
+def forget_rankings(broadcaster_id):
+    bid = int(broadcaster_id)
+    with _rankings_lock:
+        for key in [key for key in _rankings if key[0] == bid]:
+            _rankings.pop(key, None)

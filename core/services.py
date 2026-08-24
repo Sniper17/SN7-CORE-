@@ -8,6 +8,7 @@ from core.cache import (
     get_cached_channel,
     set_cached_channel,
     forget_channel,
+    forget_rankings,
 )
 
 
@@ -331,6 +332,8 @@ def add_points(broadcaster_id, username, amount, kick_user_id=None, platform="ki
     finally:
         conn.close()
 
+    forget_rankings(broadcaster_id)
+
 
 def award_watch_presence(broadcaster_id, username, kick_user_id=None, platform="kick"):
     rewards = get_point_rewards(broadcaster_id)
@@ -363,6 +366,10 @@ def award_watch_presence(broadcaster_id, username, kick_user_id=None, platform="
             )
             row = cur.fetchone()
         conn.commit()
-        return rewards["watch_points"] if row else 0
+        added = rewards["watch_points"] if row else 0
     finally:
         conn.close()
+
+    if added:
+        forget_rankings(broadcaster_id)
+    return added

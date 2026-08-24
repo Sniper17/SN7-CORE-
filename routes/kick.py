@@ -17,6 +17,7 @@ from core.database import get_conn
 from core.services import ensure_channel, ensure_player, get_channel, get_player, get_rank, award_watch_presence, add_points, get_point_rewards
 from core.command_system import find_command, list_commands
 from core.auth import get_session_broadcaster_id, stable_channel_id
+from core.cache import forget_rankings
 
 
 kick_bp = Blueprint("kick", __name__)
@@ -1037,17 +1038,6 @@ def _process_chat(payload, send_chat=None):
     if not bid or not user:
         return
 
-    # Expira apostas antigas na primeira interação seguinte. Nenhum ponto é removido.
-    try:
-        expired_bets = _expire_pending_bets(bid, platform)
-        for challenger, defender, amount in expired_bets:
-            send_chat(
-                bid,
-                f"⏰ A aposta entre {_mention(challenger)} e {_mention(defender)} expirou após 90 segundos. Nenhum ponto foi removido.",
-            )
-    except Exception as exc:
-        print(f"[KICK-BET] erro expirando apostas: {exc}", flush=True)
-
     # A presença individual é específica da Kick. Twitch/YouTube usam o
     # mesmo motor de comandos, mas não devem consultar a API da Kick.
     platform = str(payload.get("platform") or "kick").lower()
@@ -1087,6 +1077,20 @@ def _process_chat(payload, send_chat=None):
 
         ch = get_channel(bid)
         key = cfg["command_key"]
+
+        # Expiração de apostas só é necessária quando uma ação de aposta
+        # acontece. Nunca bloqueie comandos comuns como !pontos com uma
+        # consulta/commit extra no PostgreSQL.
+        if key in {"duel", "bet_accept", "bet_decline"}:
+            try:
+                expired_bets = _expire_pending_bets(bid, platform)
+                for challenger, defender, amount in expired_bets:
+                    send_chat(
+                        bid,
+                        f"⏰ A aposta entre {_mention(challenger)} e {_mention(defender)} expirou após 90 segundos. Nenhum ponto foi removido.",
+                    )
+            except Exception as exc:
+                print(f"[KICK-BET] erro expirando apostas: {exc}", flush=True)
 
         if key == "wzclass":
             query = " ".join(args).strip()
@@ -1435,6 +1439,8 @@ def _process_chat(payload, send_chat=None):
             finally:
                 conn.close()
 
+            forget_rankings(bid)
+
             if first_message:
                 send_chat(
                     bid,
@@ -1550,6 +1556,8 @@ def _process_chat(payload, send_chat=None):
                 conn.commit()
             finally:
                 conn.close()
+
+            forget_rankings(bid)
 
             new_points = int(row[0]) if row else amount
             send_chat(

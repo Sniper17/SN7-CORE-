@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from core.database import get_conn
 from core.services import get_channel, get_rank
 from core.auth import require_session_broadcaster
+from core.cache import get_cached_ranking, set_cached_ranking, forget_rankings
 
 ranking_bp = Blueprint("ranking", __name__)
 
@@ -13,6 +14,9 @@ def ranking(broadcaster_id):
         return jsonify({"ok": False, "error": "Plataforma inválida."}), 400
     channel = get_channel(broadcaster_id)
     limit = max(1, min(int(request.args.get("limit", channel["rank_limit"])), 50))
+    cached = get_cached_ranking(broadcaster_id, platform, limit)
+    if cached is not None:
+        return jsonify(cached)
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -35,13 +39,15 @@ def ranking(broadcaster_id):
     finally:
         conn.close()
 
-    return jsonify({
+    payload = {
         "ok": True,
         "title": channel["rank_title"],
         "currency": channel["currency_name"],
         "emoji": channel["currency_emoji"],
         "ranking": rows
-    })
+    }
+    set_cached_ranking(broadcaster_id, payload, platform, limit)
+    return jsonify(payload)
 
 
 @ranking_bp.get("/<int:broadcaster_id>/all")
@@ -49,6 +55,9 @@ def all_rankings(broadcaster_id):
     """Retorna os três rankings em uma única consulta para o painel."""
     channel = get_channel(broadcaster_id)
     limit = max(1, min(int(request.args.get("limit", channel["rank_limit"])), 50))
+    cached = get_cached_ranking(broadcaster_id, "all", limit, all_platforms=True)
+    if cached is not None:
+        return jsonify(cached)
     platforms = ("kick", "twitch", "youtube")
     conn = get_conn()
     try:
@@ -76,13 +85,15 @@ def all_rankings(broadcaster_id):
     finally:
         conn.close()
 
-    return jsonify({
+    payload = {
         "ok": True,
         "title": channel["rank_title"],
         "currency": channel["currency_name"],
         "emoji": channel["currency_emoji"],
         "rankings": grouped,
-    })
+    }
+    set_cached_ranking(broadcaster_id, payload, "all", limit, all_platforms=True)
+    return jsonify(payload)
 
 
 @ranking_bp.get("/<int:broadcaster_id>/user")
@@ -130,6 +141,7 @@ def reset_ranking(broadcaster_id):
             conn.commit()
         finally:
             conn.close()
+        forget_rankings(broadcaster_id)
         return jsonify({"ok": True, "platform": platform, "reset_users": affected})
     except Exception as exc:
         print(f"[RANKING] RESET erro platform={platform}: {exc}", flush=True)

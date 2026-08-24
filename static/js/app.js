@@ -864,15 +864,15 @@ function injectRankingStyles() {
   const style = document.createElement("style");
   style.id = "sn7-ranking-platform-style";
   style.textContent = `
-    .sn7-ranking-platform-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:980px}
-    .sn7-ranking-platform-card{position:relative;width:100%;text-align:left;color:inherit;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;cursor:pointer;min-height:170px;transition:transform .16s ease,border-color .16s ease,background .16s ease;box-sizing:border-box}
+    .sn7-ranking-platform-grid{display:grid;grid-template-columns:1fr;gap:14px;width:100%;max-width:980px}
+    .sn7-ranking-platform-card{position:relative;width:100%;text-align:left;color:inherit;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:18px;cursor:pointer;min-height:118px;transition:transform .16s ease,border-color .16s ease,background .16s ease;box-sizing:border-box}
     .sn7-ranking-platform-card:hover{transform:translateY(-1px);border-color:#394253;background:#141923}
     .sn7-ranking-platform-card:active{transform:scale(.985)}
     .sn7-ranking-platform-card.sn7-ranking-card-loading{pointer-events:none}
     .sn7-ranking-platform-card.sn7-ranking-card-loading::after{content:"";position:absolute;inset:0;z-index:20;background:rgba(11,13,18,.46);backdrop-filter:blur(2px);border-radius:inherit}
     .sn7-ranking-platform-card.sn7-ranking-card-loading::before{content:"";position:absolute;left:50%;top:50%;width:27px;height:27px;margin:-13.5px 0 0 -13.5px;z-index:21;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7RankingCardSpin .72s linear infinite;box-sizing:border-box}
     @keyframes sn7RankingCardSpin{to{transform:rotate(360deg)}}
-    .sn7-ranking-platform-top{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+    .sn7-ranking-platform-top{display:flex;align-items:center;gap:13px;margin-bottom:12px}
     .sn7-ranking-platform-top-info{min-width:0;flex:1}
     .sn7-ranking-platform-logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-weight:900;font-size:19px;flex:0 0 42px;background:#1b202a;border:1px solid #303744;overflow:hidden}.sn7-ranking-platform-logo svg{width:32px;height:32px;display:block}
     .sn7-ranking-platform-card.kick .sn7-ranking-platform-logo{color:#53e88a}
@@ -898,7 +898,7 @@ function injectRankingStyles() {
     .sn7-platform-ranking-head h3{margin:0;font-size:21px}
     .sn7-platform-ranking-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
     .sn7-platform-ranking-list{display:grid;gap:9px}
-    @media(max-width:760px){.sn7-ranking-platform-grid{grid-template-columns:1fr}.sn7-ranking-platform-card{min-height:0}}
+    @media(max-width:600px){.sn7-ranking-platform-card{min-height:96px;padding:16px}.sn7-ranking-platform-top{margin-bottom:10px}.sn7-ranking-platform-reset{padding:7px 9px}}
     @media(prefers-reduced-motion:reduce){.sn7-ranking-platform-card.sn7-ranking-card-loading::before{animation:none}}
   `;
   document.head.appendChild(style);
