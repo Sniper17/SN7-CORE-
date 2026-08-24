@@ -22,7 +22,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.27"
+SN7_VERSION = "1.9.28"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
@@ -114,6 +114,18 @@ def dashboard():
 @app.get("/perfil")
 def profile():
     return redirect("/?profile=1")
+
+
+@app.get("/privacy")
+def privacy_policy():
+    """Public privacy policy required for Google OAuth verification."""
+    return render_template("privacy.html")
+
+
+@app.get("/terms")
+def terms_of_service():
+    """Public terms of service required for Google OAuth verification."""
+    return render_template("terms.html")
 
 @app.get("/musica/teste")
 def music_test():
