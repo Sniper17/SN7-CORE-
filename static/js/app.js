@@ -1935,7 +1935,7 @@ function openMusicConfig() {
     if ($("musicAllowYoutube")) $("musicAllowYoutube").checked = s.allow_youtube !== false;
     if ($("musicAllowSpotify")) $("musicAllowSpotify").checked = s.allow_spotify !== false;
     if ($("musicAllowSoundcloud")) $("musicAllowSoundcloud").checked = s.allow_soundcloud === true;
-    if ($("musicAllowLinks")) $("musicAllowLinks").checked = s.allow_links !== false;
+    if ($("musicAllowLinks")) $("musicAllowLinks").checked = s.allow_links === true;
     if ($("musicPublicCommands")) $("musicPublicCommands").checked = s.public_commands === true;
     musicRenderToggleFeedback();
   }).catch(() => {});
@@ -1991,7 +1991,7 @@ async function saveMusicConfig() {
       if ($("musicAllowYoutube")) $("musicAllowYoutube").checked = data.settings.allow_youtube !== false;
       if ($("musicAllowSpotify")) $("musicAllowSpotify").checked = data.settings.allow_spotify !== false;
       if ($("musicAllowSoundcloud")) $("musicAllowSoundcloud").checked = data.settings.allow_soundcloud === true;
-      if ($("musicAllowLinks")) $("musicAllowLinks").checked = data.settings.allow_links !== false;
+      if ($("musicAllowLinks")) $("musicAllowLinks").checked = data.settings.allow_links === true;
       if ($("musicPublicCommands")) $("musicPublicCommands").checked = data.settings.public_commands === true;
       musicRenderToggleFeedback();
     }

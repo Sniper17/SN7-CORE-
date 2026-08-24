@@ -237,7 +237,7 @@ def add_from_chat(bid, query, user):
     try:
         with conn.cursor() as cur:
             cur.execute('SELECT allow_youtube,allow_spotify,allow_soundcloud,allow_links FROM music_settings WHERE broadcaster_user_id=%s', (int(bid),))
-            settings = cur.fetchone() or (True, True, False, True)
+            settings = cur.fetchone() or (True, True, False, False)
     finally:
         conn.close()
 

@@ -29,7 +29,7 @@ def _settings(bid):
                     ON CONFLICT (broadcaster_user_id) DO NOTHING
                 ''', (int(bid),))
                 conn.commit()
-                return {'allow_youtube': True, 'allow_spotify': True, 'allow_soundcloud': False, 'allow_links': True, 'public_commands': False}
+                return {'allow_youtube': True, 'allow_spotify': True, 'allow_soundcloud': False, 'allow_links': False, 'public_commands': False}
             return {
                 'allow_youtube': bool(row[0]), 'allow_spotify': bool(row[1]),
                 'allow_soundcloud': bool(row[2]), 'allow_links': bool(row[3]),

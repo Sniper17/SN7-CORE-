@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SN7 Core — Teste Spotify</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#0b0d12;color:#f3f4f6;font-family:Inter,system-ui,sans-serif;display:grid;place-items:center;padding:20px}.card{width:min(720px,100%);background:#141820;border:1px solid #272d38;border-radius:18px;padding:24px;box-shadow:0 20px 60px #0006}.eyebrow{font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:.12em}.title{font-size:24px;font-weight:700;margin:6px 0}.muted{color:#9ca3af}.status{margin:18px 0;padding:12px 14px;border-radius:10px;background:#0f131a;border:1px solid #252b35}.track{padding:18px 0}.track h2{margin:0 0 6px;font-size:21px}.track p{margin:0;color:#9ca3af}.progress{height:6px;background:#262c36;border-radius:99px;overflow:hidden;margin:18px 0}.bar{height:100%;width:0;background:#fff;transition:width .2s}.controls{display:flex;gap:10px;flex-wrap:wrap}.btn{border:1px solid #363d49;background:#1b2029;color:#fff;border-radius:10px;padding:10px 15px;cursor:pointer}.btn:hover{background:#232a35}.btn.primary{background:#fff;color:#0b0d12}.btn:disabled{opacity:.5;cursor:not-allowed}.small{font-size:12px}.links{margin-top:18px}.links a{color:#fff}
+</style>
+</head>
+<body>
+<main class="card">
+<div class="eyebrow">SN7 Core 1.9.21</div>
+<div class="title">Teste do player Spotify</div>
+<div class="muted">Usa o mesmo Spotify Web Playback SDK do player do OBS.</div>
+<div id="status" class="status">Preparando…</div>
+<section class="track"><h2 id="title">Nenhuma música atual</h2><p id="artist">—</p><div class="progress"><div id="bar" class="bar"></div></div><div id="time" class="muted small">0:00 / 0:00</div></section>
+<div class="controls"><button id="connect" class="btn primary">Conectar player</button><button id="play" class="btn" disabled>▶ Tocar</button><button id="pause" class="btn" disabled>⏸ Pausar</button><button id="next" class="btn">⏭ Próxima</button></div>
+<div class="links small"><a href="/?profile=1">Voltar ao painel</a></div>
+</main>
+<script src="https://sdk.scdn.co/spotify-player.js"></script>
+<script>
+const BID={{ broadcaster_id|tojson }},$=id=>document.getElementById(id),state={player:null,device:null,token:null,connected:false};
+function status(t,c=""){ $("status").className="status "+c;$("status").textContent=t }
+function fmt(v){v=Math.max(0,Math.floor(Number(v)||0));return `${Math.floor(v/60)}:${String(v%60).padStart(2,"0")}`}
+async function snapshot(){const r=await fetch(`/api/music/${encodeURIComponent(BID)}`,{cache:"no-store",credentials:"same-origin"}),d=await r.json();if(!r.ok||d.ok===false)throw Error(d.error||"Falha ao consultar a fila.");const c=d.current;$("title").textContent=c?.title||"Nenhuma música atual";$("artist").textContent=c?.artist||c?.provider||"—";return d}
+async function token(){const r=await fetch(`/api/music/${encodeURIComponent(BID)}/spotify/player-token`,{cache:"no-store",credentials:"same-origin"}),d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||"Spotify não está conectado.");return d.token}
+async function initPlayer(){if(state.connected)return;if(!window.Spotify?.Player)throw Error("Spotify Web Playback SDK ainda não carregou.");state.token=await token();state.player=new Spotify.Player({name:"SN7 Core TESTE",getOAuthToken:cb=>token().then(t=>{state.token=t;cb(t)}).catch(()=>cb(state.token)),volume:.8});state.player.addListener("ready",({device_id})=>{state.device=device_id;state.connected=true;$("play").disabled=false;$("pause").disabled=false;status("Player Spotify conectado ao navegador.","ok")});state.player.addListener("not_ready",()=>{state.connected=false;status("Dispositivo Spotify ficou indisponível.","error")});state.player.addListener("initialization_error",e=>status("Spotify: "+e.message,"error"));state.player.addListener("authentication_error",e=>status("Spotify: "+e.message,"error"));state.player.addListener("account_error",e=>status("Spotify: "+e.message,"error"));state.player.addListener("playback_error",e=>status("Spotify: "+e.message,"error"));state.player.addListener("player_state_changed",ps=>{if(!ps)return;const t=ps.track_window?.current_track,d=Number(t?.duration_ms||0),p=Number(ps.position||0);$("bar").style.width=d?`${Math.min(100,p/d*100)}%`:"0%";$("time").textContent=`${fmt(p/1000)} / ${fmt(d/1000)}`;if(t)status(ps.paused?"Spotify pausado.":"Spotify reproduzindo.","ok")});if(!await state.player.connect())throw Error("Não foi possível conectar o player Spotify.")}
+async function playCurrent(){const d=await snapshot(),c=d.current;if(!c||c.provider!=="spotify")throw Error("A música atual da fila não é Spotify.");const m=(c.source_url||"").match(/^spotify:track:([^?]+)/);if(!m)throw Error("A faixa Spotify atual não possui ID válido.");await initPlayer();const r=await fetch("https://api.spotify.com/v1/me/player/play?device_id="+encodeURIComponent(state.device),{method:"PUT",headers:{Authorization:"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({uris:[`spotify:track:${m[1]}`]})});if(!r.ok)throw Error("Spotify não iniciou. Verifique Premium e a conta conectada.")}
+$("connect").onclick=()=>initPlayer().catch(e=>status(e.message,"error"));$("play").onclick=()=>playCurrent().catch(e=>status(e.message,"error"));$("pause").onclick=()=>state.player?.pause().catch(e=>status(e.message,"error"));$("next").onclick=async()=>{try{await fetch(`/api/music/${encodeURIComponent(BID)}/control/skip`,{method:"POST",credentials:"same-origin"});await snapshot();status("Próxima faixa selecionada.","ok")}catch(e){status(e.message,"error")}};snapshot().catch(e=>status(e.message,"error"));
+</script>
+</body></html>

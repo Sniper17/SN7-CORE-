@@ -21,7 +21,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.20"
+SN7_VERSION = "1.9.21"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
@@ -112,6 +112,13 @@ def dashboard():
 @app.get("/perfil")
 def profile():
     return redirect("/?profile=1")
+
+@app.get("/musica/teste")
+def music_test():
+    current = get_session_broadcaster_id()
+    if current is None:
+        return redirect("/?profile=1")
+    return render_template("music_test.html", broadcaster_id=str(current))
 
 
 @app.post("/api/session/logout")
