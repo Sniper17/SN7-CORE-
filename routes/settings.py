@@ -21,6 +21,8 @@ DEFAULT_SETTINGS = {
     "watch_interval_minutes": 10,
     "sub_bonus": 500,
     "kicks_bonus_per_kick": 1,
+    "bits_bonus_per_bit": 1,
+    "superchat_bonus_per_unit": 1,
 }
 
 @settings_bp.get("/<int:broadcaster_id>")
@@ -33,7 +35,7 @@ def get_settings(broadcaster_id):
         if "DATABASE_URL" in str(exc):
             demo = dict(DEFAULT_SETTINGS)
             demo["broadcaster_user_id"] = broadcaster_id
-            demo["point_rewards"] = {"watch_points": 1, "watch_interval_minutes": 10, "sub_bonus": 500, "kicks_bonus_per_kick": 1}
+            demo["point_rewards"] = {"watch_points": 1, "watch_interval_minutes": 10, "sub_bonus": 500, "kicks_bonus_per_kick": 1, "bits_bonus_per_bit": 1, "superchat_bonus_per_unit": 1}
             return jsonify({"ok": True, "settings": demo, "demo": True})
         raise
 
@@ -50,6 +52,8 @@ def reset_points_settings(broadcaster_id):
                 "watch_interval_minutes": DEFAULT_SETTINGS["watch_interval_minutes"],
                 "sub_bonus": DEFAULT_SETTINGS["sub_bonus"],
                 "kicks_bonus_per_kick": DEFAULT_SETTINGS["kicks_bonus_per_kick"],
+                "bits_bonus_per_bit": DEFAULT_SETTINGS["bits_bonus_per_bit"],
+                "superchat_bonus_per_unit": DEFAULT_SETTINGS["superchat_bonus_per_unit"],
             },
         },
         "demo": False,
@@ -69,6 +73,8 @@ def reset_rewards_settings(broadcaster_id):
                 "watch_interval_minutes": DEFAULT_SETTINGS["watch_interval_minutes"],
                 "sub_bonus": DEFAULT_SETTINGS["sub_bonus"],
                 "kicks_bonus_per_kick": DEFAULT_SETTINGS["kicks_bonus_per_kick"],
+                "bits_bonus_per_bit": DEFAULT_SETTINGS["bits_bonus_per_bit"],
+                "superchat_bonus_per_unit": DEFAULT_SETTINGS["superchat_bonus_per_unit"],
             },
         },
         "demo": False,
@@ -81,7 +87,7 @@ def update_settings(broadcaster_id):
     allowed = {
         "currency_name", "currency_command", "currency_emoji", "points_response",
         "rank_title", "rank_limit", "duel_win_points", "duel_loss_points",
-        "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick"
+        "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick", "bits_bonus_per_bit", "superchat_bonus_per_unit"
     }
     values = {k: data[k] for k in allowed if k in data}
 
@@ -103,7 +109,7 @@ def update_settings(broadcaster_id):
     try:
         ensure_channel(broadcaster_id)
 
-        reward_values = {k: values.pop(k) for k in list(values) if k in {"watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick"}}
+        reward_values = {k: values.pop(k) for k in list(values) if k in {"watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick", "bits_bonus_per_bit", "superchat_bonus_per_unit"}}
         if reward_values:
             update_point_rewards(broadcaster_id, reward_values)
 

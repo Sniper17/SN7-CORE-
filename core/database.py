@@ -366,6 +366,8 @@ CREATE TABLE IF NOT EXISTS point_rewards (
     watch_interval_minutes INTEGER NOT NULL DEFAULT 10,
     sub_bonus INTEGER NOT NULL DEFAULT 500,
     kicks_bonus_per_kick INTEGER NOT NULL DEFAULT 1,
+    bits_bonus_per_bit INTEGER NOT NULL DEFAULT 1,
+    superchat_bonus_per_unit INTEGER NOT NULL DEFAULT 1,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 """
@@ -387,6 +389,14 @@ def ensure_point_rewards_table(conn=None):
             cur.execute("""
                 ALTER TABLE players
                 ADD COLUMN IF NOT EXISTS last_view_reward_at TIMESTAMPTZ
+            """)
+            cur.execute("""
+                ALTER TABLE point_rewards
+                ADD COLUMN IF NOT EXISTS bits_bonus_per_bit INTEGER NOT NULL DEFAULT 1
+            """)
+            cur.execute("""
+                ALTER TABLE point_rewards
+                ADD COLUMN IF NOT EXISTS superchat_bonus_per_unit INTEGER NOT NULL DEFAULT 1
             """)
         if own_connection:
             conn.commit()

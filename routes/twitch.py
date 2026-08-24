@@ -12,6 +12,7 @@ from flask import Blueprint, jsonify, redirect, request, session
 
 from core.auth import get_session_broadcaster_id, require_session_broadcaster, stable_channel_id
 from core.database import get_conn
+from core.services import award_watch_presence, add_points, get_point_rewards
 from routes.kick import _process_chat
 
 twitch_bp = Blueprint("twitch", __name__)
@@ -19,16 +20,21 @@ twitch_bp = Blueprint("twitch", __name__)
 TWITCH_API = "https://api.twitch.tv/helix"
 TWITCH_OAUTH = "https://id.twitch.tv/oauth2"
 EVENTSUB_TYPE = "channel.chat.message"
+EVENTSUB_VERSION = "1"
+EVENTSUB_REWARD_TYPES = (
+    ("channel.chat.message", "1"),
+    ("channel.subscribe", "1"),
+    ("channel.cheer", "1"),
+)
 
 # EventSub deve receber 204 rapidamente. O processamento do comando e a
 # resposta no chat rodam fora da requisição HTTP, evitando que a Twitch fique
 # esperando PostgreSQL/Twitch API e reduzindo reentregas.
 _chat_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="sn7-twitch-chat")
+_reward_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="sn7-twitch-reward")
 _conn_cache = {}
 _conn_cache_ttl = 30.0
 _conn_cache_lock = threading.RLock()
-EVENTSUB_VERSION = "1"
-
 # EventSub deve ser processado de forma idempotente. Em caso de inscrições
 # duplicadas ou reentrega da Twitch, o mesmo message_id não pode executar o
 # comando duas vezes. Mantemos uma janela curta em memória por processo.
@@ -335,14 +341,51 @@ def _list_eventsub(access_token):
     return response.json().get("data") or []
 
 
-def _subscription_matches(sub, external_user_id):
+def _subscription_matches(sub, external_user_id, sub_type=None):
     condition = sub.get("condition") or {}
-    return (
-        sub.get("type") == EVENTSUB_TYPE
-        and sub.get("version") == EVENTSUB_VERSION
-        and condition.get("broadcaster_user_id") == str(external_user_id)
-        and condition.get("user_id") == str(external_user_id)
+    wanted_type = sub_type or EVENTSUB_TYPE
+    if sub.get("type") != wanted_type:
+        return False
+    if sub.get("version") != "1":
+        return False
+    if condition.get("broadcaster_user_id") != str(external_user_id):
+        return False
+    if wanted_type == "channel.chat.message":
+        return condition.get("user_id") == str(external_user_id)
+    return True
+
+
+def _create_eventsub(app_token, external_user_id, secret, sub_type, version="1"):
+    condition = {"broadcaster_user_id": str(external_user_id)}
+    if sub_type == "channel.chat.message":
+        condition["user_id"] = str(external_user_id)
+
+    payload = {
+        "type": sub_type,
+        "version": version,
+        "condition": condition,
+        "transport": {
+            "method": "webhook",
+            "callback": _eventsub_callback(),
+            "secret": secret,
+        },
+    }
+    response = requests.post(
+        f"{TWITCH_API}/eventsub/subscriptions",
+        headers=_eventsub_headers(app_token),
+        json=payload,
+        timeout=15,
     )
+    data = response.json()
+    if response.status_code >= 400:
+        message = (
+            data.get("message")
+            or (data.get("error") if isinstance(data.get("error"), str) else None)
+            or f"Twitch EventSub HTTP {response.status_code}"
+        )
+        raise RuntimeError(f"{sub_type}: {message}")
+    row = (data.get("data") or [{}])[0]
+    return {"type": sub_type, "id": row.get("id"), "status": row.get("status")}
 
 
 def _subscribe(conn):
@@ -352,86 +395,69 @@ def _subscribe(conn):
     if len(secret) < 10 or len(secret) > 100:
         raise RuntimeError("TWITCH_EVENTSUB_SECRET precisa ter entre 10 e 100 caracteres.")
 
-    # EventSub com transport=webhook exige APP ACCESS TOKEN.
-    # A autorização da conta continua sendo necessária: o usuário deve ter
-    # concedido user:bot e channel:bot (ou ter status de moderador) para que
-    # o app token possa criar a subscription de chat.
     user_token = str(conn.get("access_token") or "").strip()
     if not user_token:
         raise RuntimeError("A sessão da Twitch não possui access token. Conecte a Twitch novamente.")
 
-    granted = {
-        part.strip()
-        for part in str(conn.get("scope") or "").split()
-        if part.strip()
-    }
-    required = {"user:read:chat", "user:write:chat", "user:bot", "channel:bot"}
-    missing = sorted(required - granted)
-    if missing:
+    granted = {part.strip() for part in str(conn.get("scope") or "").split() if part.strip()}
+    chat_required = {"user:read:chat", "user:write:chat", "user:bot", "channel:bot"}
+    missing_chat = sorted(chat_required - granted)
+    if missing_chat:
         raise RuntimeError(
-            "A autorização da Twitch está incompleta. "
-            "Conecte a Twitch novamente para conceder: "
-            + ", ".join(missing)
+            "A autorização da Twitch está incompleta para o chat. "
+            "Conecte a Twitch novamente para conceder: " + ", ".join(missing_chat)
         )
+
+    reward_scope_missing = sorted({"channel:read:subscriptions", "bits:read"} - granted)
 
     app_token = _app_token()
     subscriptions = _list_eventsub(app_token)
+    results = []
 
-    # Não apaga uma inscrição existente. Isso evita uma janela sem chat
-    # enquanto a Twitch valida uma nova inscrição.
-    for sub in subscriptions:
-        if _subscription_matches(sub, conn["external_user_id"]) and sub.get("status") in {
-            "enabled",
-            "webhook_callback_verification_pending",
-        }:
-            return {
-                "ok": True,
-                "subscription_id": sub.get("id"),
-                "status": sub.get("status"),
-            }
-
-    payload = {
-        "type": EVENTSUB_TYPE,
-        "version": EVENTSUB_VERSION,
-        "condition": {
-            "broadcaster_user_id": str(conn["external_user_id"]),
-            "user_id": str(conn["external_user_id"]),
-        },
-        "transport": {
-            "method": "webhook",
-            "callback": _eventsub_callback(),
-            "secret": secret,
-        },
-    }
-
-    response = requests.post(
-        f"{TWITCH_API}/eventsub/subscriptions",
-        headers=_eventsub_headers(app_token),
-        json=payload,
-        timeout=15,
-    )
-    data = response.json()
-
-    if response.status_code >= 400:
-        message = (
-            data.get("message")
-            or (data.get("error") if isinstance(data.get("error"), str) else None)
-            or f"Twitch EventSub HTTP {response.status_code}"
+    for sub_type, version in EVENTSUB_REWARD_TYPES:
+        if sub_type == "channel.subscribe" and "channel:read:subscriptions" in reward_scope_missing:
+            results.append({
+                "type": sub_type,
+                "status": "scope_missing",
+                "message": "Reconecte a Twitch para liberar channel:read:subscriptions.",
+            })
+            continue
+        if sub_type == "channel.cheer" and "bits:read" in reward_scope_missing:
+            results.append({
+                "type": sub_type,
+                "status": "scope_missing",
+                "message": "Reconecte a Twitch para liberar bits:read.",
+            })
+            continue
+        existing = next(
+            (
+                sub for sub in subscriptions
+                if _subscription_matches(sub, conn["external_user_id"], sub_type)
+                and sub.get("status") in {"enabled", "webhook_callback_verification_pending"}
+            ),
+            None,
         )
-        raise RuntimeError(message)
+        if existing:
+            results.append({
+                "type": sub_type,
+                "id": existing.get("id"),
+                "status": existing.get("status"),
+                "existing": True,
+            })
+            continue
 
-    return {
-        "ok": True,
-        "subscription_id": (data.get("data") or [{}])[0].get("id"),
-        "status": (data.get("data") or [{}])[0].get("status"),
-    }
+        results.append(_create_eventsub(
+            app_token, conn["external_user_id"], secret, sub_type, version
+        ))
+
+    return {"ok": True, "subscriptions": results}
 
 
 def _unsubscribe(conn):
     try:
         app_token = _app_token()
         for sub in _list_eventsub(app_token):
-            if not _subscription_matches(sub, conn["external_user_id"]):
+            if not any(_subscription_matches(sub, conn["external_user_id"], typ) for typ, _ in EVENTSUB_REWARD_TYPES):
                 continue
             sub_id = sub.get("id")
             if not sub_id:
@@ -449,8 +475,6 @@ def _unsubscribe(conn):
                     flush=True,
                 )
     except Exception as exc:
-        # Desligar o bot continua sendo seguro localmente mesmo se a Twitch
-        # estiver temporariamente indisponível.
         print(f"[TWITCH-EVENTSUB] unsubscribe falhou: {exc}", flush=True)
 
 
@@ -785,6 +809,8 @@ def eventsub():
     if message_type != "notification":
         return ("", 204)
 
+    subscription = payload.get("subscription") or {}
+    event_type = str(subscription.get("type") or "channel.chat.message")
     event = payload.get("event") or {}
     try:
         bid = int(event.get("broadcaster_user_id") or 0)
@@ -797,17 +823,55 @@ def eventsub():
     # Tudo que pode bloquear (PostgreSQL, refresh de token, motor de comando e
     # envio da resposta) fica fora do request do EventSub.
     try:
-        _chat_executor.submit(_process_twitch_event, bid, event)
+        _chat_executor.submit(_process_twitch_event, bid, event, event_type)
     except Exception as exc:
         print(f"[TWITCH-EVENTSUB] fila de processamento falhou: {exc}", flush=True)
 
     return ("", 204)
 
 
-def _process_twitch_event(bid, event):
+def _process_twitch_event(bid, event, event_type="channel.chat.message"):
     try:
         conn = _refresh(_conn(bid))
         if not conn or not conn["bot_active"]:
+            return
+
+        username = str(
+            event.get("user_login")
+            or event.get("user_name")
+            or event.get("chatter_user_login")
+            or event.get("chatter_user_name")
+            or ""
+        ).strip()
+        uid = event.get("user_id") or event.get("chatter_user_id")
+
+        # Recompensas de assinatura e Bits são processadas fora do request
+        # HTTP do EventSub, então a Twitch continua recebendo 204 imediatamente.
+        if event_type == "channel.subscribe":
+            rewards = get_point_rewards(bid)
+            bonus = int(rewards.get("sub_bonus") or 0)
+            if username and bonus > 0:
+                add_points(bid, username, bonus, uid, "twitch")
+                print(
+                    f"[SN7-REWARDS] Twitch {username} +{bonus} por sub "
+                    f"(tier {event.get('tier') or '?'})",
+                    flush=True,
+                )
+            return
+
+        if event_type == "channel.cheer":
+            try:
+                bits = max(0, int(event.get("bits") or 0))
+            except (TypeError, ValueError):
+                bits = 0
+            rewards = get_point_rewards(bid)
+            bonus = bits * int(rewards.get("bits_bonus_per_bit") or 0)
+            if username and bonus > 0:
+                add_points(bid, username, bonus, uid, "twitch")
+                print(
+                    f"[SN7-REWARDS] Twitch {username} +{bonus} por {bits} Bits",
+                    flush=True,
+                )
             return
 
         badges = event.get("badges") or []
@@ -816,12 +880,10 @@ def _process_twitch_event(bid, event):
             for badge in badges
         )
         sender = {
-            "user_id": event.get("chatter_user_id"),
-            "username": event.get("chatter_user_login")
-            or event.get("chatter_user_name"),
+            "user_id": uid,
+            "username": username,
             "is_moderator": is_moderator,
-            "is_broadcaster": str(event.get("chatter_user_id") or "")
-            == str(event.get("broadcaster_user_id") or ""),
+            "is_broadcaster": str(uid or "") == str(event.get("broadcaster_user_id") or ""),
         }
         normalized = {
             "broadcaster": {"user_id": bid, "username": conn["username"]},
@@ -830,11 +892,24 @@ def _process_twitch_event(bid, event):
             "sn7_profile_id": conn["broadcaster_user_id"],
             "platform": "twitch",
         }
+
+        # A interação no chat é o sinal de presença disponível sem consultar
+        # continuamente uma API de viewers. O cache de services.py evita SQL
+        # repetido durante o intervalo configurado.
+        if username:
+            try:
+                _reward_executor.submit(
+                    award_watch_presence, bid, username, uid, "twitch"
+                )
+            except Exception as exc:
+                print(f"[SN7-REWARDS] fila presença Twitch falhou: {exc}", flush=True)
+
         print(
-            f"[TWITCH-CHAT] {sender.get('username') or 'usuário'}: "
+            f"[TWITCH-CHAT] {username or 'usuário'}: "
             f"{normalized['content']} -> perfil {conn['broadcaster_user_id']}",
             flush=True,
         )
         _process_chat(normalized, lambda _bid, message: _send_chat(conn, message))
     except Exception as exc:
         print(f"[TWITCH-CHAT] event processing falhou: {exc}", flush=True)
+

@@ -2,6 +2,7 @@ import os
 import time
 import threading
 import secrets
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlencode
 
 import requests
@@ -9,10 +10,12 @@ from flask import Blueprint, jsonify, request, redirect, session
 
 from core.database import get_conn
 from core.auth import require_session_broadcaster, get_session_broadcaster_id, stable_channel_id
+from core.services import award_watch_presence, add_points, get_point_rewards
 from routes.kick import _process_chat
 
 youtube_bp = Blueprint("youtube", __name__)
 _worker_started = False
+_reward_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="sn7-youtube-reward")
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -269,6 +272,55 @@ def _save_cursor(bid, cursor):
     finally:
         db.close()
 
+def _process_youtube_reward(bid, author, snippet):
+    try:
+        user_id = author.get("channelId")
+        username = str(author.get("displayName") or "").strip()
+        if not username:
+            return
+
+        event_type = str(snippet.get("type") or "")
+        rewards = get_point_rewards(bid)
+
+        if event_type == "newSponsorEvent":
+            bonus = int(rewards.get("sub_bonus") or 0)
+            if bonus > 0:
+                add_points(bid, username, bonus, user_id, "youtube")
+                print(
+                    f"[SN7-REWARDS] YouTube {username} +{bonus} por membro",
+                    flush=True,
+                )
+            return
+
+        if event_type == "superChatEvent":
+            event = snippet.get("superChatDetails") or {}
+            try:
+                amount_micros = max(0, int(event.get("amountMicros") or 0))
+            except (TypeError, ValueError):
+                amount_micros = 0
+
+            # A recompensa é por unidade monetária do Super Chat
+            # (ex.: 10 R$ -> 10x a configuração). O valor da moeda fica
+            # preservado no log para diagnóstico.
+            units = amount_micros // 1_000_000
+            bonus = units * int(rewards.get("superchat_bonus_per_unit") or 0)
+            if bonus > 0:
+                add_points(bid, username, bonus, user_id, "youtube")
+                print(
+                    f"[SN7-REWARDS] YouTube {username} +{bonus} por "
+                    f"Super Chat {event.get('amountDisplayString') or ''}",
+                    flush=True,
+                )
+            return
+
+        # Mensagens normais também servem como sinal de presença/watchtime.
+        _reward_executor.submit(
+            award_watch_presence, bid, username, user_id, "youtube"
+        )
+    except Exception as exc:
+        print(f"[SN7-REWARDS] YouTube reward falhou: {exc}", flush=True)
+
+
 def _poll_once(bid, conn):
     chat_id = _find_live_chat(conn)
     if not chat_id:
@@ -277,19 +329,43 @@ def _poll_once(bid, conn):
     params = {"liveChatId":chat_id,"part":"snippet,authorDetails","maxResults":200}
     if conn.get("cursor"):
         params["pageToken"] = conn["cursor"]
-    response = requests.get(f"{API}/liveChat/messages", params=params, headers={"Authorization": f"Bearer {conn['access_token']}"}, timeout=15)
+    response = requests.get(
+        f"{API}/liveChat/messages",
+        params=params,
+        headers={"Authorization": f"Bearer {conn['access_token']}"},
+        timeout=15,
+    )
     data = response.json()
     if response.status_code >= 400:
-        raise RuntimeError((data.get("error") or {}).get("message") or "YouTube chat indisponível.")
+        raise RuntimeError(
+            (data.get("error") or {}).get("message") or "YouTube chat indisponível."
+        )
+
     for item in data.get("items") or []:
-        snippet = item.get("snippet") or {}; author = item.get("authorDetails") or {}
-        norm = {"broadcaster":{"user_id":bid,"username":conn["username"]},
-                "sender":{"user_id":author.get("channelId"),"username":author.get("displayName"),
-                           "is_moderator":bool(author.get("isChatModerator")),"is_broadcaster":bool(author.get("isChatOwner"))},
-                "content":snippet.get("displayMessage") or snippet.get("textMessageDetails",{}).get("messageText",""),
-                "sn7_profile_id": bid,
-                "platform":"youtube"}
+        snippet = item.get("snippet") or {}
+        author = item.get("authorDetails") or {}
+
+        # Recompensas e presença não bloqueiam o processamento do chat.
+        try:
+            _reward_executor.submit(_process_youtube_reward, bid, author, snippet)
+        except Exception as exc:
+            print(f"[SN7-REWARDS] fila YouTube falhou: {exc}", flush=True)
+
+        norm = {
+            "broadcaster":{"user_id":bid,"username":conn["username"]},
+            "sender":{
+                "user_id":author.get("channelId"),
+                "username":author.get("displayName"),
+                "is_moderator":bool(author.get("isChatModerator")),
+                "is_broadcaster":bool(author.get("isChatOwner")),
+            },
+            "content":snippet.get("displayMessage")
+            or snippet.get("textMessageDetails",{}).get("messageText",""),
+            "sn7_profile_id": bid,
+            "platform":"youtube",
+        }
         _process_chat(norm, lambda _bid, msg: _send(conn, msg))
+
     token = data.get("nextPageToken")
     if token:
         _save_cursor(bid, token)

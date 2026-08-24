@@ -833,7 +833,7 @@ async function loadSettings() {
     [
       "currency_name", "currency_command", "currency_emoji", "points_response",
       "rank_title", "rank_limit", "duel_win_points", "duel_loss_points",
-      "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick",
+      "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick", "bits_bonus_per_bit", "superchat_bonus_per_unit",
     ].forEach((key) => {
       if ($(key)) $(key).value = settings[key] ?? "";
     });
@@ -1056,7 +1056,7 @@ async function saveSettings() {
   [
     "currency_name", "currency_command", "currency_emoji", "points_response",
     "rank_title", "rank_limit", "duel_win_points", "duel_loss_points",
-    "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick",
+    "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick", "bits_bonus_per_bit", "superchat_bonus_per_unit",
   ].forEach((key) => {
     if ($(key)) data[key] = $(key).value;
   });
@@ -1073,7 +1073,7 @@ async function saveSettings() {
     [
       "currency_name", "currency_command", "currency_emoji", "points_response",
       "rank_title", "rank_limit", "duel_win_points", "duel_loss_points",
-      "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick",
+      "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick", "bits_bonus_per_bit", "superchat_bonus_per_unit",
     ].forEach((key) => {
       if ($(key) && Object.prototype.hasOwnProperty.call(saved, key)) $(key).value = saved[key] ?? "";
     });
@@ -1100,7 +1100,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTabPersistence();
   restoreSavedTab();
 
-  ["currency_name", "currency_emoji", "currency_command", "points_response", "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick"].forEach((id) => {
+  ["currency_name", "currency_emoji", "currency_command", "points_response", "watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick", "bits_bonus_per_bit", "superchat_bonus_per_unit"].forEach((id) => {
     $(id)?.addEventListener("input", () => {
       updatePointsResponsePreview();
       updateEconomyCards();

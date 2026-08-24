@@ -1,4 +1,6 @@
 from core.database import get_conn, ensure_point_rewards_table
+import threading
+import time
 from core.cache import (
     get_player_identity,
     remember_player_identity,
@@ -10,6 +12,29 @@ from core.cache import (
     forget_channel,
     forget_rankings,
 )
+
+
+# Presença: evita uma consulta SQL a cada mensagem. O banco continua sendo a
+# fonte de verdade quando o intervalo vence; o cache só elimina chamadas
+# desnecessárias durante o intervalo configurado.
+_presence_next_reward = {}
+_presence_lock = threading.RLock()
+
+def _presence_cache_key(broadcaster_id, username, platform="kick", user_id=None):
+    return (
+        int(broadcaster_id),
+        str(platform or "kick").strip().lower(),
+        str(user_id or "").strip(),
+        str(username or "").strip().lower(),
+    )
+
+def _presence_is_due(key):
+    with _presence_lock:
+        return time.monotonic() >= float(_presence_next_reward.get(key, 0))
+
+def _presence_set_next(key, minutes):
+    with _presence_lock:
+        _presence_next_reward[key] = time.monotonic() + max(1, int(minutes)) * 60
 
 
 def ensure_channel(broadcaster_id, username=""):
@@ -255,7 +280,8 @@ def get_point_rewards(broadcaster_id):
                 VALUES (%s) ON CONFLICT (broadcaster_user_id) DO NOTHING
             """, (int(broadcaster_id),))
             cur.execute("""
-                SELECT watch_points, watch_interval_minutes, sub_bonus, kicks_bonus_per_kick
+                SELECT watch_points, watch_interval_minutes, sub_bonus,
+                       kicks_bonus_per_kick, bits_bonus_per_bit, superchat_bonus_per_unit
                 FROM point_rewards WHERE broadcaster_user_id=%s
             """, (int(broadcaster_id),))
             row = cur.fetchone()
@@ -265,6 +291,8 @@ def get_point_rewards(broadcaster_id):
                 "watch_interval_minutes": int(row[1]),
                 "sub_bonus": int(row[2]),
                 "kicks_bonus_per_kick": int(row[3]),
+                "bits_bonus_per_bit": int(row[4]),
+                "superchat_bonus_per_unit": int(row[5]),
             }
             set_cached_rewards(broadcaster_id, value)
             return value
@@ -275,7 +303,10 @@ def get_point_rewards(broadcaster_id):
 def update_point_rewards(broadcaster_id, values):
     ensure_point_rewards_table()
     clean = {}
-    for key in ("watch_points", "watch_interval_minutes", "sub_bonus", "kicks_bonus_per_kick"):
+    for key in (
+        "watch_points", "watch_interval_minutes", "sub_bonus",
+        "kicks_bonus_per_kick", "bits_bonus_per_bit", "superchat_bonus_per_unit"
+    ):
         if key in values:
             try:
                 value = int(values[key])
@@ -336,11 +367,19 @@ def add_points(broadcaster_id, username, amount, kick_user_id=None, platform="ki
 
 
 def award_watch_presence(broadcaster_id, username, kick_user_id=None, platform="kick"):
+    platform = str(platform or "kick").strip().lower()
+    if platform not in {"kick", "twitch", "youtube"}:
+        platform = "kick"
+
     rewards = get_point_rewards(broadcaster_id)
     if rewards["watch_points"] <= 0:
         return 0
 
-    # Nenhuma leitura de cadastro por mensagem; o cache resolve usuários já vistos.
+    key = _presence_cache_key(broadcaster_id, username, platform, kick_user_id)
+    if not _presence_is_due(key):
+        return 0
+
+    # Só chegamos ao banco quando o intervalo realmente venceu.
     ensure_player(broadcaster_id, username, kick_user_id, platform)
     conn = get_conn()
     try:
@@ -359,7 +398,7 @@ def award_watch_presence(broadcaster_id, username, kick_user_id=None, platform="
                 (
                     rewards["watch_points"],
                     int(broadcaster_id),
-                    str(platform or "kick").lower(),
+                    platform,
                     username,
                     rewards["watch_interval_minutes"],
                 ),
@@ -370,6 +409,7 @@ def award_watch_presence(broadcaster_id, username, kick_user_id=None, platform="
     finally:
         conn.close()
 
+    _presence_set_next(key, rewards["watch_interval_minutes"])
     if added:
         forget_rankings(broadcaster_id)
     return added
