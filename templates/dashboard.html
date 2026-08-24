@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.27">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.29">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -85,6 +85,43 @@ body.sn7-modal-open{overflow:hidden}
   .sn7-minigames-grid{grid-template-columns:1fr}
 }
 </style>
+
+<style id="sn7-legal-footer-v1">
+.sn7-legal-footer{
+  width:100%;
+  max-width:1250px;
+  margin:42px auto 0;
+  padding:18px 4px 10px;
+  border-top:1px solid rgba(255,255,255,.07);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+  color:#697386;
+  font-size:11px;
+  line-height:1.5;
+}
+.sn7-legal-footer a{
+  color:#8f98a8;
+  text-decoration:none;
+  font-weight:700;
+  transition:color .16s ease;
+}
+.sn7-legal-footer a:hover,
+.sn7-legal-footer a:focus-visible{color:#c7c0ff;text-decoration:underline}
+.sn7-legal-footer .sn7-legal-sep{color:#3d4552;user-select:none}
+.sn7-legal-footer .sn7-legal-copy{color:#596273}
+@media(max-width:700px){
+  .sn7-legal-footer{
+    margin-top:34px;
+    padding:18px 6px 16px;
+    gap:8px;
+    font-size:10.5px;
+  }
+}
+</style>
+
 </head>
 <body>
 <div id="sn7BootLoader" class="sn7-boot-loader" aria-hidden="true"><span class="sn7-loader-spinner"></span></div>
@@ -140,7 +177,7 @@ body.sn7-modal-open{overflow:hidden}
         <span class="sn7-nav-label" data-short="Perfil">Perfil</span>
       </button>
     </nav>
-    <div class="sidebar-footer">SN7 CORE <span>v1.9.27</span></div>
+    <div class="sidebar-footer">SN7 CORE <span>v1.9.29</span></div>
   </aside>
 
   <main>
@@ -488,6 +525,15 @@ body.sn7-modal-open{overflow:hidden}
         </div>
       </div>
     </section>
+  
+    <footer class="sn7-legal-footer" aria-label="Informações legais">
+      <span class="sn7-legal-copy">SN7 CORE</span>
+      <span class="sn7-legal-sep" aria-hidden="true">•</span>
+      <a href="/privacy">Privacy Policy</a>
+      <span class="sn7-legal-sep" aria-hidden="true">•</span>
+      <a href="/terms">Terms of Service</a>
+    </footer>
+
   </main>
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
