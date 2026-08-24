@@ -31,6 +31,39 @@ SYSTEM = {
 }
 
 
+MINIGAME_COMMAND_KEYS = {
+    "bets": ("duel", "bet_accept", "bet_decline"),
+    "slots": ("slots",),
+    "coinflip": ("coinflip",),
+    "polls": ("poll",),
+    "giveaways": ("giveaway",),
+}
+
+def get_minigame_command_keys(game):
+    return MINIGAME_COMMAND_KEYS.get(str(game or "").strip().lower(), ())
+
+def set_minigame_commands_enabled(bid, game, enabled):
+    keys = get_minigame_command_keys(game)
+    if not keys:
+        return 0
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE command_configs
+                   SET enabled=%s, updated_at=NOW()
+                 WHERE broadcaster_user_id=%s AND command_key = ANY(%s)
+                """,
+                (bool(enabled), int(bid), list(keys)),
+            )
+            changed = cur.rowcount
+        conn.commit()
+        forget_commands(bid)
+        return changed
+    finally:
+        conn.close()
+
 def get_system_command_default(bid, key):
     """Retorna o padrão original sem alterar o banco. O reset é aplicado somente ao salvar."""
     key = str(key or "").strip()
@@ -293,6 +326,32 @@ def list_commands(bid):
         conn.close()
 
 
+def get_minigame_command_status(bid):
+    bid = int(bid)
+    ensure_command_defaults(bid)
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT command_key, enabled
+                  FROM command_configs
+                 WHERE broadcaster_user_id=%s
+                   AND command_key = ANY(%s)
+                """,
+                (bid, list({key for keys in MINIGAME_COMMAND_KEYS.values() for key in keys})),
+            )
+            rows = {str(row[0]): bool(row[1]) for row in cur.fetchall()}
+    finally:
+        conn.close()
+
+    # O estado do jogo é representado pelo comando principal.
+    # Os demais comandos da mesma gaveta continuam sincronizados ao alternar o jogo.
+    return {
+        game: rows.get(keys[0], False)
+        for game, keys in MINIGAME_COMMAND_KEYS.items()
+    }
+
 def find_command(bid, typed):
     bid = int(bid)
     ensure_command_defaults(bid)
@@ -311,7 +370,7 @@ def find_command(bid, typed):
     return None
 
 
-def update_command(bid, key, command=None, response=None, enabled=None, description=None, reset_aliases=False):
+def update_command(bid, key, command=None, response=None, enabled=None, description=None, reset_aliases=False, aliases=None):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -345,6 +404,52 @@ def update_command(bid, key, command=None, response=None, enabled=None, descript
             if description is not None:
                 description = str(description).strip()[:200]
 
+            normalized_aliases = None
+            if aliases is not None:
+                normalized_aliases = []
+                seen_aliases = set()
+                for raw_alias in aliases:
+                    alias = str(raw_alias or "").strip().lower()
+                    if not alias:
+                        continue
+                    if not alias.startswith("!"):
+                        raise ValueError("A variante deve começar com !")
+                    if len(alias) > 64:
+                        raise ValueError("A variante é muito longa.")
+                    if alias == str(command or "").strip().lower():
+                        raise ValueError("A variante não pode ser igual ao comando principal.")
+                    if alias not in seen_aliases:
+                        seen_aliases.add(alias)
+                        normalized_aliases.append(alias)
+
+                cur.execute(
+                    """
+                    SELECT command, id
+                      FROM command_configs
+                     WHERE broadcaster_user_id=%s AND command_key=%s
+                    """,
+                    (int(bid), key),
+                )
+                target_row = cur.fetchone()
+                if not target_row:
+                    raise ValueError("Comando não encontrado.")
+
+                for alias in normalized_aliases:
+                    cur.execute(
+                        """
+                        SELECT 1 FROM command_configs
+                         WHERE broadcaster_user_id=%s AND command=%s AND command_key<>%s
+                        UNION ALL
+                        SELECT 1 FROM command_aliases ca
+                         JOIN command_configs cc ON cc.id=ca.command_id
+                         WHERE ca.broadcaster_user_id=%s AND ca.alias=%s AND cc.command_key<>%s
+                        LIMIT 1
+                        """,
+                        (int(bid), alias, key, int(bid), alias, key),
+                    )
+                    if cur.fetchone():
+                        raise ValueError(f"A palavra de ativação {alias} já está em uso.")
+
             fields, values = [], []
             for name, value in (
                 ("command", command), ("response", response),
@@ -365,6 +470,29 @@ def update_command(bid, key, command=None, response=None, enabled=None, descript
             )
             if cur.rowcount == 0:
                 raise ValueError("Comando não encontrado.")
+
+            if normalized_aliases is not None:
+                cur.execute(
+                    """
+                    SELECT id FROM command_configs
+                     WHERE broadcaster_user_id=%s AND command_key=%s
+                    """,
+                    (int(bid), key),
+                )
+                command_row = cur.fetchone()
+                if command_row:
+                    cur.execute(
+                        "DELETE FROM command_aliases WHERE broadcaster_user_id=%s AND command_id=%s",
+                        (int(bid), command_row[0]),
+                    )
+                    for alias in normalized_aliases:
+                        cur.execute(
+                            """
+                            INSERT INTO command_aliases(broadcaster_user_id,command_id,alias)
+                            VALUES(%s,%s,%s)
+                            """,
+                            (int(bid), command_row[0], alias),
+                        )
 
             if command is not None and key == "points":
                 cur.execute(

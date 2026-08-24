@@ -144,6 +144,7 @@ def edit_command(broadcaster_id, key):
             enabled=data.get("enabled"),
             description=data.get("description"),
             reset_aliases=bool(data.get("reset_aliases")),
+            aliases=_normalize_aliases(data.get("aliases")) if "aliases" in data else None,
         )
         return jsonify({"ok": True, "commands": list_commands(broadcaster_id)})
     except ValueError as exc:

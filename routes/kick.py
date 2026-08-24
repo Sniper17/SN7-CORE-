@@ -1075,6 +1075,21 @@ def _process_chat(payload, send_chat=None):
         if not cfg or not cfg["enabled"]:
             return
 
+        # Mini Games têm um interruptor global. Isso evita que um comando
+        # seja reativado isoladamente enquanto o recurso inteiro está desligado.
+        if cfg["category"] == "minigames":
+            try:
+                from core.minigames import get_settings
+                mini_settings = get_settings(bid, platform)
+                if not mini_settings.get("enabled", True):
+                    return
+                game_key = "slots" if key == "slots" else "bets" if key in {"duel", "bet_accept", "bet_decline"} else None
+                if game_key and not mini_settings.get(f"{game_key}_enabled", True):
+                    return
+            except Exception as exc:
+                print(f"[MINIGAMES] erro verificando status global: {exc}", flush=True)
+                return
+
         ch = get_channel(bid)
         key = cfg["command_key"]
 

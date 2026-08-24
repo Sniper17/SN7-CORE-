@@ -9,6 +9,8 @@ from core.services import ensure_player
 SUPPORTED_PLATFORMS = {"kick", "twitch", "youtube"}
 DEFAULTS = {
     "enabled": True,
+    "bets_enabled": True,
+    "slots_enabled": True,
     "slot_bankroll": 10000,
     "slot_bankroll_max": 50000,
     "slot_hourly_refill": 1000,
@@ -84,7 +86,7 @@ def _normalize(values):
     result = dict(DEFAULTS)
     for key in DEFAULTS:
         if key in values:
-            if key == "enabled":
+            if key in {"enabled", "bets_enabled", "slots_enabled"}:
                 result[key] = bool(values[key])
             else:
                 result[key] = int(values[key])
@@ -107,6 +109,8 @@ def ensure_minigame_table():
                     broadcaster_user_id BIGINT NOT NULL,
                     platform TEXT NOT NULL DEFAULT 'kick',
                     enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    bets_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    slots_enabled BOOLEAN NOT NULL DEFAULT TRUE,
                     slot_bankroll BIGINT NOT NULL DEFAULT 10000,
                     slot_bankroll_max BIGINT NOT NULL DEFAULT 50000,
                     slot_hourly_refill BIGINT NOT NULL DEFAULT 1000,
@@ -119,6 +123,8 @@ def ensure_minigame_table():
                 )
                 """
             )
+            cur.execute("ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS bets_enabled BOOLEAN NOT NULL DEFAULT TRUE")
+            cur.execute("ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS slots_enabled BOOLEAN NOT NULL DEFAULT TRUE")
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_minigame_settings_channel ON minigame_settings(broadcaster_user_id, platform)"
             )
@@ -143,7 +149,7 @@ def get_settings(bid, platform="kick"):
             )
             cur.execute(
                 """
-                SELECT enabled, slot_bankroll, slot_bankroll_max, slot_hourly_refill,
+                SELECT enabled, bets_enabled, slots_enabled, slot_bankroll, slot_bankroll_max, slot_hourly_refill,
                        slot_min_bet, slot_max_bet, slot_cooldown_seconds,
                        last_slot_refill_at
                   FROM minigame_settings
@@ -159,32 +165,39 @@ def get_settings(bid, platform="kick"):
         return dict(DEFAULTS)
     value = _normalize({
         "enabled": row[0],
-        "slot_bankroll": row[1],
-        "slot_bankroll_max": row[2],
-        "slot_hourly_refill": row[3],
-        "slot_min_bet": row[4],
-        "slot_max_bet": row[5],
-        "slot_cooldown_seconds": row[6],
+        "bets_enabled": row[1],
+        "slots_enabled": row[2],
+        "slot_bankroll": row[3],
+        "slot_bankroll_max": row[4],
+        "slot_hourly_refill": row[5],
+        "slot_min_bet": row[6],
+        "slot_max_bet": row[7],
+        "slot_cooldown_seconds": row[8],
     })
-    value["last_slot_refill_at"] = row[7].isoformat() if row[7] else None
+    value["last_slot_refill_at"] = row[9].isoformat() if row[9] else None
     return value
 
 
 def update_settings(bid, platform, values):
     platform = _platform(platform)
-    clean = _normalize(values)
     ensure_minigame_table()
+    current = get_settings(bid, platform)
+    merged = dict(current)
+    merged.update(values or {})
+    clean = _normalize(merged)
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO minigame_settings
-                    (broadcaster_user_id,platform,enabled,slot_bankroll,slot_bankroll_max,
+                    (broadcaster_user_id,platform,enabled,bets_enabled,slots_enabled,slot_bankroll,slot_bankroll_max,
                      slot_hourly_refill,slot_min_bet,slot_max_bet,slot_cooldown_seconds,last_slot_refill_at)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
                 ON CONFLICT (broadcaster_user_id,platform) DO UPDATE SET
                     enabled=EXCLUDED.enabled,
+                    bets_enabled=EXCLUDED.bets_enabled,
+                    slots_enabled=EXCLUDED.slots_enabled,
                     slot_bankroll=EXCLUDED.slot_bankroll,
                     slot_bankroll_max=EXCLUDED.slot_bankroll_max,
                     slot_hourly_refill=EXCLUDED.slot_hourly_refill,
@@ -193,8 +206,8 @@ def update_settings(bid, platform, values):
                     slot_cooldown_seconds=EXCLUDED.slot_cooldown_seconds,
                     updated_at=NOW()
                 """,
-                (int(bid), platform, clean["enabled"], clean["slot_bankroll"],
-                 clean["slot_bankroll_max"], clean["slot_hourly_refill"],
+                (int(bid), platform, clean["enabled"], clean["bets_enabled"], clean["slots_enabled"],
+                 clean["slot_bankroll"], clean["slot_bankroll_max"], clean["slot_hourly_refill"],
                  clean["slot_min_bet"], clean["slot_max_bet"], clean["slot_cooldown_seconds"]),
             )
         conn.commit()
@@ -202,6 +215,31 @@ def update_settings(bid, platform, values):
         conn.close()
     return get_settings(bid, platform)
 
+
+def update_minigame_enabled(bid, platform, game, enabled):
+    platform = _platform(platform)
+    game = str(game or "").strip().lower()
+    field_by_game = {"bets": "bets_enabled", "slots": "slots_enabled"}
+    field = field_by_game.get(game)
+    if not field:
+        raise ValueError("Mini Game inválido.")
+    ensure_minigame_table()
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                INSERT INTO minigame_settings (broadcaster_user_id,platform,enabled,{field},last_slot_refill_at)
+                VALUES (%s,%s,TRUE,%s,NOW())
+                ON CONFLICT (broadcaster_user_id,platform) DO UPDATE SET
+                    {field}=EXCLUDED.{field}, updated_at=NOW()
+                """,
+                (int(bid), platform, bool(enabled)),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+    return get_settings(bid, platform)
 
 def _refill_locked(cur, bid, platform):
     cur.execute(
@@ -249,7 +287,7 @@ def play_slots(bid, username, amount, platform="kick", user_id=None):
         return {"ok": False, "error": "A aposta precisa ser maior que 0."}
 
     settings = get_settings(bid, platform)
-    if not settings["enabled"]:
+    if not settings["enabled"] or not settings.get("slots_enabled", True):
         return {"ok": False, "error": "🎰 Os Slots estão desativados nesta plataforma."}
     if amount < settings["slot_min_bet"]:
         return {"ok": False, "error": f"🎰 A aposta mínima é {settings['slot_min_bet']} pontos."}

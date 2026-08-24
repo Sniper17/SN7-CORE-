@@ -290,6 +290,7 @@ function updateEconomyCards(settings = {}) {
 
 let sn7MiniGamesPlatform = "kick";
 const sn7MiniGamesSettings = {};
+const sn7MiniGamesCommandStatus = {};
 
 async function loadMiniGames(platform = sn7MiniGamesPlatform) {
   sn7MiniGamesPlatform = platform;
@@ -298,7 +299,8 @@ async function loadMiniGames(platform = sn7MiniGamesPlatform) {
   try {
     const data = await apiJson(`/api/minigames/${BROADCASTER_ID}?platform=${encodeURIComponent(platform)}`);
     sn7MiniGamesSettings[platform] = data.settings || {};
-    updateMiniGamesStatus(data.settings || {});
+    sn7MiniGamesCommandStatus[platform] = data.command_status || {};
+    updateMiniGamesStatus(data.settings || {}, data.command_status || {});
     if (document.getElementById("sn7MiniGamesEditor")?.classList.contains("open")) fillMiniGamesForm(data.settings || {});
     return data.settings;
   } catch (error) {
@@ -307,11 +309,60 @@ async function loadMiniGames(platform = sn7MiniGamesPlatform) {
   }
 }
 
-function updateMiniGamesStatus(settings) {
-  const status = $("sn7SlotsStatus");
-  if (!status) return;
-  status.textContent = settings.enabled ? "ATIVO" : "DESATIVADO";
-  status.classList.toggle("sn7-minigame-status-off", !settings.enabled);
+function updateMiniGamesStatus(settings = {}, commandStatus = {}) {
+  const globalEnabled = settings.enabled !== false;
+  const games = {
+    bets: { statusId: "sn7BetsStatus", label: "Apostas", commandKey: "bets" },
+    slots: { statusId: "sn7SlotsStatus", label: "Slots", commandKey: "slots" },
+  };
+
+  Object.values(games).forEach((game) => {
+    const status = $(game.statusId);
+    if (!status) return;
+    const gameEnabled = settings[`${game.commandKey}_enabled`] !== false;
+    const active = globalEnabled && gameEnabled && commandStatus[game.commandKey] !== false;
+    status.textContent = active ? "ATIVO" : "DESATIVADO";
+    status.classList.toggle("sn7-minigame-status-off", !active);
+    status.classList.toggle("sn7-minigame-status-on", active);
+    status.closest("[data-minigame-card]")?.classList.toggle("sn7-minigame-active", active);
+    status.setAttribute("aria-pressed", active ? "true" : "false");
+    status.title = active
+      ? `Desativar ${game.label}`
+      : `Ativar ${game.label}`;
+  });
+}
+
+async function toggleMiniGame(game) {
+  const platform = sn7MiniGamesPlatform;
+  const settings = sn7MiniGamesSettings[platform] || {};
+  const commandStatus = sn7MiniGamesCommandStatus[platform] || {};
+  const active = settings.enabled !== false
+    && settings[`${game}_enabled`] !== false
+    && commandStatus[game] !== false;
+  const next = !active;
+  const label = game === "slots" ? "Slots" : "Apostas";
+  const status = $(game === "slots" ? "sn7SlotsStatus" : "sn7BetsStatus");
+  if (status) {
+    status.disabled = true;
+    status.textContent = "SALVANDO";
+  }
+  try {
+    const data = await apiJson(`/api/minigames/${BROADCASTER_ID}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ platform, game, game_enabled: next }),
+    });
+    sn7MiniGamesSettings[platform] = data.settings || {};
+    sn7MiniGamesCommandStatus[platform] = data.command_status || {};
+    updateMiniGamesStatus(sn7MiniGamesSettings[platform], sn7MiniGamesCommandStatus[platform]);
+    await loadCommands(true).catch(() => {});
+    if ($("minigamesMsg")) $("minigamesMsg").textContent = `${label} ${next ? "ativado" : "desativado"} com sucesso.`;
+  } catch (error) {
+    updateMiniGamesStatus(settings, commandStatus);
+    if ($("minigamesMsg")) $("minigamesMsg").textContent = `⚠ ${error.message}`;
+  } finally {
+    if (status) status.disabled = false;
+  }
 }
 
 function fillMiniGamesForm(settings = {}) {
@@ -361,8 +412,10 @@ async function saveMiniGamesConfig() {
       body: JSON.stringify(payload),
     });
     sn7MiniGamesSettings[sn7MiniGamesPlatform] = data.settings || {};
+    sn7MiniGamesCommandStatus[sn7MiniGamesPlatform] = data.command_status || {};
     fillMiniGamesForm(data.settings || {});
-    updateMiniGamesStatus(data.settings || {});
+    updateMiniGamesStatus(data.settings || {}, data.command_status || {});
+    await loadCommands(true).catch(() => {});
     setSaveMessage("minigamesMsg", "✓ Configuração salva.", true);
   } catch (error) {
     setSaveMessage("minigamesMsg", `⚠ ${error.message}`, false);
@@ -570,6 +623,19 @@ function renderCommands() {
   const miniCount = document.getElementById("minigamesCommandCount");
   if (miniCount) miniCount.textContent = counts.bets + counts.slots;
   if ($("commandPanelStatus")) $("commandPanelStatus").textContent = `${counts.custom} comando${counts.custom === 1 ? "" : "s"} personalizado${counts.custom === 1 ? "" : "s"}.`;
+  syncMiniGamesFromCommandCache();
+}
+
+function syncMiniGamesFromCommandCache() {
+  const platform = sn7MiniGamesPlatform;
+  const settings = sn7MiniGamesSettings[platform];
+  if (!settings) return;
+  const status = {
+    bets: commandCache.find((x) => x.command_key === "duel")?.enabled === true,
+    slots: commandCache.find((x) => x.command_key === "slots")?.enabled === true,
+  };
+  sn7MiniGamesCommandStatus[platform] = status;
+  updateMiniGamesStatus(settings, status);
 }
 
 let commandsLoadPromise = null;
@@ -672,7 +738,11 @@ function addDraftAlias() {
     alert("A variante não pode ser igual ao comando principal.");
     return;
   }
-  const existing = [...draftAliases, ...commandCache.flatMap((x) => [x.command, ...(x.aliases || [])])];
+  const currentCommand = $("v2cmd")?.value.trim().toLowerCase();
+  const existing = commandCache
+    .filter((x) => x.command !== currentCommand)
+    .flatMap((x) => [x.command, ...(x.aliases || [])])
+    .concat(draftAliases);
   if (existing.includes(alias)) {
     alert("Essa palavra de ativação já está em uso.");
     return;
@@ -730,7 +800,7 @@ function sn7ConfirmAction(title, message, confirmText = "Continuar") {
 
 function showCommand(command, isNew = false) {
   document.querySelector(".sn7-command-modal")?.remove();
-  if (!isNew) draftAliases = [...(command.aliases || [])];
+  draftAliases = [...(command.aliases || [])];
 
   const modal = document.createElement("div");
   modal.className = "sn7-modal sn7-command-modal";
@@ -755,20 +825,13 @@ function showCommand(command, isNew = false) {
         <textarea id="v2resp" maxlength="500" placeholder="Resposta que o bot enviará">${esc(command.response)}</textarea>
       </label>
       <label>Variantes
-        ${isNew ? `
-          <div class="sn7-alias-row">
-            <input id="v2alias" placeholder="!disc" autocapitalize="none" spellcheck="false">
-            <button class="btn" type="button" onclick="addDraftAlias()">Adicionar</button>
-          </div>
-          <div id="v2variants" class="sn7-variant-list"></div>
-          <button id="v2removeAll" class="sn7-danger sn7-remove-all" type="button" onclick="removeAllDraftAliases()">Excluir todas</button>
-        ` : `
-          ${aliases || `<div class="sn7-help">Nenhuma variante cadastrada.</div>`}
-          <div class="sn7-alias-row">
-            <input id="v2alias" placeholder="!disc" autocapitalize="none" spellcheck="false">
-            <button class="btn" type="button" onclick="addAlias('${encodeURIComponent(command.command_key)}')">Adicionar</button>
-          </div>
-        `}
+        <div class="sn7-alias-row">
+          <input id="v2alias" placeholder="!disc" autocapitalize="none" spellcheck="false">
+          <button class="btn" type="button" onclick="addDraftAlias()">Adicionar</button>
+        </div>
+        <div id="v2variants" class="sn7-variant-list"></div>
+        <button id="v2removeAll" class="sn7-danger sn7-remove-all" type="button" onclick="removeAllDraftAliases()">Excluir todas</button>
+        <small class="sn7-help">As alterações aparecem imediatamente e só ficam permanentes ao salvar.</small>
       </label>
       <div class="sn7-actions">
         <p id="commandSaveMsg" class="sn7-save-message" aria-live="polite"></p>
@@ -819,7 +882,7 @@ async function saveCommandV2(encodedKey, isNew, button) {
   if (modal?.dataset.draftEnabled !== undefined) {
     body.enabled = modal.dataset.draftEnabled === "1";
   }
-  if (isNew) body.aliases = [...draftAliases];
+  body.aliases = [...draftAliases];
   if (modal?.dataset.resetAliases === "1") body.reset_aliases = true;
   const saveButton = button || $("commandSaveButton");
   const originalText = saveButton?.textContent || "Salvar alterações";
