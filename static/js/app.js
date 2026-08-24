@@ -149,7 +149,7 @@ function activateTab(tab, options = {}) {
             overview: '<path d="M3.5 10.6 12 3.5l8.5 7.1"/><path d="M5.5 9.7v9.8a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.7"/><path d="M9.5 20.5v-5.8h5v5.8"/>',
             economy: '<circle cx="12" cy="12" r="7.8"/><path d="M12 8v8M9.2 10.2c.8-1.1 4.8-1.1 5.6.3.9 1.7-1.1 2.4-2.8 2.7-1.7.3-3.7.8-2.9 2.5.7 1.5 4.9 1.6 5.8.1"/>',
             ranking: '<path d="M7 20V10h4v10M13 20V4h4v16M3 20h18"/>',
-            music: '<path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="3.2"/><circle cx="16.5" cy="16" r="3.2"/>',
+            music: '<path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="3"/><circle cx="16.5" cy="16" r="3"/>',
             minigames: '<path d="m7.5 8.5 2-2h5l2 2"/><path d="M7.5 8.5h9a4.2 4.2 0 0 1 3.9 5.7l-1.2 3.1a2.4 2.4 0 0 1-4.3.3L14 16h-4l-2.9 1.6a2.4 2.4 0 0 1-4.3-.3l-1.2-3.1a4.2 4.2 0 0 1 3.9-5.7Z"/>',
             commands: '<path d="m8 8 4 4-4 4M13 16h4"/><rect x="3.5" y="4" width="17" height="16" rx="3"/>',
             profile: '<circle cx="12" cy="8.2" r="3.2"/><path d="M5.2 20a6.8 6.8 0 0 1 13.6 0"/>'
@@ -162,10 +162,6 @@ function activateTab(tab, options = {}) {
   }
 
   if (options.persist !== false) saveActiveTab(button.dataset.tab);
-
-  if (window.matchMedia && window.matchMedia("(max-width: 700px)").matches) {
-    try { button.scrollIntoView({ behavior: options.scroll === false ? "auto" : "smooth", inline: "center", block: "nearest" }); } catch (_) {}
-  }
 
   if (options.scroll !== false) {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -182,7 +178,9 @@ function setupTabPersistence() {
   if (sn7NavigationReady) return;
   sn7NavigationReady = true;
 
-  document.querySelectorAll("nav button[data-tab]").forEach((button) => {
+  document.querySelectorAll("[data-tab]").forEach((button) => {
+    if (button.dataset.sn7NavigationBound === "1") return;
+    button.dataset.sn7NavigationBound = "1";
     button.addEventListener("click", () => {
       activateTab(button.dataset.tab, { persist: true, scroll: true });
     });
@@ -567,36 +565,17 @@ function sn7ConfirmAction(title, message, confirmText = "Continuar") {
     document.body.appendChild(modal);
     requestAnimationFrame(() => modal.classList.add("open"));
 
-    let finished = false;
-    const cancelButton = modal.querySelector(".sn7-confirm-cancel");
-    const confirmButton = modal.querySelector(".sn7-confirm-ok");
-
     const finish = (value) => {
-      if (finished) return;
-      finished = true;
       modal.classList.remove("open");
       modal.classList.add("closing");
-      document.removeEventListener("keydown", onKeyDown);
       setTimeout(() => modal.remove(), 160);
       resolve(value);
     };
 
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        finish(false);
-      }
-    };
-
-    cancelButton?.addEventListener("click", () => finish(false));
-    confirmButton?.addEventListener("click", () => finish(true));
+    modal.querySelector(".sn7-confirm-cancel")?.addEventListener("click", () => finish(false));
+    modal.querySelector(".sn7-confirm-ok")?.addEventListener("click", () => finish(true));
     modal.addEventListener("click", (event) => {
       if (event.target === modal) finish(false);
-    });
-    document.addEventListener("keydown", onKeyDown);
-
-    requestAnimationFrame(() => {
-      cancelButton?.focus();
     });
   });
 }
@@ -1764,22 +1743,7 @@ function musicConnect(provider) {
 async function musicDisconnect(provider) {
   if (!musicHasChannel()) return;
   const label = provider === "youtube" ? "YouTube" : provider === "spotify" ? "Spotify" : "SoundCloud";
-  const ok = await sn7ConfirmAction(
-    `Desconectar ${label}?`,
-    `A conexão com ${label} será encerrada neste canal. Você poderá conectar novamente quando quiser.`,
-    "Desconectar"
-  );
-  if (!ok) return;
-
-  const button = $(`music${String(provider).charAt(0).toUpperCase() + String(provider).slice(1)}Connect`);
-  const card = button?.closest(".sn7-source-card");
-  if (button) {
-    button.disabled = true;
-    button.textContent = "Desconectando…";
-    button.setAttribute("aria-busy", "true");
-  }
-  card?.classList.add("is-connecting");
-
+  if (!confirm(`Desconectar ${label} do SN7?`)) return;
   try {
     const data = await apiJson(`/api/music/${BROADCASTER_ID}/disconnect/${encodeURIComponent(provider)}`, {method:"POST"});
     musicRenderConnections(data);
@@ -1790,12 +1754,6 @@ async function musicDisconnect(provider) {
       msg.textContent = `⚠ ${error.message}`;
       msg.className = "sn7-save-message error";
     }
-  } finally {
-    if (button) {
-      button.disabled = false;
-      button.removeAttribute("aria-busy");
-    }
-    card?.classList.remove("is-connecting");
   }
 }
 
@@ -2074,12 +2032,7 @@ async function removeMusicItem(id) {
 }
 
 async function clearMusicQueue() {
-  const ok = await sn7ConfirmAction(
-    "Limpar fila de músicas?",
-    "Todas as músicas que estão aguardando reprodução serão removidas da fila.",
-    "Limpar fila"
-  );
-  if (!ok) return;
+  if (!confirm("Limpar todas as músicas que estão na fila?")) return;
   const button = document.querySelector(".sn7-queue-clear");
   const card = document.querySelector(".sn7-music-queue-card");
   const loader = $("sn7MusicQueueLoading");
@@ -2219,7 +2172,7 @@ async function saveMusicConfig() {
 
 /* O player é pré-carregado junto do boot, mas não cria áudio/rede de mídia até necessário. */
 (function setupMusicTabLoader(){
-  document.querySelectorAll('nav button[data-tab="music"]').forEach((button) => {
+  document.querySelectorAll('[data-tab="music"]').forEach((button) => {
     button.addEventListener("click", () => loadMusic().catch(() => {}));
   });
   if (document.querySelector('section#music.active')) loadMusic().catch(() => {});

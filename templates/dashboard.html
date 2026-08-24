@@ -49,8 +49,41 @@ body.sn7-modal-open{overflow:hidden}
 .sn7-ranking-position{width:42px;flex:0 0 42px;font-weight:800;font-size:15px;color:#aeb6c5}
 .sn7-ranking-user{min-width:0;flex:1;font-weight:700;overflow-wrap:anywhere}
 .sn7-ranking-points{font-weight:800;white-space:nowrap}
-.sn7-ranking-loading,.sn7-ranking-empty{padding:18px;color:var(--muted)}.sn7-confirm-modal{position:fixed;inset:0;z-index:2147483646!important;background:rgba(3,5,9,.76);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:16px}.sn7-confirm-card{width:min(440px,100%);background:#11151d;border:1px solid #2a303c;border-radius:18px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.5)}.sn7-confirm-card h3{margin:0 0 8px;font-size:19px}.sn7-confirm-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}.sn7-confirm-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;flex-wrap:wrap}.sn7-confirm-actions button{min-height:42px;border-radius:9px;padding:10px 14px;font-weight:800;cursor:pointer}.sn7-confirm-cancel{border:1px solid var(--border);background:transparent;color:var(--muted)}.sn7-confirm-ok{border:0;background:#fff;color:#111}.sn7-confirm-ok.danger{background:#ef4444;color:#fff}@media(max-width:600px){.sn7-ranking-head{align-items:flex-start;flex-direction:column}}
+.sn7-ranking-loading,.sn7-ranking-empty{padding:18px;color:var(--muted)}.sn7-confirm-modal{position:fixed;inset:0;z-index:100100!important;background:rgba(3,5,9,.76);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;padding:16px}.sn7-confirm-card{width:min(440px,100%);background:#11151d;border:1px solid #2a303c;border-radius:18px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.5)}.sn7-confirm-card h3{margin:0 0 8px;font-size:19px}.sn7-confirm-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}.sn7-confirm-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;flex-wrap:wrap}.sn7-confirm-actions button{min-height:42px;border-radius:9px;padding:10px 14px;font-weight:800;cursor:pointer}.sn7-confirm-cancel{border:1px solid var(--border);background:transparent;color:var(--muted)}.sn7-confirm-ok{border:0;background:#fff;color:#111}.sn7-confirm-ok.danger{background:#ef4444;color:#fff}@media(max-width:600px){.sn7-ranking-head{align-items:flex-start;flex-direction:column}}
 @media(max-width:600px){.sn7-ranking-row{padding:13px 12px;gap:10px}.sn7-ranking-position{width:34px;flex-basis:34px}.sn7-ranking-points{font-size:13px}}
+</style>
+
+<style id="sn7-1-9-26-navigation-fix">
+/* 1.9.26: navegação resiliente para desktop + mobile. */
+.sn7-topbar-actions{display:flex;align-items:center;gap:10px;position:relative}
+.sn7-desktop-profile{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:#11151d;color:#cbd2de;border-radius:11px;padding:7px 10px;font-size:11px;font-weight:800;cursor:pointer;min-height:38px}
+.sn7-desktop-profile:hover{background:#1b202a;color:#fff;border-color:#394253}
+.sn7-desktop-profile .sn7-nav-profile-icon{width:24px;height:24px;margin:0!important;vertical-align:middle}
+.sn7-desktop-profile.active{background:#1b202a;color:#fff}
+.sn7-desktop-profile svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sn7-minigames-panel{max-width:980px}
+.sn7-section-kicker{display:block;color:#697386;font-size:10px;font-weight:800;letter-spacing:2px;margin-bottom:6px}
+.sn7-minigames-head{margin-bottom:18px}
+.sn7-minigames-head h2{margin:0 0 5px;font-size:22px}
+.sn7-minigames-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sn7-minigame-card{min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"icon body" "status status";gap:12px;padding:16px;border:1px solid var(--border);border-radius:15px;background:#0f131a}
+.sn7-minigame-icon{grid-area:icon;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#1b202a;font-size:20px}
+.sn7-minigame-card>div{grid-area:body;min-width:0}.sn7-minigame-card strong{display:block;font-size:14px}.sn7-minigame-card small{display:block;margin-top:5px;color:var(--muted);font-size:11px;line-height:1.4}
+.sn7-minigame-status{grid-area:status;justify-self:start;color:#8f98a8;font-size:9px;font-weight:800;letter-spacing:1px;padding:5px 7px;border-radius:999px;border:1px solid var(--border);background:#151a22}
+@media(max-width:900px){.sn7-minigames-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){
+  .sn7-topbar-actions{gap:0}.sn7-desktop-profile{display:none}
+  .sidebar{height:78px;padding:7px 8px calc(8px + env(safe-area-inset-bottom));overflow:hidden}
+  .sidebar nav{height:100%;width:100%;display:flex!important;flex-direction:row!important;align-items:stretch;justify-content:flex-start;gap:6px;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;scrollbar-width:none;touch-action:pan-x}
+  .sidebar nav::-webkit-scrollbar{display:none}
+  .sidebar nav button{display:flex!important;flex:0 0 78px!important;width:78px!important;min-width:78px!important;height:62px;min-height:62px;box-sizing:border-box;align-items:center;justify-content:center;flex-direction:column;text-align:center!important;padding:5px 3px!important;margin:0!important;white-space:nowrap;border-radius:14px;font-size:9px;scroll-snap-align:center;overflow:hidden}
+  .sidebar nav button span{display:block!important;width:auto!important;min-width:0;margin:0 0 2px!important;text-align:center!important;line-height:18px}
+  .sidebar nav button .sn7-nav-icon{height:21px;display:grid!important;place-items:center}
+  .sidebar nav button .sn7-nav-icon svg{width:19px;height:19px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .sidebar nav button .sn7-nav-label{max-width:72px;overflow:hidden;text-overflow:ellipsis;line-height:14px}
+  main{padding-bottom:104px}
+  .sn7-minigames-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -83,7 +116,9 @@ body.sn7-modal-open{overflow:hidden}
         <span class="sn7-nav-label" data-short="Ranking">Ranking</span>
       </button>
       <button type="button" data-tab="music" aria-label="Música">
-        <span class="sn7-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="3.2"/><circle cx="16.5" cy="16" r="3.2"/></svg></span>
+        <span class="sn7-nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false"><path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="3"/><circle cx="16.5" cy="16" r="3"/></svg>
+        </span>
         <span class="sn7-nav-label" data-short="Música">Música</span>
       </button>
       <button type="button" data-tab="minigames" aria-label="Mini Games">
@@ -113,9 +148,17 @@ body.sn7-modal-open{overflow:hidden}
       <div>
         <div class="eyebrow">PAINEL DO CANAL</div>
         <h1 id="title"><span class="sn7-page-title-icon" aria-hidden="true"></span><span class="sn7-page-title-text">Início</span></h1>
-        <p>Configure a economia, música e ferramentas da sua live.</p>
+        <p>Configure a economia e as ferramentas da sua live.</p>
       </div>
-      <div class="sn7-desktop-profile-wrap"><button type="button" class="sn7-desktop-profile" onclick="activateTab('profile')" aria-label="Abrir perfil"><span id="sn7DesktopProfileIcon" class="sn7-desktop-profile-icon" aria-hidden="true">◉</span><span class="sn7-desktop-profile-label">Perfil</span><span class="sn7-desktop-profile-chevron">⌄</span></button><span class="status"><i></i> ONLINE</span></div>
+      <div class="sn7-topbar-actions">
+        <span class="status"><i></i> ONLINE</span>
+        <button type="button" class="sn7-desktop-profile" data-tab="profile" aria-label="Perfil">
+          <span id="sn7DesktopProfileIcon" class="sn7-nav-profile-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="8.2" r="3.2"/><path d="M5.2 20a6.8 6.8 0 0 1 13.6 0"/></svg>
+          </span>
+          <span>Perfil</span>
+        </button>
+      </div>
     </header>
     <section id="overview" class="tab active">
       <div class="sn7-welcome">
@@ -129,13 +172,14 @@ body.sn7-modal-open{overflow:hidden}
       <div class="sn7-points-cards">
         <button type="button" class="sn7-points-card" onclick="openPointsEditor()"><span class="sn7-points-card-icon">◉</span><span class="sn7-points-card-body"><small>Sistema de pontos</small><strong id="pointsCardName">Pontos</strong><em id="pointsCardCommand">!pontos</em></span><span class="sn7-points-card-arrow">Editar →</span></button>
         <button type="button" class="sn7-points-card" onclick="openRewardsEditor()"><span class="sn7-points-card-icon">◷</span><span class="sn7-points-card-body"><small>Recompensas por assistir</small><strong>Presença, subs e KICKs</strong><em id="rewardsCardSummary">Configure os bônus</em></span><span class="sn7-points-card-arrow">Editar →</span></button>
-
+        <button type="button" class="sn7-points-card" onclick="openApostaEditor()"><span class="sn7-points-card-icon">⚔</span><span class="sn7-points-card-body"><small>Aposta</small><strong id="apostaCardCommand">!aposta</strong><em>Comando e mensagem do chat</em></span><span class="sn7-points-card-arrow">Editar →</span></button>
       </div>
 
       <div id="sn7PointsEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" aria-label="Fechar">×</button><h3>Sistema de pontos</h3><p>Configure como o sistema aparece e responde no chat.</p><div class="form-grid"><label>Nome dos pontos<input id="currency_name" value="Pontos" placeholder="Pontos" autocomplete="off"></label><label>Comando principal<input id="currency_command" value="!pontos" placeholder="!pontos" autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>Emoji<input id="currency_emoji" placeholder="" autocomplete="off"></label></div><label>Mensagem do saldo<div id="points_response_preview" class="sn7-response-preview"></div><button id="points_response_edit" type="button" class="sn7-edit-response" onclick="togglePointsResponseEditor()">Editar mensagem</button><textarea id="points_response" class="sn7-points-response sn7-response-editor" maxlength="500" placeholder="Mensagem que o bot enviará ao consultar o saldo" hidden></textarea><div id="points_response_help" class="sn7-help" hidden>Use $(user), $(points), $(currency), $(emoji_text) e $(rank_text).</div></label><div class="save-row"><p id="settingsMsg"></p><button type="button" class="sn7-danger" onclick="resetPointsSettings()">Redefinir configuração</button><button type="button" class="btn" onclick="saveSettingsAndClose('sn7PointsEditor', this)">Salvar alterações</button></div></div></div>
 
       <div id="sn7RewardsEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" aria-label="Fechar">×</button><h3>Recompensas por assistir</h3><p>O Core usa a interação no chat como sinal de presença e aplica o intervalo configurado. Na Twitch, subs e Bits geram bônus; no YouTube, novos membros e Super Chats geram bônus.</p><div class="form-grid"><label>Pontos por assistir<input id="watch_points" type="number" min="0" inputmode="numeric" value="1"></label><label>Intervalo da presença (minutos)<input id="watch_interval_minutes" type="number" min="1" max="240" inputmode="numeric" value="10"></label><label>Bônus ao assinar/renovar<input id="sub_bonus" type="number" min="0" inputmode="numeric" value="500"></label><label>Bônus por KICK enviado<input id="kicks_bonus_per_kick" type="number" min="0" inputmode="numeric" value="1"></label><label>Bônus por Bit (Twitch)<input id="bits_bonus_per_bit" type="number" min="0" inputmode="numeric" value="1"></label><label>Bônus por unidade de Super Chat (YouTube)<input id="superchat_bonus_per_unit" type="number" min="0" inputmode="numeric" value="1"></label></div><div class="save-row"><p id="rewardsMsg"></p><button type="button" class="sn7-danger" onclick="resetRewardsSettings()">Redefinir configuração</button><button type="button" class="btn" onclick="saveSettingsAndClose('sn7RewardsEditor', this)">Salvar alterações</button></div></div></div>
 
+      <div id="sn7ApostaEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" aria-label="Fechar">×</button><h3>Aposta</h3><p>Configure o comando e a mensagem enviada quando alguém usa a aposta.</p><label>Comando<input id="aposta_command" value="!aposta" placeholder="!aposta" autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>Mensagem da aposta<textarea id="aposta_response" maxlength="500" placeholder="Ex.: ⚔️ $(user) apostou contra $(target) e $(winner) venceu!"></textarea></label><div class="save-row"><p id="apostaMsg"></p><button type="button" class="sn7-danger" onclick="resetApostaSettings()">Redefinir configuração</button><button type="button" class="btn" onclick="saveApostaSettings()">Salvar alterações</button></div></div></div>
     </section>
 
     <section id="ranking" class="tab">
@@ -147,18 +191,6 @@ body.sn7-modal-open{overflow:hidden}
           <div class="sn7-ranking-loading">Carregando rankings...</div>
         </div>
       </div>
-    </section>
-
-    <section id="minigames" class="tab">
-      <div class="sn7-points-cards sn7-minigames-cards">
-        <button type="button" class="sn7-points-card" onclick="openApostaEditor()"><span class="sn7-points-card-icon">⚔</span><span class="sn7-points-card-body"><small>Mini Game</small><strong id="apostaCardCommand">!aposta</strong><em>Duelo/aposta entre espectadores</em></span><span class="sn7-points-card-arrow">Editar →</span></button>
-        <button type="button" class="sn7-points-card" onclick="openTab('commands')"><span class="sn7-points-card-icon">🎲</span><span class="sn7-points-card-body"><small>Mais jogos</small><strong>Comandos e interações</strong><em>Crie e organize comandos para novos mini games.</em></span><span class="sn7-points-card-arrow">Abrir →</span></button>
-      </div>
-      <div class="sn7-minigames-note"><strong>🎮 Mini Games</strong><span>Os jogos usam os pontos da plataforma do espectador. Novos mini games poderão ser adicionados aqui sem misturar as configurações do player.</span></div>
-
-      <div id="sn7ApostaEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" aria-label="Fechar">×</button><h3>Aposta</h3><p>Configure o comando e a mensagem enviada quando alguém usa a aposta.</p><label>Comando<input id="aposta_command" value="!aposta" placeholder="!aposta" autocomplete="off" autocapitalize="none" spellcheck="false"></label><label>Mensagem da aposta<textarea id="aposta_response" maxlength="500" placeholder="Ex.: ⚔️ $(user) apostou contra $(target) e $(winner) venceu!"></textarea></label><div class="save-row"><p id="apostaMsg"></p><button type="button" class="sn7-danger" onclick="resetApostaSettings()">Redefinir configuração</button><button type="button" class="btn" onclick="saveApostaSettings()">Salvar alterações</button></div></div></div>
-
-
     </section>
 
     <section id="music" class="tab">
@@ -261,6 +293,35 @@ body.sn7-modal-open{overflow:hidden}
           </div>
           <div class="sn7-music-security-note"><span>🔐</span><div><strong>Login seguro</strong><small>O SN7 não pede nem armazena sua senha. O login acontece na plataforma e os tokens ficam somente no backend do SN7.</small></div></div>
           <div class="save-row"><p id="musicConfigMsg"></p><button type="button" class="btn" onclick="saveMusicConfig()">Salvar alterações</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="minigames" class="tab">
+      <div class="panel sn7-minigames-panel">
+        <div class="sn7-minigames-head">
+          <div>
+            <span class="sn7-section-kicker">INTERAÇÃO</span>
+            <h2>Mini Games</h2>
+            <p>Jogos e brincadeiras da live ficarão reunidos aqui, separados do player de música.</p>
+          </div>
+        </div>
+        <div class="sn7-minigames-grid">
+          <article class="sn7-minigame-card">
+            <span class="sn7-minigame-icon">⚔</span>
+            <div><strong>Duelo</strong><small>Disputas rápidas entre espectadores.</small></div>
+            <span class="sn7-minigame-status">EM BREVE</span>
+          </article>
+          <article class="sn7-minigame-card">
+            <span class="sn7-minigame-icon">🎲</span>
+            <div><strong>Apostas</strong><small>Interações com pontos da live.</small></div>
+            <span class="sn7-minigame-status">ATIVO NO CHAT</span>
+          </article>
+          <article class="sn7-minigame-card">
+            <span class="sn7-minigame-icon">🏦</span>
+            <div><strong>Assalto ao Banco</strong><small>Minigame de equipe para a comunidade.</small></div>
+            <span class="sn7-minigame-status">EM BREVE</span>
+          </article>
         </div>
       </div>
     </section>
@@ -370,7 +431,7 @@ body.sn7-modal-open{overflow:hidden}
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
 const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
-<script src="/static/js/app.js?v=sn7-1.9.26"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.23"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -400,7 +461,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   function out(){
     q("sn7ProfileLoggedIn").hidden=true;q("sn7ProfileLoggedOut").hidden=false;
     setAvatar(q("sn7ChannelAvatar"), "S", "");
-    setAvatar(q("sn7NavProfileIcon"), "◉", ""); setAvatar(q("sn7DesktopProfileIcon"), "◉", "");
+    setAvatar(q("sn7NavProfileIcon"), "◉", "");
     renderKickPlatform(false,false,null);
   }
   function setAvatar(el, fallback, url, provider="kick"){
@@ -439,7 +500,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     const avatarUrl=u.profile_picture_url||u.profile_picture||u.avatar_url||"";
     window.__sn7KickProfile={id:u.id??BROADCASTER_ID,username,profile_picture_url:avatarUrl};
     setAvatar(q("sn7ChannelAvatar"), initials, avatarUrl);
-    setAvatar(q("sn7NavProfileIcon"), initials, avatarUrl); setAvatar(q("sn7DesktopProfileIcon"), initials, avatarUrl);
+    setAvatar(q("sn7NavProfileIcon"), initials, avatarUrl);
     if(BROADCASTER_ID) renderKickPlatform(true,false,window.__sn7KickProfile);
   }
   function bot(a){
@@ -598,13 +659,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   window.sn7ConnectKick=()=>connectPlatform("kick");
   async function disconnectPlatform(provider){
     if(!BROADCASTER_ID || !["kick","twitch","youtube"].includes(provider))return;
-    const platformLabel=provider==="kick"?"Kick":provider==="twitch"?"Twitch":"YouTube";
-    const ok=await sn7ConfirmAction(
-      `Desconectar ${platformLabel}?`,
-      `A conta do ${platformLabel} será desconectada deste canal. Os dados do ranking e as configurações do canal não serão apagados.`,
-      "Desconectar"
-    );
-    if(!ok)return;
+    if(!window.confirm(`Desconectar a conta do ${provider==="kick"?"Kick":provider==="twitch"?"Twitch":"YouTube"} deste canal?`))return;
     setPlatformCardLoading(provider,true);
     const button=q(PLATFORM_DISCONNECT_IDS[provider]);
     if(button)button.textContent="Desconectando…";
@@ -720,7 +775,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     const initials=(name.charAt(0)||"S").toUpperCase();
     const avatar=u.avatar_url||u.profile_picture_url||"";
     setAvatar(q("sn7ChannelAvatar"),initials,avatar,candidate===data.platforms.twitch?"twitch":"youtube");
-    setAvatar(q("sn7NavProfileIcon"),initials,avatar,candidate===data.platforms.twitch?"twitch":"youtube"); setAvatar(q("sn7DesktopProfileIcon"),initials,avatar,candidate===data.platforms.twitch?"twitch":"youtube");
+    setAvatar(q("sn7NavProfileIcon"),initials,avatar,candidate===data.platforms.twitch?"twitch":"youtube");
   }
 
   async function loadPlatformStatus(force=false){
