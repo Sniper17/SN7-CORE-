@@ -17,16 +17,61 @@ DEFAULTS = {
     "slot_cooldown_seconds": 5,
 }
 
-# Slots intentionally favors the house. Multipliers are total payout,
-# including the original stake. This keeps wins proportional to the wager
-# while making profitable results uncommon.
-SLOT_OUTCOMES = (
-    ("💥", 700, 0.0),
-    ("🍒🍋🍒", 200, 1.5),
-    ("🔔🔔🔔", 70, 2.0),
-    ("💎💎💎", 25, 3.0),
-    ("7️⃣7️⃣7️⃣", 5, 8.0),
+# Slots favor the house. We choose the outcome category first so matching
+# symbols remain rare and the channel economy stays sustainable.
+SLOT_FRUITS = (
+    "🍒", "🍋", "🍊", "🍇", "🍉", "🍓", "🌶️"
 )
+SLOT_SPECIALS = ("🔔", "⭐")
+SLOT_SYMBOLS = SLOT_FRUITS + SLOT_SPECIALS
+
+# Weights are intentionally conservative: most rolls lose, pairs return only
+# a small fraction of the stake, and the large wins are genuinely rare.
+SLOT_OUTCOME_WEIGHTS = {
+    "loss": 7800,
+    "pair_fruit": 1700,
+    "pair_special": 300,
+    "triple_fruit": 150,
+    "triple_diamond": 40,
+    "triple_seven": 10,
+}
+
+
+def _make_slots_roll():
+    outcome = random.choices(
+        tuple(SLOT_OUTCOME_WEIGHTS),
+        weights=tuple(SLOT_OUTCOME_WEIGHTS.values()),
+        k=1,
+    )[0]
+
+    if outcome == "loss":
+        symbols = random.sample(SLOT_SYMBOLS, 3)
+        return symbols, 0.0, "loss"
+
+    if outcome == "pair_fruit":
+        pair = random.choice(SLOT_FRUITS)
+        other = random.choice(tuple(symbol for symbol in SLOT_SYMBOLS if symbol != pair))
+        symbols = [pair, pair, other]
+        random.shuffle(symbols)
+        return symbols, 0.25, "pair"
+
+    if outcome == "pair_special":
+        pair = random.choice(SLOT_SPECIALS)
+        other = random.choice(SLOT_FRUITS)
+        symbols = [pair, pair, other]
+        random.shuffle(symbols)
+        return symbols, 0.50, "pair_special"
+
+    if outcome == "triple_fruit":
+        fruit = random.choice(SLOT_FRUITS)
+        return [fruit, fruit, fruit], 3.0, "triple"
+
+    if outcome == "triple_diamond":
+        return ["💎", "💎", "💎"], 2.0, "diamond"
+
+    return ["7️⃣", "7️⃣", "7️⃣"], 5.0, "jackpot"
+
+
 _COOLDOWN = {}
 
 
@@ -241,15 +286,16 @@ def play_slots(bid, username, amount, platform="kick", user_id=None):
                 conn.rollback()
                 return {"ok": False, "error": "🎰 O cassino está indisponível no momento."}
 
-            roll = random.choices(SLOT_OUTCOMES, weights=[x[1] for x in SLOT_OUTCOMES], k=1)[0]
-            symbols, _weight, multiplier = roll
-            payout = int(amount * multiplier)
+            symbols, multiplier, outcome = _make_slots_roll()
+            payout = int(amount * multiplier) if multiplier > 0 else 0
+            if multiplier > 0 and payout < 1:
+                payout = 1
             profit = payout - amount
 
             # O cassino nunca pode pagar mais lucro do que possui. Se o jackpot
             # estiver baixo, o resultado é convertido em perda para preservar a economia.
             if profit > bankroll:
-                symbols, multiplier, payout, profit = "💥", 0.0, 0, -amount
+                symbols, multiplier, payout, profit, outcome = ["💥", "💥", "💥"], 0.0, 0, -amount, "loss"
 
             cur.execute(
                 """
@@ -281,7 +327,9 @@ def play_slots(bid, username, amount, platform="kick", user_id=None):
     forget_rankings(bid)
     return {
         "ok": True,
-        "symbols": symbols,
+        "symbols": " ".join(symbols),
+        "symbol_list": symbols,
+        "outcome": outcome,
         "multiplier": multiplier,
         "amount": amount,
         "payout": payout,

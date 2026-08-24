@@ -1199,12 +1199,20 @@ def _process_chat(payload, send_chat=None):
                 send_chat(bid, result.get("error") or "🎰 Não foi possível jogar agora.")
                 return
 
-            if result["profit"] > 0:
-                slots_result = f"{result['symbols']} ganhou {result['payout']} {currency} (+{result['profit']})"
-            elif result["profit"] == 0:
-                slots_result = f"{result['symbols']} devolveu {result['payout']} {currency}"
+            outcome = result.get("outcome")
+            symbols = result.get("symbols", "🎰 🎰 🎰")
+            if outcome == "pair":
+                slots_result = f"{symbols} 🟡 2 iguais! +{result['payout']} {currency}"
+            elif outcome == "pair_special":
+                slots_result = f"{symbols} 🟠 2 símbolos! +{result['payout']} {currency}"
+            elif outcome == "diamond":
+                slots_result = f"{symbols} 💎 VITÓRIA! +{result['profit']} {currency}"
+            elif outcome == "jackpot":
+                slots_result = f"{symbols} 👑 JACKPOT! +{result['profit']} {currency}"
+            elif outcome == "triple":
+                slots_result = f"{symbols} 🎉 TRÊS IGUAIS! +{result['profit']} {currency}"
             else:
-                slots_result = f"{result['symbols']} perdeu {result['amount']} {currency}"
+                slots_result = f"{symbols} 💥 Perdeu {result['amount']} {currency}"
 
             values = {
                 "user": _mention(user),
