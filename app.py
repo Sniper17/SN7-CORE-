@@ -21,7 +21,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.16"
+SN7_VERSION = "1.9.17"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
@@ -112,6 +112,14 @@ def dashboard():
 @app.get("/perfil")
 def profile():
     return redirect("/?profile=1")
+
+
+@app.post("/api/session/logout")
+def session_logout():
+    """Encerra a sessão principal do SN7 sem desconectar plataformas vinculadas."""
+    session.clear()
+    session.modified = True
+    return jsonify({"ok": True, "logged_out": True})
 
 
 @app.get("/api/platforms/status")

@@ -2038,13 +2038,12 @@ def disconnect_platform(profile_id):
 
 @kick_bp.post("/logout")
 def logout():
-    session.pop("kick_broadcaster_id", None)
-    session.pop("sn7_broadcaster_id", None)
-    session.pop("kick_oauth_state", None)
-    session.pop("kick_code_verifier", None)
-    session.pop("kick_oauth_next", None)
-    session.pop("kick_profile", None)
-    return jsonify({"ok": True})
+    # Rota legada mantida para compatibilidade. O logout principal agora
+    # usa /api/session/logout, mas esta rota também precisa zerar a sessão
+    # inteira para nunca deixar um cookie antigo reidratar o perfil.
+    session.clear()
+    session.modified = True
+    return jsonify({"ok": True, "logged_out": True})
 
 
 @kick_bp.get("/login")

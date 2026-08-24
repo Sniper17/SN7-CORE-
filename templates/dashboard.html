@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.15">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.17">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -291,7 +291,7 @@ body.sn7-modal-open{overflow:hidden}
           .sn7-profile-login h3{margin:0 0 7px;font-size:21px}
           .sn7-profile-login p{max-width:500px;margin:0 auto;color:var(--muted);font-size:13px;line-height:1.6}
           .sn7-profile-login .btn{margin-top:20px;min-width:220px}
-          .sn7-platform-actions{grid-area:actions;width:100%;display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;min-width:0}.sn7-platform-action{padding:8px 11px;font-size:11px;min-width:0;white-space:nowrap;box-sizing:border-box}.sn7-platform-disconnect{border-color:#63343b!important;color:#ffb5bd!important;background:#171015!important}.sn7-platform-card{position:relative}.sn7-profile-login-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:620px;margin:20px auto 0}.sn7-profile-login-options .btn{margin-top:0!important;min-width:0;width:100%}
+          .sn7-platform-actions{grid-area:actions;width:100%;display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;min-width:0}.sn7-platform-action{padding:8px 11px;font-size:11px;min-width:0;white-space:nowrap;box-sizing:border-box}.sn7-platform-disconnect{border-color:#63343b!important;color:#ffb5bd!important;background:#171015!important}.sn7-platform-card{position:relative}.sn7-platform-card.sn7-card-loading{pointer-events:none}.sn7-platform-card.sn7-card-loading::after{content:"";position:absolute;inset:0;z-index:20;background:rgba(11,13,18,.42);backdrop-filter:blur(2px);border-radius:inherit}.sn7-platform-card.sn7-card-loading::before{content:"";position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;z-index:21;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7PlatformCardSpin .72s linear infinite;box-sizing:border-box}.sn7-platform-card[aria-busy="true"]{cursor:wait}@keyframes sn7PlatformCardSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-platform-card.sn7-card-loading::before{animation:none}}.sn7-profile-login-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:620px;margin:20px auto 0}.sn7-profile-login-options .btn{margin-top:0!important;min-width:0;width:100%}
           .sn7-profile-login-options .sn7-platform-login-btn{display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none!important;text-underline-offset:0}.sn7-login-platform-icon{width:24px;height:24px;display:grid;place-items:center;flex:0 0 24px;border-radius:6px;overflow:hidden}.sn7-login-platform-icon img{width:24px;height:24px;display:block;object-fit:contain;image-rendering:auto}.sn7-login-platform-icon img{width:24px!important;height:24px!important;object-fit:contain!important}.sn7-profile-login-options .sn7-platform-login-btn,.sn7-profile-login-options .sn7-platform-login-btn *{text-decoration:none!important}.sn7-login-platform-icon.kick img{width:23px;height:23px}.sn7-login-platform-icon.twitch,.sn7-login-platform-icon.youtube,.sn7-login-platform-icon.kick{background:transparent}@media(max-width:700px){.sn7-profile-login-options .sn7-platform-login-btn{justify-content:center;min-height:52px}}@media(max-width:700px){.sn7-platform-card{grid-template-columns:minmax(0,1fr) auto;column-gap:8px;padding:12px}.sn7-platform-actions{width:100%;justify-content:flex-end}.sn7-platform-action{width:auto!important;max-width:100%}.sn7-platform-status{font-size:9px;padding:5px 7px}.sn7-profile-user{align-items:flex-start}.sn7-profile-status{font-size:10px}.sn7-profile-bot{align-items:flex-start;flex-direction:column}.sn7-profile-actions .btn{width:100%}.sn7-profile-login-options{grid-template-columns:1fr}.sn7-profile-login-options .btn{width:100%}}
 @media(max-width:380px){.sn7-platform-card{grid-template-columns:1fr;grid-template-areas:"left" "status" "actions"}.sn7-platform-status{justify-self:start}.sn7-platform-actions{justify-content:stretch}.sn7-platform-action{flex:1 1 0}.sn7-platform-card small{white-space:normal;text-overflow:clip}}
         </style>
@@ -352,7 +352,7 @@ body.sn7-modal-open{overflow:hidden}
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
 const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
-<script src="/static/js/app.js?v=sn7-1.9.16"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.17"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -473,6 +473,27 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
       el.appendChild(img);
     }else{el.textContent=fallback;}
   }
+  const PLATFORM_CARD_IDS={kick:"sn7PlatformKick",twitch:"sn7PlatformTwitch",youtube:"sn7PlatformYoutube"};
+  const PLATFORM_BUTTON_IDS={kick:"sn7KickConnect",twitch:"sn7TwitchConnect",youtube:"sn7YoutubeConnect"};
+  const PLATFORM_DISCONNECT_IDS={kick:"sn7KickDisconnect",twitch:"sn7TwitchDisconnect",youtube:"sn7YoutubeDisconnect"};
+  function setPlatformCardLoading(provider,loading){
+    const card=q(PLATFORM_CARD_IDS[provider]);
+    if(!card)return;
+    card.classList.toggle("sn7-card-loading",!!loading);
+    card.setAttribute("aria-busy",loading?"true":"false");
+    card.querySelectorAll("button").forEach(btn=>{
+      if(loading){
+        if(!btn.dataset.sn7BusyDisabled) btn.dataset.sn7BusyDisabled=btn.disabled?"1":"0";
+        btn.disabled=true;
+      }else{
+        const previous=btn.dataset.sn7BusyDisabled;
+        if(previous!==undefined){btn.disabled=previous==="1";delete btn.dataset.sn7BusyDisabled;}
+      }
+    });
+  }
+  function platformEndpoint(provider){
+    return provider==="kick"?"/kick/bot/toggle":(provider==="twitch"?`/twitch/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`:`/youtube/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`);
+  }
   function platformStatus(id,statusId,textId,connectId,data,label,disconnectId){
     const st=q(statusId),tx=q(textId),bt=q(connectId),db=q(disconnectId);
     if(!st||!tx)return;
@@ -484,14 +505,16 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     st.textContent=on?(active?"BOT ATIVO":"CONECTADO"):"NÃO CONECTADO";
     st.classList.toggle("active",on);
     tx.textContent=on?((data.user?.display_name||data.user?.username||label)+(active?" • bot ativo":" • bot desligado")):"Conta ainda não conectada";
+    const card=q(PLATFORM_CARD_IDS[provider]);
+    const busy=card?.classList.contains("sn7-card-loading");
     if(bt){
-      bt.hidden=false; bt.disabled=false;
+      bt.hidden=false; bt.disabled=busy; bt.dataset.active=String(active);
       if(!on){bt.textContent="Conectar"; bt.onclick=()=>connectPlatform(provider);}
       else {bt.textContent=active?"Desligar bot":"Ligar bot"; bt.onclick=()=>togglePlatform(provider);}
     }
     if(db){
       db.hidden=!on;
-      db.disabled=false;
+      db.disabled=busy;
       if(on) db.textContent="Desconectar";
     }
   }
@@ -515,17 +538,19 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   }
   function connectPlatform(provider){
     const path=provider==="kick"?"/kick/login?next=profile":(provider==="twitch"?"/twitch/login":"/youtube/login");
+    setPlatformCardLoading(provider,true);
     window.location.href=path;
   }
   window.sn7ConnectKick=()=>connectPlatform("kick");
   async function disconnectPlatform(provider){
     if(!BROADCASTER_ID || !["kick","twitch","youtube"].includes(provider))return;
-    if(!window.confirm(`Desconectar a conta do ${provider==="twitch"?"Twitch":"YouTube"} deste canal?`))return;
-    const button=q(provider==="kick"?"sn7KickDisconnect":(provider==="twitch"?"sn7TwitchDisconnect":"sn7YoutubeDisconnect"));
-    if(button){button.disabled=true;button.textContent="Desconectando…";}
+    if(!window.confirm(`Desconectar a conta do ${provider==="kick"?"Kick":provider==="twitch"?"Twitch":"YouTube"} deste canal?`))return;
+    setPlatformCardLoading(provider,true);
+    const button=q(PLATFORM_DISCONNECT_IDS[provider]);
+    if(button)button.textContent="Desconectando…";
     try{
       const endpoint=`/${provider}/${encodeURIComponent(BROADCASTER_ID)}/disconnect`;
-      const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"}});
+      const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},cache:"no-store"});
       const data=await response.json();
       if(!response.ok||data.ok===false)throw new Error(data.error||`Falha HTTP ${response.status}`);
       window.__sn7PlatformStatusCache=null;
@@ -541,25 +566,65 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
       msg(e.message||"Não foi possível desconectar a conta.",true);
       await loadPlatformStatus(true).catch(()=>{});
     }finally{
-      if(button){button.disabled=false;button.textContent="Desconectar";}
+      setPlatformCardLoading(provider,false);
+      const fresh=q(PLATFORM_DISCONNECT_IDS[provider]);
+      if(fresh)fresh.textContent="Desconectar";
     }
   }
   window.sn7DisconnectPlatform=disconnectPlatform;
+  async function setPlatformBotState(provider,desired){
+    const response=await fetch(platformEndpoint(provider),{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({active:!!desired}),cache:"no-store"});
+    const data=await response.json();
+    if(!response.ok||data.ok===false)throw new Error(data.error||`Falha HTTP ${response.status}`);
+    return data;
+  }
+
   async function togglePlatform(provider){
     if(!BROADCASTER_ID)return;
-    const endpoint=provider==="kick"?"/kick/bot/toggle":(provider==="twitch"?`/twitch/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`:`/youtube/${encodeURIComponent(BROADCASTER_ID)}/bot/toggle`);
-    const button=q(provider==="kick"?"sn7KickConnect":(provider==="twitch"?"sn7TwitchConnect":"sn7YoutubeConnect"));
-    const currentlyActive=button?.textContent?.toLowerCase().includes("desligar");
-    if(button){button.disabled=true;button.textContent="Aplicando…";}
+    const button=q(PLATFORM_BUTTON_IDS[provider]);
+    const currentlyActive=button?.dataset.active==="true";
+    const desired=!currentlyActive;
+    setPlatformCardLoading(provider,true);
+    if(button)button.textContent="Aplicando…";
     try{
-      const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({active:!currentlyActive})});
-      const data=await response.json();
-      if(!response.ok||data.ok===false)throw new Error(data.error||`Falha HTTP ${response.status}`);
+      await setPlatformBotState(provider,desired);
       window.__sn7PlatformStatusCache=null;
       await loadPlatformStatus(true);
     }catch(e){
       msg(e.message||"Não foi possível alterar o bot.",true);
       await loadPlatformStatus(true).catch(()=>{});
+    }finally{
+      setPlatformCardLoading(provider,false);
+      await loadPlatformStatus(true).catch(()=>{});
+    }
+  }
+
+  async function toggleChannelBot(){
+    if(!BROADCASTER_ID)return;
+    const toggle=q("sn7ProfileBotToggle");
+    if(toggle?.disabled)return;
+    let data=window.__sn7PlatformStatusCache?.data||null;
+    if(!data){
+      try{await loadPlatformStatus(true);data=window.__sn7PlatformStatusCache?.data||null;}catch(e){msg(e.message||"Não foi possível consultar as plataformas.",true);return;}
+    }
+    const platforms=data.platforms||{};
+    const connected=["kick","twitch","youtube"].filter(p=>platforms[p]?.connected);
+    if(!connected.length){msg("Conecte pelo menos uma plataforma para ativar o bot.",true);return;}
+    const desired=!Boolean(data.bot_active);
+    const targets=connected.filter(p=>Boolean(platforms[p]?.active)!==desired);
+    if(!targets.length){bot(desired);return;}
+    toggle.disabled=true;
+    toggle.textContent="Aplicando…";
+    targets.forEach(p=>setPlatformCardLoading(p,true));
+    const results=await Promise.allSettled(targets.map(p=>setPlatformBotState(p,desired)));
+    const failed=results.filter(r=>r.status==="rejected");
+    window.__sn7PlatformStatusCache=null;
+    try{await loadPlatformStatus(true);}catch(_){}
+    targets.forEach(p=>setPlatformCardLoading(p,false));
+    if(failed.length){
+      msg(failed.map(r=>r.reason?.message||"Falha ao alterar uma plataforma.").join(" "),true);
+    }else{
+      msg(desired?"Bot ligado nas plataformas conectadas.":"Bot desligado nas plataformas conectadas.",false);
     }
   }
   window.sn7ConnectTwitch=()=>connectPlatform("twitch");
@@ -736,7 +801,20 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   }
   window.sn7LoadProfile = (force=false) => load(!!force);
   q("sn7ProfileRefresh")?.addEventListener("click",()=>load(true));
-  q("sn7ProfileLogout")?.addEventListener("click",async()=>{q("sn7ProfileLogout").disabled=true;try{await fetch("/kick/logout",{method:"POST",credentials:"same-origin"})}finally{window.location.href="/?profile=1"}});
+  q("sn7ProfileBotToggle")?.addEventListener("click",()=>toggleChannelBot().catch(e=>msg(e.message||"Não foi possível alterar o bot.",true)));
+  q("sn7ProfileLogout")?.addEventListener("click",async()=>{
+    const button=q("sn7ProfileLogout");
+    if(!button||button.dataset.busy==="1")return;
+    button.dataset.busy="1";
+    button.disabled=true;
+    button.textContent="Saindo…";
+    sn7ShowOperationLoader();
+    try{
+      await fetch("/api/session/logout",{method:"POST",credentials:"same-origin",cache:"no-store",keepalive:true});
+    }catch(_){}
+    try{localStorage.removeItem(PROFILE_CACHE_KEY);}catch(_){}
+    window.location.replace("/?profile=1");
+  });
   document.addEventListener("DOMContentLoaded",()=>{
     if(window.SN7_OPEN_PROFILE || window.SN7_NAV_FROM_URL){
       const profileBtn=document.querySelector('nav button[data-tab="profile"]');
