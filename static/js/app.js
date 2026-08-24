@@ -1105,6 +1105,28 @@ function injectRankingStyles() {
     .sn7-platform-ranking-list{display:grid;gap:9px}
     @media(max-width:600px){.sn7-ranking-platform-card{min-height:96px;padding:16px}.sn7-ranking-platform-top{margin-bottom:10px}.sn7-ranking-platform-reset{padding:7px 9px}}
     @media(prefers-reduced-motion:reduce){.sn7-ranking-platform-card.sn7-ranking-card-loading::before{animation:none}}
+    /* Public demo: keep the exact authenticated card layout, only desaturate platform logos. */
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-card{display:block!important;width:100%!important;min-height:118px!important;padding:18px!important;box-sizing:border-box!important;overflow:hidden!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-top{display:flex!important;align-items:center!important;gap:13px!important;margin-bottom:12px!important;width:100%!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-logo{width:42px!important;height:42px!important;min-width:42px!important;max-width:42px!important;flex:0 0 42px!important;border-radius:12px!important;display:grid!important;place-items:center!important;overflow:hidden!important;box-sizing:border-box!important;color:#eef1f6!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-logo svg{width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;max-width:32px!important;max-height:32px!important;display:block!important;flex:none!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-card.kick .sn7-ranking-platform-logo,
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-card.twitch .sn7-ranking-platform-logo,
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-card.youtube .sn7-ranking-platform-logo{color:#eef1f6!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-top-info{min-width:0!important;flex:1 1 auto!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-name{font-weight:800!important;font-size:16px!important;line-height:1.2!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-sub{display:block!important;font-size:11px!important;margin-top:3px!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-reset{flex:0 0 auto!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-mini{display:grid!important;gap:7px!important;width:100%!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-mini-row{display:flex!important;align-items:center!important;gap:8px!important;width:100%!important;font-size:12px!important;box-sizing:border-box!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-mini-pos{width:22px!important;flex:0 0 22px!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-mini-user{min-width:0!important;flex:1 1 auto!important;overflow-wrap:anywhere!important}
+    body.sn7-public-demo #sn7RankingList .sn7-ranking-mini-points{font-weight:800!important;white-space:nowrap!important}
+    @media(max-width:600px){
+      body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-card{min-height:96px!important;padding:16px!important}
+      body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-top{margin-bottom:10px!important}
+      body.sn7-public-demo #sn7RankingList .sn7-ranking-platform-reset{padding:7px 9px!important}
+    }
   `;
   document.head.appendChild(style);
 }
