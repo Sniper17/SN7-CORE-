@@ -562,17 +562,36 @@ function sn7ConfirmAction(title, message, confirmText = "Continuar") {
     document.body.appendChild(modal);
     requestAnimationFrame(() => modal.classList.add("open"));
 
+    let finished = false;
+    const cancelButton = modal.querySelector(".sn7-confirm-cancel");
+    const confirmButton = modal.querySelector(".sn7-confirm-ok");
+
     const finish = (value) => {
+      if (finished) return;
+      finished = true;
       modal.classList.remove("open");
       modal.classList.add("closing");
+      document.removeEventListener("keydown", onKeyDown);
       setTimeout(() => modal.remove(), 160);
       resolve(value);
     };
 
-    modal.querySelector(".sn7-confirm-cancel")?.addEventListener("click", () => finish(false));
-    modal.querySelector(".sn7-confirm-ok")?.addEventListener("click", () => finish(true));
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        finish(false);
+      }
+    };
+
+    cancelButton?.addEventListener("click", () => finish(false));
+    confirmButton?.addEventListener("click", () => finish(true));
     modal.addEventListener("click", (event) => {
       if (event.target === modal) finish(false);
+    });
+    document.addEventListener("keydown", onKeyDown);
+
+    requestAnimationFrame(() => {
+      cancelButton?.focus();
     });
   });
 }
@@ -1740,7 +1759,22 @@ function musicConnect(provider) {
 async function musicDisconnect(provider) {
   if (!musicHasChannel()) return;
   const label = provider === "youtube" ? "YouTube" : provider === "spotify" ? "Spotify" : "SoundCloud";
-  if (!confirm(`Desconectar ${label} do SN7?`)) return;
+  const ok = await sn7ConfirmAction(
+    `Desconectar ${label}?`,
+    `A conexão com ${label} será encerrada neste canal. Você poderá conectar novamente quando quiser.`,
+    "Desconectar"
+  );
+  if (!ok) return;
+
+  const button = $(`music${String(provider).charAt(0).toUpperCase() + String(provider).slice(1)}Connect`);
+  const card = button?.closest(".sn7-source-card");
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Desconectando…";
+    button.setAttribute("aria-busy", "true");
+  }
+  card?.classList.add("is-connecting");
+
   try {
     const data = await apiJson(`/api/music/${BROADCASTER_ID}/disconnect/${encodeURIComponent(provider)}`, {method:"POST"});
     musicRenderConnections(data);
@@ -1751,6 +1785,12 @@ async function musicDisconnect(provider) {
       msg.textContent = `⚠ ${error.message}`;
       msg.className = "sn7-save-message error";
     }
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+    }
+    card?.classList.remove("is-connecting");
   }
 }
 
@@ -2029,7 +2069,12 @@ async function removeMusicItem(id) {
 }
 
 async function clearMusicQueue() {
-  if (!confirm("Limpar todas as músicas que estão na fila?")) return;
+  const ok = await sn7ConfirmAction(
+    "Limpar fila de músicas?",
+    "Todas as músicas que estão aguardando reprodução serão removidas da fila.",
+    "Limpar fila"
+  );
+  if (!ok) return;
   const button = document.querySelector(".sn7-queue-clear");
   const card = document.querySelector(".sn7-music-queue-card");
   const loader = $("sn7MusicQueueLoading");
