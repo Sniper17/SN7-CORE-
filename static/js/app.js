@@ -287,12 +287,38 @@ function updateEconomyCards(settings = {}) {
   }
 }
 
+const SN7_PUBLIC_DEMO = (typeof BROADCASTER_ID === "undefined" || BROADCASTER_ID === null || BROADCASTER_ID === "");
+
+const SN7_PUBLIC_DEMO_COMMANDS = [
+  ["points","!pontos","Consulta seu saldo de pontos.","public"],["ranking","!ranking","Mostra o ranking do canal.","public"],["cmds","!cmds","Lista os comandos personalizados da live.","public"],
+  ["addmusic","!addmusic","Adiciona uma música à fila.","music"],["skipmusic","!skip","Pula a música atual.","music"],["musicqueue","!queue","Mostra a fila de músicas.","music"],["nowplaying","!nowplaying","Mostra a música que está tocando.","music"],["pausemusic","!pause","Pausa a música atual.","music"],["resumemusic","!resume","Continua a música pausada.","music"],["clearmusic","!clearqueue","Limpa a fila de músicas.","music"],
+  ["duel","!aposta","Inicia uma aposta contra outro usuário.","minigames"],["bet_accept","!aceitar","Aceita uma aposta pendente.","minigames"],["bet_decline","!recusar","Recusa uma aposta pendente.","minigames"],["slots","!slots","Aposta pontos no cassino virtual.","minigames"],["coinflip","!cara","Joga cara ou coroa apostando pontos.","minigames"],["coinflip_coroa","!coroa","Joga coroa apostando pontos.","minigames"],["poll","!enquete","Cria uma enquete.","minigames"],["vote","!votar","Vota na enquete aberta.","minigames"],["quiz","!quiz","Inicia um quiz rápido.","minigames"],["quiz_answer","!resposta","Responde ao quiz atual.","minigames"],["race","!corrida","Entra na corrida da live.","minigames"],["target","!alvo","Tenta acertar o número do alvo.","minigames"],["secret","!numero","Tenta descobrir o número secreto.","minigames"],["survival","!sobreviver","Entra na rodada de sobrevivência.","minigames"],["steal","!roubar","Tenta roubar uma pequena parte dos pontos.","minigames"],["vault","!cofre","Tenta abrir o cofre.","minigames"],["jackpot","!jackpot","Tenta ganhar parte do Jackpot da live.","minigames"],
+  ["poll_close","!fecharenquete","Fecha a enquete atual.","admin"],["race_finish","!finalizacorrida","Finaliza a corrida atual.","admin"],["survival_finish","!finalizarsobrevivencia","Finaliza a rodada de sobrevivência.","admin"],["addcmd","!addcmd","Cria ou atualiza um comando personalizado.","admin"],["addpoint","!addpoint","Adiciona pontos a um usuário.","admin"],["settpoint","!setpoint","Define o saldo de um usuário.","admin"],["delcmd","!delcmd","Remove um comando personalizado.","admin"]
+];
+
+function showPublicDemoNotice(){
+  document.querySelector(".sn7-public-demo-toast")?.remove();
+  const toast=document.createElement("div");toast.className="sn7-public-demo-toast";
+  toast.textContent="Modo demonstração: conecte sua conta para editar e usar este recurso.";
+  document.body.appendChild(toast);setTimeout(()=>toast.remove(),2600);
+}
+function markPublicDemo(){
+  if(!SN7_PUBLIC_DEMO)return;
+  document.body.classList.add("sn7-public-demo");
+  document.querySelectorAll("#economy input,#economy select,#economy textarea,#economy .save-row button,#rewardsEditor input,#rewardsEditor select,#rewardsEditor textarea").forEach(el=>el.disabled=true);
+  document.querySelectorAll("#ranking .sn7-ranking-platform-reset,#minigames .sn7-minigames-config,#music .sn7-music-config-btn,#automations .sn7-automation-create,#automations .sn7-automation-actions button").forEach(el=>el.disabled=true);
+}
 let sn7MiniGamesPlatform = "kick";
 const sn7MiniGamesSettings = {};
 const sn7MiniGamesCommandStatus = {};
 
 async function loadMiniGames(platform = sn7MiniGamesPlatform) {
-  sn7MiniGamesPlatform = platform;
+  sn7MiniGamesPlatform=platform;
+  if(SN7_PUBLIC_DEMO){
+    const settings={enabled:true};
+    const commandStatus=Object.fromEntries(["bets","slots","coinflip","polls","quiz","race","target","secret","survival","steal","vault","jackpot"].map(k=>[k,true]));
+    sn7MiniGamesSettings[platform]=settings;sn7MiniGamesCommandStatus[platform]=commandStatus;updateMiniGamesStatus(settings,commandStatus);markPublicDemo();return settings;
+  }
   const status = $("sn7SlotsStatus");
   if (status) status.textContent = "CARREGANDO";
   try {
@@ -327,14 +353,20 @@ function updateMiniGamesStatus(settings = {}, commandStatus = {}) {
 }
 
 async function toggleMiniGame(game) {
+  if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return;}
   const platform=sn7MiniGamesPlatform, settings=sn7MiniGamesSettings[platform]||{}, commandStatus=sn7MiniGamesCommandStatus[platform]||{};
   const active=settings.enabled!==false && settings[`${game}_enabled`]!==false && commandStatus[game]!==false; const next=!active;
   const map={bets:"sn7BetsStatus",slots:"sn7SlotsStatus",coinflip:"sn7CoinflipStatus",polls:"sn7PollsStatus",quiz:"sn7QuizStatus",race:"sn7RaceStatus",target:"sn7TargetStatus",secret:"sn7SecretStatus",survival:"sn7SurvivalStatus",steal:"sn7StealStatus",vault:"sn7VaultStatus",jackpot:"sn7JackpotStatus"};
-  const status=$(map[game]); if(status){status.disabled=true;status.textContent="SALVANDO";}
+  const status=$(map[game]);const card=status?.closest("[data-minigame-card]");
+  if(card){card.classList.add("sn7-minigame-card-loading");card.setAttribute("aria-busy","true");}
+  if(status){status.disabled=true;status.textContent="SALVANDO";}
   try{
     const data=await apiJson(`/api/minigames/${BROADCASTER_ID}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({platform,game,game_enabled:next})});
     sn7MiniGamesSettings[platform]=data.settings||{}; sn7MiniGamesCommandStatus[platform]=data.command_status||{}; updateMiniGamesStatus(sn7MiniGamesSettings[platform],sn7MiniGamesCommandStatus[platform]); await loadCommands(true).catch(()=>{});
-  }catch(error){updateMiniGamesStatus(settings,commandStatus); if($("minigamesMsg")) $("minigamesMsg").textContent=`⚠ ${error.message}`;}finally{if(status)status.disabled=false;}
+  }catch(error){updateMiniGamesStatus(settings,commandStatus); if($("minigamesMsg")) $("minigamesMsg").textContent=`⚠ ${error.message}`;}finally{
+    if(status)status.disabled=false;
+    if(card){card.classList.remove("sn7-minigame-card-loading");card.setAttribute("aria-busy","false");}
+  }
 }
 
 function fillMiniGamesForm(settings = {}) {
@@ -342,23 +374,31 @@ function fillMiniGamesForm(settings = {}) {
   if($("minigames_enabled"))$("minigames_enabled").checked=settings.enabled!==false;
 }
 
-function openMiniGamesConfig(){const modal=$("sn7MiniGamesEditor");if(!modal)return;modal.hidden=false;modal.classList.add("open");document.querySelectorAll("[data-mini-platform]").forEach(button=>{button.onclick=()=>{document.querySelectorAll("[data-mini-platform]").forEach(x=>x.classList.remove("active"));button.classList.add("active");sn7MiniGamesPlatform=button.dataset.miniPlatform;const cached=sn7MiniGamesSettings[sn7MiniGamesPlatform];if(cached)fillMiniGamesForm(cached);else loadMiniGames(sn7MiniGamesPlatform).catch(()=>{});};});loadMiniGames(sn7MiniGamesPlatform).catch(()=>{});}
+function openMiniGamesConfig(){if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return;}const modal=$("sn7MiniGamesEditor");if(!modal)return;modal.hidden=false;modal.classList.add("open");document.querySelectorAll("[data-mini-platform]").forEach(button=>{button.onclick=()=>{document.querySelectorAll("[data-mini-platform]").forEach(x=>x.classList.remove("active"));button.classList.add("active");sn7MiniGamesPlatform=button.dataset.miniPlatform;const cached=sn7MiniGamesSettings[sn7MiniGamesPlatform];if(cached)fillMiniGamesForm(cached);else loadMiniGames(sn7MiniGamesPlatform).catch(()=>{});};});loadMiniGames(sn7MiniGamesPlatform).catch(()=>{});}
 
-async function saveMiniGamesConfig(){
+async function saveMiniGamesConfig(){if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return;}
   const payload={platform:sn7MiniGamesPlatform,enabled:Boolean($("minigames_enabled")?.checked),slot_bankroll:$("slot_bankroll")?.value,slot_bankroll_max:$("slot_bankroll_max")?.value,slot_hourly_refill:$("slot_hourly_refill")?.value,slot_min_bet:$("slot_min_bet")?.value,slot_max_bet:$("slot_max_bet")?.value,slot_cooldown_seconds:$("slot_cooldown_seconds")?.value};
   const button=document.querySelector("#sn7MiniGamesEditor .save-row .btn");if(button)button.disabled=true;sn7ShowOperationLoader();
   try{const data=await apiJson(`/api/minigames/${BROADCASTER_ID}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});sn7MiniGamesSettings[sn7MiniGamesPlatform]=data.settings||{};sn7MiniGamesCommandStatus[sn7MiniGamesPlatform]=data.command_status||{};fillMiniGamesForm(data.settings||{});updateMiniGamesStatus(data.settings||{},data.command_status||{});await loadCommands(true).catch(()=>{});setSaveMessage("minigamesMsg","✓ Configuração salva.",true);}catch(error){setSaveMessage("minigamesMsg",`⚠ ${error.message}`,false);}finally{if(button)button.disabled=false;sn7HideOperationLoader();}
 }
 
 let automationCache=[];
-async function loadAutomations(){const list=$("sn7AutomationList");if(list)list.innerHTML='<div class="sn7-empty">Carregando automações...</div>';try{const data=await apiJson(`/api/automations/${BROADCASTER_ID}`);automationCache=data.automations||[];renderAutomations();return automationCache;}catch(e){if(list)list.innerHTML=`<div class="sn7-empty">⚠ ${esc(e.message)}</div>`;throw e;}}
+async function loadAutomations(){
+  const list=$("sn7AutomationList");
+  if(SN7_PUBLIC_DEMO){
+    automationCache=[{id:0,name:"Mensagem de boas-vindas",message:"👋 Bem-vindo ao chat!",platform:"kick",interval_seconds:1800,only_when_live:true,enabled:true},{id:-1,name:"Resumo de pontos",message:"🏆 Confira o ranking da live!",platform:"twitch",interval_seconds:3600,only_when_live:false,enabled:true}];
+    renderAutomations();markPublicDemo();return automationCache;
+  }
+  if(list)list.innerHTML='<div class="sn7-empty">Carregando automações...</div>';
+  try{const data=await apiJson(`/api/automations/${BROADCASTER_ID}`);automationCache=data.automations||[];renderAutomations();return automationCache;}catch(e){if(list)list.innerHTML=`<div class="sn7-empty">⚠ ${esc(e.message)}</div>`;throw e;}
+}
 function renderAutomations(){const list=$("sn7AutomationList");if(!list)return;if(!automationCache.length){list.innerHTML='<div class="sn7-empty">Nenhuma automação criada ainda.</div>';return;}list.innerHTML=automationCache.map(a=>`<div class="sn7-automation-row"><div><strong>${esc(a.name)} <span class="sn7-automation-badge ${a.enabled?'':'off'}">${a.enabled?'ATIVA':'DESATIVADA'}</span></strong><small>${esc(a.message)}<br>📡 ${esc(a.platform)} · ⏱ ${Math.round(a.interval_seconds/60)} min · ${a.only_when_live?'somente ao vivo':'independente da live'}</small></div><div class="sn7-automation-actions"><button type="button" onclick="toggleAutomation(${a.id},${!a.enabled})">${a.enabled?'Desativar':'Ativar'}</button><button type="button" onclick="editAutomation(${a.id})">Editar</button></div></div>`).join('');}
-function openAutomationEditor(item=null){const modal=$("sn7AutomationEditor");if(!modal)return;$("automation_id").value=item?.id||"";$("automation_name").value=item?.name||"";$("automation_message").value=item?.message||"";$("automation_platform").value=item?.platform||"kick";$("automation_interval").value=String(item?.interval_seconds||1800);$("automation_live_only").checked=item?item.only_when_live!==false:true;$("automation_enabled").checked=item?item.enabled!==false:true;$("automationEditorTitle").textContent=item?"Editar automação":"Nova automação";$("automationDelete").hidden=!item;modal.hidden=false;modal.classList.add("open");}
+function openAutomationEditor(item=null){if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return;}const modal=$("sn7AutomationEditor");if(!modal)return;$("automation_id").value=item?.id||"";$("automation_name").value=item?.name||"";$("automation_message").value=item?.message||"";$("automation_platform").value=item?.platform||"kick";$("automation_interval").value=String(item?.interval_seconds||1800);$("automation_live_only").checked=item?item.only_when_live!==false:true;$("automation_enabled").checked=item?item.enabled!==false:true;$("automationEditorTitle").textContent=item?"Editar automação":"Nova automação";$("automationDelete").hidden=!item;modal.hidden=false;modal.classList.add("open");}
 function closeAutomationEditor(){$("sn7AutomationEditor")?.classList.remove("open");if($("sn7AutomationEditor"))$("sn7AutomationEditor").hidden=true;}
-async function saveAutomation(){const id=$("automation_id")?.value;const body={name:$("automation_name")?.value,message:$("automation_message")?.value,platform:$("automation_platform")?.value,interval_seconds:Number($("automation_interval")?.value||1800),only_when_live:Boolean($("automation_live_only")?.checked),enabled:Boolean($("automation_enabled")?.checked)};const button=document.querySelector("#sn7AutomationEditor .save-row .btn");if(button)button.disabled=true;sn7ShowOperationLoader();try{const data=await apiJson(id?`/api/automations/${BROADCASTER_ID}/${id}`:`/api/automations/${BROADCASTER_ID}`,{method:id?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});automationCache=data.automations||[];renderAutomations();closeAutomationEditor();}catch(e){setSaveMessage("automationMsg",`⚠ ${e.message}`,false);}finally{if(button)button.disabled=false;sn7HideOperationLoader();}}
-async function toggleAutomation(id,enabled){try{const a=automationCache.find(x=>x.id===id);if(!a)return;const data=await apiJson(`/api/automations/${BROADCASTER_ID}/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({...a,enabled})});automationCache=data.automations||[];renderAutomations();}catch(e){alert(e.message);}}
-function editAutomation(id){const a=automationCache.find(x=>x.id===id);if(a)openAutomationEditor(a);}
-async function deleteAutomation(){const id=$("automation_id")?.value;if(!id)return;try{const data=await apiJson(`/api/automations/${BROADCASTER_ID}/${id}`,{method:"DELETE"});automationCache=data.automations||[];renderAutomations();closeAutomationEditor();}catch(e){alert(e.message);}}
+async function saveAutomation(){if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return;}const id=$("automation_id")?.value;const body={name:$("automation_name")?.value,message:$("automation_message")?.value,platform:$("automation_platform")?.value,interval_seconds:Number($("automation_interval")?.value||1800),only_when_live:Boolean($("automation_live_only")?.checked),enabled:Boolean($("automation_enabled")?.checked)};const button=document.querySelector("#sn7AutomationEditor .save-row .btn");if(button)button.disabled=true;sn7ShowOperationLoader();try{const data=await apiJson(id?`/api/automations/${BROADCASTER_ID}/${id}`:`/api/automations/${BROADCASTER_ID}`,{method:id?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});automationCache=data.automations||[];renderAutomations();closeAutomationEditor();}catch(e){setSaveMessage("automationMsg",`⚠ ${e.message}`,false);}finally{if(button)button.disabled=false;sn7HideOperationLoader();}}
+async function toggleAutomation(id,enabled){if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return;}try{const a=automationCache.find(x=>x.id===id);if(!a)return;const data=await apiJson(`/api/automations/${BROADCASTER_ID}/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({...a,enabled})});automationCache=data.automations||[];renderAutomations();}catch(e){alert(e.message);}}
+function editAutomation(id){if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return;}const a=automationCache.find(x=>x.id===id);if(a)openAutomationEditor(a);}
+async function deleteAutomation(){if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return;}const id=$("automation_id")?.value;if(!id)return;try{const data=await apiJson(`/api/automations/${BROADCASTER_ID}/${id}`,{method:"DELETE"});automationCache=data.automations||[];renderAutomations();closeAutomationEditor();}catch(e){alert(e.message);}}
 window.loadAutomations=loadAutomations;
 
 function setSaveMessage(id, text, ok = true) {
@@ -475,6 +515,8 @@ function buildCommandCatalog() {
       </div>
     </div>`;
   injectCommandStyles();
+  injectMiniGameLoadingStyles();
+  if(SN7_PUBLIC_DEMO)markPublicDemo();
 }
 
 function commandDrawerMarkup(key, icon, title, subtitle, listId) {
@@ -576,6 +618,11 @@ let commandsLoadedAt = 0;
 const COMMAND_CACHE_TTL = 30000;
 
 async function loadCommands(force = false) {
+  if(SN7_PUBLIC_DEMO){
+    buildCommandCatalog();
+    commandCache=SN7_PUBLIC_DEMO_COMMANDS.map(([command_key,command,description,category])=>({command_key,command,description,category,response:"Demonstração do comando.",enabled:true,aliases:[],is_system:true}));
+    commandsLoadedAt=Date.now();renderCommands();markPublicDemo();return commandCache;
+  }
   if (!force && commandCache.length && (Date.now() - commandsLoadedAt) < COMMAND_CACHE_TTL) {
     buildCommandCatalog();
     renderCommands();
@@ -625,13 +672,13 @@ function closeCommandModal() {
   setTimeout(() => modal.remove(), 220);
 }
 
-function openCommand(encodedKey) {
+function openCommand(encodedKey) { if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return;}
   const key = decodeURIComponent(encodedKey);
   const command = commandCache.find((item) => item.command_key === key);
   if (command) showCommand(command, false);
 }
 
-function newCommand() {
+function newCommand() { if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return;}
   draftAliases = [];
   showCommand({
     command_key: "",
@@ -972,6 +1019,11 @@ async function deleteCommandV2(encodedKey, isSystem, button) {
 }
 
 async function loadSettings() {
+  if(SN7_PUBLIC_DEMO){
+    const settings={currency_name:"Pontos",currency_command:"!pontos",currency_emoji:"🪙",points_response:"$(user), você tem $(points) $(currency).",rank_title:"Ranking",rank_limit:5,duel_win_points:10,duel_loss_points:3,watch_points:1,watch_interval_minutes:10,sub_bonus:500,kicks_bonus_per_kick:1,bits_bonus_per_bit:1,superchat_bonus_per_unit:1};
+    Object.keys(settings).forEach(key=>{if($(key))$(key).value=settings[key]});
+    updatePreview(settings);updateEconomyCards(settings);setMessage("Modo demonstração: alterações não são persistidas.",false);markPublicDemo();return settings;
+  }
   try {
     const data = await apiJson(`/api/settings/${BROADCASTER_ID}`);
     const settings = data.settings;
@@ -1004,6 +1056,13 @@ async function saveSettingsAndClose(modalId, button) {
   }
 }
 
+
+function injectMiniGameLoadingStyles(){
+  if($("sn7-minigame-loading-style"))return;
+  const style=document.createElement("style");style.id="sn7-minigame-loading-style";
+  style.textContent=`.sn7-minigame-card{position:relative}.sn7-minigame-card.sn7-minigame-card-loading{pointer-events:none}.sn7-minigame-card.sn7-minigame-card-loading::after{content:"";position:absolute;inset:0;z-index:20;background:rgba(11,13,18,.42);backdrop-filter:blur(2px);border-radius:inherit}.sn7-minigame-card.sn7-minigame-card-loading::before{content:"";position:absolute;left:50%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;z-index:21;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7MiniGameCardSpin .72s linear infinite;box-sizing:border-box}@keyframes sn7MiniGameCardSpin{to{transform:rotate(360deg)}}.sn7-minigame-card[aria-busy="true"]{cursor:wait}.sn7-public-demo-toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:2147483646;max-width:min(92vw,520px);padding:11px 14px;border:1px solid #394253;border-radius:11px;background:#11151d;color:#d8deea;box-shadow:0 14px 40px rgba(0,0,0,.35);font-size:12px;text-align:center}`;
+  document.head.appendChild(style);
+}
 
 function injectRankingStyles() {
   if ($("sn7-ranking-platform-style")) return;
@@ -1129,8 +1188,14 @@ function renderRankingCards(data) {
 
 let sn7RankingLoadPromise = null;
 async function loadRanking(silent = false) {
-  const list = $("sn7RankingList");
-  if (!list) return;
+  const list=$("sn7RankingList");if(!list)return;
+  if(SN7_PUBLIC_DEMO){
+    renderRankingCards({title:"Ranking",currency:"Pontos",emoji:"🪙",rankings:{
+      kick:[{position:1,username:"StreamerDemo",points:1250},{position:2,username:"Guerreiro",points:980},{position:3,username:"Espectador",points:750}],
+      twitch:[{position:1,username:"PlayerDemo",points:1120},{position:2,username:"ViewerBR",points:840},{position:3,username:"Caçador",points:620}],
+      youtube:[{position:1,username:"YouTubeDemo",points:1050},{position:2,username:"Inscrito",points:790},{position:3,username:"Membro",points:540}]
+    }});markPublicDemo();return;
+  }
   if (sn7RankingLoadPromise) return sn7RankingLoadPromise;
   injectRankingStyles();
   if (!silent) list.innerHTML = '<div class="sn7-ranking-loading">Carregando rankings...</div>';
@@ -1168,7 +1233,7 @@ function stopRankingPolling() {
   }
 }
 
-async function resetPlatformRanking(platform, button) {
+async function resetPlatformRanking(platform, button) { if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return;}
   const label = rankingPlatformLabel(platform);
   const ok = await sn7ConfirmAction(
     `Resetar pontos da ${label}?`,
@@ -1198,6 +1263,7 @@ async function resetPlatformRanking(platform, button) {
 }
 
 async function saveSettings() {
+  if(SN7_PUBLIC_DEMO){showPublicDemoNotice();return Promise.resolve(false);}
   const data = {};
   [
     "currency_name", "currency_command", "currency_emoji", "points_response",
