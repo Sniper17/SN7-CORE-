@@ -1212,6 +1212,7 @@ let sn7RankingLoadPromise = null;
 async function loadRanking(silent = false) {
   const list=$("sn7RankingList");if(!list)return;
   if(SN7_PUBLIC_DEMO){
+    injectRankingStyles();
     renderRankingCards({title:"Ranking",currency:"Pontos",emoji:"🪙",rankings:{
       kick:[{position:1,username:"StreamerDemo",points:1250},{position:2,username:"Guerreiro",points:980},{position:3,username:"Espectador",points:750}],
       twitch:[{position:1,username:"PlayerDemo",points:1120},{position:2,username:"ViewerBR",points:840},{position:3,username:"Caçador",points:620}],
