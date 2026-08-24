@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.17">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.18">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -352,7 +352,7 @@ body.sn7-modal-open{overflow:hidden}
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
 const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
-<script src="/static/js/app.js?v=sn7-1.9.17"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.18"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -476,6 +476,37 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   const PLATFORM_CARD_IDS={kick:"sn7PlatformKick",twitch:"sn7PlatformTwitch",youtube:"sn7PlatformYoutube"};
   const PLATFORM_BUTTON_IDS={kick:"sn7KickConnect",twitch:"sn7TwitchConnect",youtube:"sn7YoutubeConnect"};
   const PLATFORM_DISCONNECT_IDS={kick:"sn7KickDisconnect",twitch:"sn7TwitchDisconnect",youtube:"sn7YoutubeDisconnect"};
+  const PLATFORM_CONNECT_PENDING_KEY="sn7_platform_connect_pending_v1";
+  function markPlatformConnectPending(provider){
+    if(!["kick","twitch","youtube"].includes(provider))return;
+    try{
+      sessionStorage.setItem(PLATFORM_CONNECT_PENDING_KEY,JSON.stringify({provider,time:Date.now()}));
+    }catch(_){}
+  }
+  function readPlatformConnectPending(){
+    try{
+      const raw=sessionStorage.getItem(PLATFORM_CONNECT_PENDING_KEY);
+      const data=raw?JSON.parse(raw):null;
+      if(!data?.provider||!["kick","twitch","youtube"].includes(data.provider))return null;
+      if(!data.time || Date.now()-Number(data.time)>5*60*1000){
+        sessionStorage.removeItem(PLATFORM_CONNECT_PENDING_KEY);
+        return null;
+      }
+      return data.provider;
+    }catch(_){return null;}
+  }
+  function clearPlatformConnectPending(provider){
+    try{
+      const pending=readPlatformConnectPending();
+      if(!provider || pending===provider)sessionStorage.removeItem(PLATFORM_CONNECT_PENDING_KEY);
+    }catch(_){}
+  }
+  function resumePlatformConnectLoading(){
+    const pending=readPlatformConnectPending();
+    if(pending)setPlatformCardLoading(pending,true);
+    return pending;
+  }
+
   function setPlatformCardLoading(provider,loading){
     const card=q(PLATFORM_CARD_IDS[provider]);
     if(!card)return;
@@ -538,6 +569,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   }
   function connectPlatform(provider){
     const path=provider==="kick"?"/kick/login?next=profile":(provider==="twitch"?"/twitch/login":"/youtube/login");
+    markPlatformConnectPending(provider);
     setPlatformCardLoading(provider,true);
     window.location.href=path;
   }
@@ -665,8 +697,10 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
 
   async function loadPlatformStatus(force=false){
     if(!BROADCASTER_ID)return;
+    const pendingProvider=resumePlatformConnectLoading();
+    const useCache=!pendingProvider;
     const cached=window.__sn7PlatformStatusCache;
-    if(!force&&cached&&Date.now()-cached.time<15000){
+    if(useCache&&!force&&cached&&Date.now()-cached.time<15000){
       const d=cached.data||{};
       renderKickPlatform(!!d.platforms?.kick?.connected,!!d.platforms?.kick?.active,d.platforms?.kick?.user||window.__sn7KickProfile||null);
       platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",d.platforms?.twitch||{connected:false},"Twitch","sn7TwitchDisconnect");
@@ -679,7 +713,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     // Primeiro pinta o snapshot local para evitar o estado "Verificando..."
     // quando o usuário já possui contas conhecidas neste dispositivo.
     const local=readPlatformCache();
-    if(!force && local?.broadcaster_id===BROADCASTER_ID && local.data?.platforms){
+    if(useCache&&!force && local?.broadcaster_id===BROADCASTER_ID && local.data?.platforms){
       const d=local.data;
       renderKickPlatform(!!d.platforms.kick?.connected,!!d.platforms.kick?.active,d.platforms.kick?.user||window.__sn7KickProfile||null);
       platformStatus("sn7PlatformTwitch","sn7TwitchPlatformStatus","sn7TwitchPlatformText","sn7TwitchConnect",d.platforms.twitch||{connected:false},"Twitch","sn7TwitchDisconnect");
@@ -698,6 +732,10 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     platformStatus("sn7PlatformYoutube","sn7YoutubePlatformStatus","sn7YoutubePlatformText","sn7YoutubeConnect",data.platforms?.youtube||{connected:false},"YouTube","sn7YoutubeDisconnect");
     bot(!!data.bot_active);
     applyPlatformIdentity(data);
+    if(pendingProvider){
+      clearPlatformConnectPending(pendingProvider);
+      setPlatformCardLoading(pendingProvider,false);
+    }
   }
   async function fetchJsonWithTimeout(url, options={}, timeoutMs=2500){
     const controller=new AbortController();
@@ -712,6 +750,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   async function load(force=false){
     const b=q("sn7ProfileBotToggle");
     if(!b)return;
+    resumePlatformConnectLoading();
     showProfileShell();
 
     const initial=window.SN7_INITIAL_PROFILE && window.SN7_INITIAL_PROFILE.id ? window.SN7_INITIAL_PROFILE : null;
@@ -792,6 +831,12 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
         return window.__sn7ProfileCache?.data||null;
       }finally{
         await background.catch(()=>{});
+        const pendingProvider=readPlatformConnectPending();
+        if(pendingProvider){
+          // Não deixe o card preso em loading após uma falha transitória.
+          clearPlatformConnectPending(pendingProvider);
+          setPlatformCardLoading(pendingProvider,false);
+        }
         b.disabled=false;
         if(b.textContent==="Verificando…"||b.textContent==="Carregando…"||b.textContent==="Aplicando…") b.textContent="Atualizar status";
         window.__sn7ProfileLoadPromise=null;
