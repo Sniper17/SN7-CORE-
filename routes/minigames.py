@@ -32,7 +32,7 @@ def save_minigames(broadcaster_id):
         return jsonify({"ok": False, "error": "Plataforma inválida."}), 400
     game = str(data.get("game") or "").strip().lower()
     if game:
-        if game not in {"slots", "bets"}:
+        if game not in {"slots", "bets", "coinflip", "polls", "quiz", "race", "target", "secret", "survival", "steal", "vault", "jackpot"}:
             return jsonify({"ok": False, "error": "Mini Game inválido."}), 400
         try:
             settings = update_minigame_enabled(broadcaster_id, platform, game, bool(data.get("game_enabled")))
@@ -50,14 +50,17 @@ def save_minigames(broadcaster_id):
         allowed = {
             "enabled", "bets_enabled", "slots_enabled", "slot_bankroll", "slot_bankroll_max", "slot_hourly_refill",
             "slot_min_bet", "slot_max_bet", "slot_cooldown_seconds",
+            "coinflip_enabled", "polls_enabled", "quiz_enabled", "race_enabled", "target_enabled", "secret_enabled", "survival_enabled", "steal_enabled", "vault_enabled", "jackpot_enabled",
         }
         values = {key: data[key] for key in allowed if key in data}
         try:
             settings = update_settings(broadcaster_id, platform, values)
+            games = ("slots","bets","coinflip","polls","quiz","race","target","secret","survival","steal","vault","jackpot")
             if "enabled" in values:
-                set_minigame_commands_enabled(broadcaster_id, "slots", bool(settings["enabled"]) and bool(settings.get("slots_enabled", True)))
-                set_minigame_commands_enabled(broadcaster_id, "bets", bool(settings["enabled"]) and bool(settings.get("bets_enabled", True)))
-            for game_name, field in (("slots", "slots_enabled"), ("bets", "bets_enabled")):
+                for game_name in games:
+                    set_minigame_commands_enabled(broadcaster_id, game_name, bool(settings["enabled"]) and bool(settings.get(f"{game_name}_enabled", True)))
+            for game_name in games:
+                field = f"{game_name}_enabled"
                 if field in values:
                     set_minigame_commands_enabled(broadcaster_id, game_name, bool(settings["enabled"]) and bool(settings.get(field, True)))
         except (TypeError, ValueError) as exc:

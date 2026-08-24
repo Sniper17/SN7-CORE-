@@ -16,6 +16,22 @@ SYSTEM = {
     "bet_accept": ("!aceitar", "Aceita uma aposta pendente.", "minigames", "$(bet_result)"),
     "bet_decline": ("!recusar", "Recusa uma aposta pendente.", "minigames", "$(bet_result)"),
     "cmds": ("!cmds", "Lista os comandos personalizados da live.", "public", "$(commands)"),
+    "coinflip": ("!cara", "Joga cara ou coroa apostando pontos. Use !cara 20 ou !coroa 20.", "minigames", "🪙 $(user) jogou $(choice): $(coinflip_result). Saldo: $(new_points) $(currency)."),
+    "coinflip_coroa": ("!coroa", "Joga coroa apostando pontos.", "minigames", "🪙 $(user) jogou coroa: $(coinflip_result). Saldo: $(new_points) $(currency)."),
+    "poll": ("!enquete", "Cria uma enquete. Use pergunta | opção 1 | opção 2.", "minigames", "📊 $(poll_result)"),
+    "vote": ("!votar", "Vota na enquete aberta.", "minigames", "📊 $(vote_result)"),
+    "poll_close": ("!fecharenquete", "Fecha a enquete atual.", "admin", "📊 $(poll_result)"),
+    "quiz": ("!quiz", "Inicia um quiz rápido.", "minigames", "🧠 $(quiz_result)"),
+    "quiz_answer": ("!resposta", "Responde ao quiz atual.", "minigames", "🧠 $(quiz_result)"),
+    "race": ("!corrida", "Entra na corrida da live.", "minigames", "🏃 $(race_result)"),
+    "race_finish": ("!finalizacorrida", "Finaliza a corrida atual.", "admin", "🏁 $(race_result)"),
+    "target": ("!alvo", "Tenta acertar o número do alvo.", "minigames", "🎯 $(target_result)"),
+    "secret": ("!numero", "Tenta descobrir o número secreto.", "minigames", "🔢 $(secret_result)"),
+    "survival": ("!sobreviver", "Entra na rodada de sobrevivência.", "minigames", "🧟 $(survival_result)"),
+    "survival_finish": ("!finalizarsobrevivencia", "Finaliza a rodada de sobrevivência.", "admin", "🧟 $(survival_result)"),
+    "steal": ("!roubar", "Tenta roubar uma pequena parte dos pontos de outro usuário.", "minigames", "💰 $(steal_result)"),
+    "vault": ("!cofre", "Tenta abrir o cofre.", "minigames", "🔐 $(vault_result)"),
+    "jackpot": ("!jackpot", "Tenta ganhar parte do Jackpot da live.", "minigames", "👑 $(jackpot_result)"),
     "wzclass": ("!wzclass", "Consulta a classe Warzone usando os dados internos do Core.", "public", "$(wzclass)"),
     "addmusic": ("!addmusic", "Adiciona uma música à fila. Use nome do artista e da música ou um link de uma fonte permitida.", "music", "🎵 $(user) adicionou $(music) à fila. Posição: #$(queue_position)."),
     "skipmusic": ("!skip", "Pula a música que está tocando e passa para a próxima da fila.", "music", "⏭️ Música pulada. Próxima: $(music)."),
@@ -34,9 +50,16 @@ SYSTEM = {
 MINIGAME_COMMAND_KEYS = {
     "bets": ("duel", "bet_accept", "bet_decline"),
     "slots": ("slots",),
-    "coinflip": ("coinflip",),
-    "polls": ("poll",),
-    "giveaways": ("giveaway",),
+    "coinflip": ("coinflip", "coinflip_coroa"),
+    "polls": ("poll", "vote"),
+    "quiz": ("quiz", "quiz_answer"),
+    "race": ("race",),
+    "target": ("target",),
+    "secret": ("secret",),
+    "survival": ("survival",),
+    "steal": ("steal",),
+    "vault": ("vault",),
+    "jackpot": ("jackpot",),
 }
 
 def get_minigame_command_keys(game):
@@ -169,7 +192,7 @@ def ensure_command_defaults(bid):
                 UPDATE command_configs
                    SET category='minigames', updated_at=NOW()
                  WHERE broadcaster_user_id=%s
-                   AND command_key IN ('duel','bet_accept','bet_decline','slots')
+                   AND command_key IN ('duel','bet_accept','bet_decline','slots','coinflip','coinflip_coroa','poll','vote','quiz','quiz_answer','race','target','secret','survival','steal','vault','jackpot')
                 """,
                 (bid,),
             )

@@ -3,6 +3,8 @@ from core.database import init_db, get_conn
 from core.auth import get_session_broadcaster_id, require_session_broadcaster
 from routes.economy import economy_bp
 from routes.minigames import minigames_bp
+from routes.automations import automations_bp
+from core.automations import start_worker
 from routes.ranking import ranking_bp
 from routes.duel import duel_bp
 from routes.commands import commands_bp
@@ -22,11 +24,12 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.29"
+SN7_VERSION = "1.9.30"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
 app.register_blueprint(minigames_bp, url_prefix="/api/minigames")
+app.register_blueprint(automations_bp, url_prefix="/api/automations")
 app.register_blueprint(ranking_bp, url_prefix="/api/ranking")
 app.register_blueprint(duel_bp, url_prefix="/api/duel")
 app.register_blueprint(commands_bp, url_prefix="/api/commands")
@@ -57,7 +60,7 @@ def response_headers(response):
 
 @app.before_request
 def enforce_session_channel():
-    match = re.match(r"^/api/(economy|ranking|duel|commands|settings|music|minigames|obs)/(\d+)(?:/|$)", request.path)
+    match = re.match(r"^/api/(economy|ranking|duel|commands|settings|music|minigames|automations|obs)/(\d+)(?:/|$)", request.path)
     if not match:
         return None
     try:
@@ -248,10 +251,17 @@ def api():
             "obs",
             "kick",
             "twitch",
-            "youtube"
+            "youtube",
+            "minigames",
+            "automations"
         ]
     })
 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "10000")))
+
+try:
+    start_worker()
+except Exception as exc:
+    print(f"[AUTOMATION] worker startup failed: {exc}", flush=True)

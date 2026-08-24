@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.29">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.30">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -122,6 +122,9 @@ body.sn7-modal-open{overflow:hidden}
 }
 </style>
 
+<style id="sn7-1-9-30-style">
+.sn7-automation-panel{max-width:980px}.sn7-automation-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}.sn7-automation-head h2{margin:0 0 5px;font-size:22px}.sn7-automation-list{display:grid;gap:10px}.sn7-automation-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:15px;border:1px solid var(--border);border-radius:15px;background:#0f131a}.sn7-automation-row strong{display:block}.sn7-automation-row small{display:block;color:var(--muted);margin-top:4px;line-height:1.4}.sn7-automation-actions{display:flex;gap:7px;align-items:center}.sn7-automation-actions button{border:1px solid var(--border);background:#151a22;color:#cbd2de;border-radius:9px;padding:8px 10px;cursor:pointer}.sn7-automation-actions button:hover{color:#fff;background:#1b202a}.sn7-automation-badge{font-size:9px;font-weight:800;padding:5px 7px;border-radius:999px;border:1px solid #2c6548;color:#55d98b;background:#102219}.sn7-automation-badge.off{color:#8f98a8;border-color:var(--border);background:transparent}@media(max-width:700px){.sn7-automation-head{flex-direction:column}.sn7-automation-head .btn{width:100%}.sn7-automation-row{grid-template-columns:1fr}.sn7-automation-actions{justify-content:space-between}.sn7-automation-actions button{flex:1}}
+</style>
 </head>
 <body>
 <div id="sn7BootLoader" class="sn7-boot-loader" aria-hidden="true"><span class="sn7-loader-spinner"></span></div>
@@ -164,6 +167,10 @@ body.sn7-modal-open{overflow:hidden}
         </span>
         <span class="sn7-nav-label" data-short="Mini Games">Mini Games</span>
       </button>
+      <button type="button" data-tab="automations" aria-label="Automação">
+        <span class="sn7-nav-icon" aria-hidden="true">🤖</span>
+        <span class="sn7-nav-label" data-short="Automação">Automação</span>
+      </button>
       <button type="button" data-tab="commands" aria-label="Comandos">
         <span class="sn7-nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" focusable="false"><path d="m8 8 4 4-4 4M13 16h4"/><rect x="3.5" y="4" width="17" height="16" rx="3"/></svg>
@@ -177,7 +184,7 @@ body.sn7-modal-open{overflow:hidden}
         <span class="sn7-nav-label" data-short="Perfil">Perfil</span>
       </button>
     </nav>
-    <div class="sidebar-footer">SN7 CORE <span>v1.9.29</span></div>
+    <div class="sidebar-footer">SN7 CORE <span>v1.9.30</span></div>
   </aside>
 
   <main>
@@ -340,38 +347,24 @@ body.sn7-modal-open{overflow:hidden}
           <div>
             <span class="sn7-section-kicker">INTERAÇÃO</span>
             <h2>Mini Games</h2>
-            <p>Cara ou coroa, apostas, slots, sorteios, enquetes e outras brincadeiras da live.</p>
+            <p>Jogos rápidos, desafios e interações da live. Cada Mini Game pode ser ligado ou desligado separadamente.</p>
           </div>
           <button type="button" class="btn sn7-minigames-config" onclick="openMiniGamesConfig()">⚙ Configurar</button>
         </div>
         <div class="sn7-minigames-grid">
-          <article class="sn7-minigame-card sn7-minigame-active" data-minigame-card="bets">
-            <span class="sn7-minigame-icon">🎲</span>
-            <div><strong>Apostas</strong><small>Dispute pontos com outro espectador.</small><code>!aposta @usuário quantidade</code></div>
-            <button id="sn7BetsStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" aria-pressed="false" onclick="toggleMiniGame('bets')">CARREGANDO</button>
-          </article>
-          <article class="sn7-minigame-card sn7-minigame-active" data-minigame-card="slots">
-            <span class="sn7-minigame-icon">🎰</span>
-            <div><strong>Slots</strong><small>Cassino da live com prêmio proporcional à aposta.</small><code>!slots quantidade</code></div>
-            <button id="sn7SlotsStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" aria-pressed="false" onclick="toggleMiniGame('slots')">CARREGANDO</button>
-          </article>
-          <article class="sn7-minigame-card">
-            <span class="sn7-minigame-icon">🪙</span>
-            <div><strong>Cara ou coroa</strong><small>Jogo rápido de sorte.</small></div>
-            <span class="sn7-minigame-status">EM BREVE</span>
-          </article>
-          <article class="sn7-minigame-card">
-            <span class="sn7-minigame-icon">🎁</span>
-            <div><strong>Sorteios</strong><small>Premiações para quem estiver na live.</small></div>
-            <span class="sn7-minigame-status">EM BREVE</span>
-          </article>
-          <article class="sn7-minigame-card">
-            <span class="sn7-minigame-icon">📊</span>
-            <div><strong>Enquetes</strong><small>Votações rápidas para a comunidade.</small></div>
-            <span class="sn7-minigame-status">EM BREVE</span>
-          </article>
+          <article class="sn7-minigame-card" data-minigame-card="bets"><span class="sn7-minigame-icon">🎲</span><div><strong>Apostas</strong><small>Dispute pontos com outro espectador.</small><code>!aposta @usuário quantidade</code></div><button id="sn7BetsStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('bets')">CARREGANDO</button></article>
+          <article class="sn7-minigame-card" data-minigame-card="slots"><span class="sn7-minigame-icon">🎰</span><div><strong>Slots</strong><small>Cassino da live com prêmio proporcional à aposta.</small><code>!slots quantidade</code></div><button id="sn7SlotsStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('slots')">CARREGANDO</button></article>
+          <article class="sn7-minigame-card" data-minigame-card="coinflip"><span class="sn7-minigame-icon">🪙</span><div><strong>Cara ou Coroa</strong><small>Aposte pontos e tente acertar o resultado.</small><code>!cara 20 · !coroa 20</code></div><button id="sn7CoinflipStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('coinflip')">CARREGANDO</button></article>
+          <article class="sn7-minigame-card" data-minigame-card="polls"><span class="sn7-minigame-icon">📊</span><div><strong>Enquetes</strong><small>Crie votações rápidas para a comunidade.</small><code>!enquete · !votar</code></div><button id="sn7PollsStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('polls')">CARREGANDO</button></article>
+          <article class="sn7-minigame-card" data-minigame-card="quiz"><span class="sn7-minigame-icon">🧠</span><div><strong>Quiz</strong><small>Perguntas rápidas com prêmio.</small><code>!quiz · !resposta</code></div><button id="sn7QuizStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('quiz')">CARREGANDO</button></article>
+          <article class="sn7-minigame-card" data-minigame-card="race"><span class="sn7-minigame-icon">🏃</span><div><strong>Corrida</strong><small>Entre e dispute uma corrida de pontos.</small><code>!corrida</code></div><button id="sn7RaceStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('race')">CARREGANDO</button></article>
+          <article class="sn7-minigame-card" data-minigame-card="target"><span class="sn7-minigame-icon">🎯</span><div><strong>Alvo</strong><small>Acerte um número de 1 a 100.</small><code>!alvo 50</code></div><button id="sn7TargetStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('target')">CARREGANDO</button></article>
+          <article class="sn7-minigame-card" data-minigame-card="secret"><span class="sn7-minigame-icon">🔢</span><div><strong>Número Secreto</strong><small>Descubra o número antes dos outros.</small><code>!numero 25</code></div><button id="sn7SecretStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('secret')">CARREGANDO</button></article>
+          <article class="sn7-minigame-card" data-minigame-card="survival"><span class="sn7-minigame-icon">🧟</span><div><strong>Sobrevivência</strong><small>Entre na rodada e tente sobreviver.</small><code>!sobreviver</code></div><button id="sn7SurvivalStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('survival')">CARREGANDO</button></article>
+          <article class="sn7-minigame-card" data-minigame-card="steal"><span class="sn7-minigame-icon">💰</span><div><strong>Roubo</strong><small>Pequena chance de roubar pontos.</small><code>!roubar @usuário</code></div><button id="sn7StealStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('steal')">CARREGANDO</button></article>
+          <article class="sn7-minigame-card" data-minigame-card="vault"><span class="sn7-minigame-icon">🔐</span><div><strong>Cofre</strong><small>Tente descobrir a combinação.</small><code>!cofre 7</code></div><button id="sn7VaultStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('vault')">CARREGANDO</button></article>
+          <article class="sn7-minigame-card" data-minigame-card="jackpot"><span class="sn7-minigame-icon">👑</span><div><strong>Jackpot da Live</strong><small>Tente ganhar parte do banco acumulado.</small><code>!jackpot</code></div><button id="sn7JackpotStatus" class="sn7-minigame-status sn7-minigame-status-button" type="button" onclick="toggleMiniGame('jackpot')">CARREGANDO</button></article>
         </div>
-      </div>
       <div id="sn7MiniGamesEditor" class="sn7-config-modal" hidden>
         <div class="sn7-config-modal-card sn7-minigames-config-card">
           <button type="button" class="sn7-config-close" aria-label="Fechar">×</button>
@@ -425,6 +418,14 @@ body.sn7-modal-open{overflow:hidden}
       .sn7-minigame-note{margin-top:13px;padding:11px 12px;border:1px solid var(--border);border-radius:11px;background:#0c1016;color:var(--muted);font-size:11px;line-height:1.5}
       @media(max-width:700px){.sn7-minigames-head{flex-direction:column}.sn7-minigames-config{width:100%}.sn7-minigames-grid{grid-template-columns:1fr}.sn7-minigame-card{grid-template-columns:auto minmax(0,1fr);}.sn7-minigame-status{grid-column:2;justify-self:start}}
     </style>
+    <section id="automations" class="tab">
+      <div class="panel sn7-automation-panel">
+        <div class="sn7-automation-head"><div><span class="sn7-section-kicker">AUTOMAÇÃO</span><h2>Mensagens automáticas</h2><p>Crie mensagens periódicas para manter a live ativa sem precisar enviar manualmente.</p></div><button type="button" class="btn" onclick="openAutomationEditor()">＋ Nova automação</button></div>
+        <div id="sn7AutomationList" class="sn7-automation-list"><div class="sn7-empty">Carregando automações...</div></div>
+      </div>
+      <div id="sn7AutomationEditor" class="sn7-config-modal" hidden><div class="sn7-config-modal-card"><button type="button" class="sn7-config-close" onclick="closeAutomationEditor()">×</button><h3 id="automationEditorTitle">Nova automação</h3><p>Você pode usar a mesma mensagem em Kick, Twitch ou YouTube. O SN7 não altera nenhuma configuração de OAuth.</p><input type="hidden" id="automation_id"><label>Nome<input id="automation_name" maxlength="80" placeholder="Lembrete de comandos"></label><label>Mensagem<textarea id="automation_message" maxlength="500" placeholder="🎮 Use !comandos para ver tudo que o bot faz!"></textarea></label><div class="form-grid"><label>Plataforma<select id="automation_platform"><option value="kick">Kick</option><option value="twitch">Twitch</option><option value="youtube">YouTube</option></select></label><label>Intervalo<select id="automation_interval"><option value="60">1 minuto</option><option value="300">5 minutos</option><option value="900">15 minutos</option><option value="1800" selected>30 minutos</option><option value="3600">1 hora</option><option value="7200">2 horas</option></select></label></div><label class="sn7-mini-switch"><input id="automation_live_only" type="checkbox" checked><span>Enviar somente quando a live estiver ativa</span></label><label class="sn7-mini-switch"><input id="automation_enabled" type="checkbox" checked><span>Automação ativa</span></label><div class="save-row"><p id="automationMsg"></p><button type="button" class="sn7-danger" id="automationDelete" onclick="deleteAutomation()" hidden>Excluir</button><button type="button" class="btn" onclick="saveAutomation()">Salvar alterações</button></div></div></div>
+    </section>
+
     <section id="commands" class="tab"></section>
 
     <section id="profile" class="tab">

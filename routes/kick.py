@@ -1077,6 +1077,8 @@ def _process_chat(payload, send_chat=None):
 
         # Mini Games têm um interruptor global. Isso evita que um comando
         # seja reativado isoladamente enquanto o recurso inteiro está desligado.
+        key = cfg["command_key"]
+
         if cfg["category"] == "minigames":
             try:
                 from core.minigames import get_settings
@@ -1091,7 +1093,6 @@ def _process_chat(payload, send_chat=None):
                 return
 
         ch = get_channel(bid)
-        key = cfg["command_key"]
 
         # Expiração de apostas só é necessária quando uma ação de aposta
         # acontece. Nunca bloqueie comandos comuns como !pontos com uma
@@ -1191,6 +1192,82 @@ def _process_chat(payload, send_chat=None):
                 clear_queue(bid)
                 send_chat(bid, cfg["response"] or "🧹 Fila de músicas limpa.")
                 return
+
+        if key in {"coinflip", "coinflip_coroa"}:
+            from core.minigames import play_coinflip, start_poll, vote_poll, close_poll, race_join, race_finish, target_guess, secret_guess, survival_join, survival_finish, steal_points, vault_play, jackpot_play, _runtime_get, _runtime_set, _adjust_points
+            choice = "cara" if key == "coinflip" else "coroa"
+            if key == "coinflip":
+                if len(args) >= 2 and args[0].lower() in {"cara","coroa"}: choice=args[0].lower(); amount=args[1]
+                elif args: amount=args[0]
+                else:
+                    send_chat(bid, f"🪙 Use {cfg['command']} quantidade. Ex.: {cfg['command']} 20"); return
+            else:
+                amount=args[0] if args else None
+                if not amount: send_chat(bid, f"🪙 Use {cfg['command']} quantidade. Ex.: {cfg['command']} 20"); return
+            try: amount=int(str(amount).replace('.','').replace(',',''))
+            except ValueError: send_chat(bid, "🪙 Valor inválido."); return
+            result=play_coinflip(bid,user,choice,amount,platform,uid)
+            if not result.get("ok"): send_chat(bid,result["error"]); return
+            icon="🪙" if result["result"]=="cara" else "👑"
+            text=f"{icon} Saiu {result['result']}! " + (f"🎉 Você venceu +{result['payout']} {currency}." if result['payout'] else f"💥 Você perdeu {result['amount']} {currency}.") + f" Saldo: {result['points']} {currency}."
+            send_chat(bid,_render_response(cfg["response"],{"user":_mention(user),"choice":choice,"coinflip_result":text,"new_points":result["points"],"currency":currency})); return
+
+        if key == "poll":
+            raw=" ".join(args); parts=[x.strip() for x in raw.split("|")]
+            result=start_poll(bid,user,parts[0] if parts else "",parts[1:] if len(parts)>1 else [],platform)
+            send_chat(bid, result.get("error") or f"📊 Enquete aberta: {result['state']['question']} — " + " | ".join(f"{i+1}) {o}" for i,o in enumerate(result['state']['options']))); return
+        if key == "vote":
+            result=vote_poll(bid,user," ".join(args),platform); send_chat(bid,result.get("error") or f"📊 {_mention(user)} votou em {result['option']}."); return
+        if key == "poll_close":
+            result=close_poll(bid,platform)
+            if not result.get("ok"): send_chat(bid,result["error"]); return
+            st=result["state"]; counts=result["counts"]; send_chat(bid,"📊 Resultado: " + " | ".join(f"{o}: {counts[i]}" for i,o in enumerate(st["options"]))); return
+
+        if key in {"quiz","quiz_answer"}:
+            questions=[("Qual é o maior planeta do Sistema Solar?", "jupiter"),("Quantos lados tem um hexágono?", "6"),("Qual é a capital do Brasil?", "brasilia")]
+            state=_runtime_get(bid,platform,"quiz",{})
+            if key=="quiz":
+                q,a=random.choice(questions); state={"open":True,"question":q,"answer":a}; _runtime_set(bid,platform,"quiz",state); send_chat(bid,f"🧠 QUIZ: {q} Use {find_command(bid,'!resposta')['command'] if find_command(bid,'!resposta') else '!resposta'} sua resposta!"); return
+            if not state.get("open"): send_chat(bid,"🧠 Não há quiz aberto."); return
+            answer=" ".join(args).strip().lower().replace("á","a").replace("ã","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u").replace(" ","")
+            if answer==state.get("answer"):
+                _adjust_points(bid,user,300,platform,uid); state["open"]=False; _runtime_set(bid,platform,"quiz",state); send_chat(bid,f"🧠 🎉 {_mention(user)} acertou e ganhou 300 {currency}!");
+            else: send_chat(bid,f"🧠 {_mention(user)} errou. Tente novamente!")
+            return
+
+        if key == "race":
+            result=race_join(bid,user,platform); send_chat(bid,result.get("error") or f"🏃 {_mention(user)} entrou na corrida! {len(result['state']['players'])} participantes."); return
+        if key == "race_finish":
+            result=race_finish(bid,platform)
+            if not result.get("ok"): send_chat(bid,result["error"]); return
+            send_chat(bid,"🏁 " + " | ".join(f"{i+1}º {_mention(u)} +{prize} {currency}" for i,(u,prize) in enumerate(result["winners"]))); return
+        if key == "target":
+            result=target_guess(bid,user,args[0] if args else "",platform)
+            if not result.get("ok"): send_chat(bid,result["error"]); return
+            send_chat(bid, f"🎯 🎉 {_mention(user)} acertou o alvo e ganhou 300 {currency}!" if result.get("win") else f"🎯 {_mention(user)} ficou a {result['distance']} do alvo."); return
+        if key == "secret":
+            result=secret_guess(bid,user,args[0] if args else "",platform)
+            if not result.get("ok"): send_chat(bid,result["error"]); return
+            send_chat(bid, f"🔢 🎉 {_mention(user)} descobriu o número e ganhou 500 {currency}!" if result.get("win") else f"🔢 Tente um número {result['hint']}."); return
+        if key == "survival":
+            result=survival_join(bid,user,platform); send_chat(bid,result.get("error") or f"🧟 {_mention(user)} entrou na sobrevivência! {len(result['state']['players'])} participantes."); return
+        if key == "survival_finish":
+            result=survival_finish(bid,platform)
+            if not result.get("ok"): send_chat(bid,result["error"]); return
+            send_chat(bid,"🧟 Sobreviveram: " + ", ".join(f"{_mention(u)} +{prize} {currency}" for u,prize in result["winners"])); return
+        if key == "steal":
+            target=args[0].lstrip("@") if args else ""
+            result=steal_points(bid,user,target,platform,uid)
+            if not result.get("ok"): send_chat(bid,result["error"]); return
+            send_chat(bid, f"💰 {_mention(user)} roubou {result['amount']} {currency}! Saldo: {result['points']} {currency}." if result.get("win") else f"💨 {_mention(user)} tentou roubar, mas falhou!"); return
+        if key == "vault":
+            result=vault_play(bid,user,args[0] if args else "",platform)
+            if not result.get("ok"): send_chat(bid,result["error"]); return
+            send_chat(bid, f"🔐 🎉 {_mention(user)} abriu o cofre e ganhou 400 {currency}!" if result.get("win") else f"🔐 O cofre não abriu. Tente novamente!"); return
+        if key == "jackpot":
+            result=jackpot_play(bid,user,platform,uid)
+            if not result.get("ok"): send_chat(bid,result["error"]); return
+            send_chat(bid, f"👑 🎉 {_mention(user)} ganhou {result['prize']} {currency} do Jackpot! Saldo: {result['points']} {currency}." if result.get("win") else f"👑 O Jackpot não saiu desta vez!"); return
 
         if key == "slots":
             if not args:
@@ -1539,7 +1616,7 @@ def _process_chat(payload, send_chat=None):
             return
 
         ismod = _is_moderator(sender, bid)
-        if key in {"addcmd", "addpoint", "settpoint", "delcmd"} and not ismod:
+        if key in {"addcmd", "addpoint", "settpoint", "delcmd", "poll_close", "race_finish", "survival_finish"} and not ismod:
             send_chat(bid, "⛔ Apenas streamer/mod pode usar este comando.")
             return
 

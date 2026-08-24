@@ -116,9 +116,8 @@ function activateTab(tab, options = {}) {
     if (button.dataset.tab === "music" && typeof window.loadMusic === "function") {
       window.loadMusic().catch(() => {});
     }
-    if (button.dataset.tab === "minigames" && typeof window.loadMiniGames === "function") {
-      window.loadMiniGames().catch(() => {});
-    }
+    if (button.dataset.tab === "minigames" && typeof window.loadMiniGames === "function") { window.loadMiniGames().catch(() => {}); }
+    if (button.dataset.tab === "automations" && typeof window.loadAutomations === "function") { window.loadAutomations().catch(() => {}); }
   }
 
   const title = $("title");
@@ -312,118 +311,55 @@ async function loadMiniGames(platform = sn7MiniGamesPlatform) {
 function updateMiniGamesStatus(settings = {}, commandStatus = {}) {
   const globalEnabled = settings.enabled !== false;
   const games = {
-    bets: { statusId: "sn7BetsStatus", label: "Apostas", commandKey: "bets" },
-    slots: { statusId: "sn7SlotsStatus", label: "Slots", commandKey: "slots" },
+    bets:{statusId:"sn7BetsStatus",label:"Apostas",commandKey:"bets"}, slots:{statusId:"sn7SlotsStatus",label:"Slots",commandKey:"slots"},
+    coinflip:{statusId:"sn7CoinflipStatus",label:"Cara ou Coroa",commandKey:"coinflip"}, polls:{statusId:"sn7PollsStatus",label:"Enquetes",commandKey:"polls"},
+    quiz:{statusId:"sn7QuizStatus",label:"Quiz",commandKey:"quiz"}, race:{statusId:"sn7RaceStatus",label:"Corrida",commandKey:"race"},
+    target:{statusId:"sn7TargetStatus",label:"Alvo",commandKey:"target"}, secret:{statusId:"sn7SecretStatus",label:"Número Secreto",commandKey:"secret"},
+    survival:{statusId:"sn7SurvivalStatus",label:"Sobrevivência",commandKey:"survival"}, steal:{statusId:"sn7StealStatus",label:"Roubo",commandKey:"steal"},
+    vault:{statusId:"sn7VaultStatus",label:"Cofre",commandKey:"vault"}, jackpot:{statusId:"sn7JackpotStatus",label:"Jackpot",commandKey:"jackpot"}
   };
-
-  Object.values(games).forEach((game) => {
-    const status = $(game.statusId);
-    if (!status) return;
-    const gameEnabled = settings[`${game.commandKey}_enabled`] !== false;
-    const active = globalEnabled && gameEnabled && commandStatus[game.commandKey] !== false;
-    status.textContent = active ? "ATIVO" : "DESATIVADO";
-    status.classList.toggle("sn7-minigame-status-off", !active);
-    status.classList.toggle("sn7-minigame-status-on", active);
-    status.closest("[data-minigame-card]")?.classList.toggle("sn7-minigame-active", active);
-    status.setAttribute("aria-pressed", active ? "true" : "false");
-    status.title = active
-      ? `Desativar ${game.label}`
-      : `Ativar ${game.label}`;
+  Object.values(games).forEach(game=>{
+    const status=$(game.statusId); if(!status) return;
+    const active=globalEnabled && settings[`${game.commandKey}_enabled`] !== false && commandStatus[game.commandKey] !== false;
+    status.textContent=active?"ATIVO":"DESATIVADO"; status.disabled=false; status.classList.toggle("sn7-minigame-status-off",!active); status.classList.toggle("sn7-minigame-status-on",active);
+    status.closest("[data-minigame-card]")?.classList.toggle("sn7-minigame-active",active); status.setAttribute("aria-pressed",active?"true":"false"); status.title=active?`Desativar ${game.label}`:`Ativar ${game.label}`;
   });
 }
 
 async function toggleMiniGame(game) {
-  const platform = sn7MiniGamesPlatform;
-  const settings = sn7MiniGamesSettings[platform] || {};
-  const commandStatus = sn7MiniGamesCommandStatus[platform] || {};
-  const active = settings.enabled !== false
-    && settings[`${game}_enabled`] !== false
-    && commandStatus[game] !== false;
-  const next = !active;
-  const label = game === "slots" ? "Slots" : "Apostas";
-  const status = $(game === "slots" ? "sn7SlotsStatus" : "sn7BetsStatus");
-  if (status) {
-    status.disabled = true;
-    status.textContent = "SALVANDO";
-  }
-  try {
-    const data = await apiJson(`/api/minigames/${BROADCASTER_ID}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform, game, game_enabled: next }),
-    });
-    sn7MiniGamesSettings[platform] = data.settings || {};
-    sn7MiniGamesCommandStatus[platform] = data.command_status || {};
-    updateMiniGamesStatus(sn7MiniGamesSettings[platform], sn7MiniGamesCommandStatus[platform]);
-    await loadCommands(true).catch(() => {});
-    if ($("minigamesMsg")) $("minigamesMsg").textContent = `${label} ${next ? "ativado" : "desativado"} com sucesso.`;
-  } catch (error) {
-    updateMiniGamesStatus(settings, commandStatus);
-    if ($("minigamesMsg")) $("minigamesMsg").textContent = `⚠ ${error.message}`;
-  } finally {
-    if (status) status.disabled = false;
-  }
+  const platform=sn7MiniGamesPlatform, settings=sn7MiniGamesSettings[platform]||{}, commandStatus=sn7MiniGamesCommandStatus[platform]||{};
+  const active=settings.enabled!==false && settings[`${game}_enabled`]!==false && commandStatus[game]!==false; const next=!active;
+  const map={bets:"sn7BetsStatus",slots:"sn7SlotsStatus",coinflip:"sn7CoinflipStatus",polls:"sn7PollsStatus",quiz:"sn7QuizStatus",race:"sn7RaceStatus",target:"sn7TargetStatus",secret:"sn7SecretStatus",survival:"sn7SurvivalStatus",steal:"sn7StealStatus",vault:"sn7VaultStatus",jackpot:"sn7JackpotStatus"};
+  const status=$(map[game]); if(status){status.disabled=true;status.textContent="SALVANDO";}
+  try{
+    const data=await apiJson(`/api/minigames/${BROADCASTER_ID}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({platform,game,game_enabled:next})});
+    sn7MiniGamesSettings[platform]=data.settings||{}; sn7MiniGamesCommandStatus[platform]=data.command_status||{}; updateMiniGamesStatus(sn7MiniGamesSettings[platform],sn7MiniGamesCommandStatus[platform]); await loadCommands(true).catch(()=>{});
+  }catch(error){updateMiniGamesStatus(settings,commandStatus); if($("minigamesMsg")) $("minigamesMsg").textContent=`⚠ ${error.message}`;}finally{if(status)status.disabled=false;}
 }
 
 function fillMiniGamesForm(settings = {}) {
-  const keys = ["slot_bankroll", "slot_bankroll_max", "slot_hourly_refill", "slot_min_bet", "slot_max_bet", "slot_cooldown_seconds"];
-  keys.forEach((key) => { if ($(key)) $(key).value = settings[key] ?? ""; });
-  if ($("minigames_enabled")) $("minigames_enabled").checked = settings.enabled !== false;
+  ["slot_bankroll","slot_bankroll_max","slot_hourly_refill","slot_min_bet","slot_max_bet","slot_cooldown_seconds"].forEach(key=>{if($(key))$(key).value=settings[key]??"";});
+  if($("minigames_enabled"))$("minigames_enabled").checked=settings.enabled!==false;
 }
 
-function openMiniGamesConfig() {
-  const modal = $("sn7MiniGamesEditor");
-  if (!modal) return;
-  modal.hidden = false;
-  modal.classList.add("open");
-  document.querySelectorAll("[data-mini-platform]").forEach((button) => {
-    button.onclick = () => {
-      document.querySelectorAll("[data-mini-platform]").forEach((x) => x.classList.remove("active"));
-      button.classList.add("active");
-      sn7MiniGamesPlatform = button.dataset.miniPlatform;
-      const cached = sn7MiniGamesSettings[sn7MiniGamesPlatform];
-      if (cached) fillMiniGamesForm(cached);
-      else loadMiniGames(sn7MiniGamesPlatform).catch(() => {});
-    };
-  });
-  loadMiniGames(sn7MiniGamesPlatform).catch((error) => {
-    if ($("minigamesMsg")) setSaveMessage("minigamesMsg", `⚠ ${error.message}`, false);
-  });
+function openMiniGamesConfig(){const modal=$("sn7MiniGamesEditor");if(!modal)return;modal.hidden=false;modal.classList.add("open");document.querySelectorAll("[data-mini-platform]").forEach(button=>{button.onclick=()=>{document.querySelectorAll("[data-mini-platform]").forEach(x=>x.classList.remove("active"));button.classList.add("active");sn7MiniGamesPlatform=button.dataset.miniPlatform;const cached=sn7MiniGamesSettings[sn7MiniGamesPlatform];if(cached)fillMiniGamesForm(cached);else loadMiniGames(sn7MiniGamesPlatform).catch(()=>{});};});loadMiniGames(sn7MiniGamesPlatform).catch(()=>{});}
+
+async function saveMiniGamesConfig(){
+  const payload={platform:sn7MiniGamesPlatform,enabled:Boolean($("minigames_enabled")?.checked),slot_bankroll:$("slot_bankroll")?.value,slot_bankroll_max:$("slot_bankroll_max")?.value,slot_hourly_refill:$("slot_hourly_refill")?.value,slot_min_bet:$("slot_min_bet")?.value,slot_max_bet:$("slot_max_bet")?.value,slot_cooldown_seconds:$("slot_cooldown_seconds")?.value};
+  const button=document.querySelector("#sn7MiniGamesEditor .save-row .btn");if(button)button.disabled=true;sn7ShowOperationLoader();
+  try{const data=await apiJson(`/api/minigames/${BROADCASTER_ID}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});sn7MiniGamesSettings[sn7MiniGamesPlatform]=data.settings||{};sn7MiniGamesCommandStatus[sn7MiniGamesPlatform]=data.command_status||{};fillMiniGamesForm(data.settings||{});updateMiniGamesStatus(data.settings||{},data.command_status||{});await loadCommands(true).catch(()=>{});setSaveMessage("minigamesMsg","✓ Configuração salva.",true);}catch(error){setSaveMessage("minigamesMsg",`⚠ ${error.message}`,false);}finally{if(button)button.disabled=false;sn7HideOperationLoader();}
 }
 
-async function saveMiniGamesConfig() {
-  const payload = {
-    platform: sn7MiniGamesPlatform,
-    enabled: Boolean($("minigames_enabled")?.checked),
-    slot_bankroll: $("slot_bankroll")?.value,
-    slot_bankroll_max: $("slot_bankroll_max")?.value,
-    slot_hourly_refill: $("slot_hourly_refill")?.value,
-    slot_min_bet: $("slot_min_bet")?.value,
-    slot_max_bet: $("slot_max_bet")?.value,
-    slot_cooldown_seconds: $("slot_cooldown_seconds")?.value,
-  };
-  const button = document.querySelector("#sn7MiniGamesEditor .save-row .btn");
-  if (button) button.disabled = true;
-  sn7ShowOperationLoader();
-  try {
-    const data = await apiJson(`/api/minigames/${BROADCASTER_ID}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    sn7MiniGamesSettings[sn7MiniGamesPlatform] = data.settings || {};
-    sn7MiniGamesCommandStatus[sn7MiniGamesPlatform] = data.command_status || {};
-    fillMiniGamesForm(data.settings || {});
-    updateMiniGamesStatus(data.settings || {}, data.command_status || {});
-    await loadCommands(true).catch(() => {});
-    setSaveMessage("minigamesMsg", "✓ Configuração salva.", true);
-  } catch (error) {
-    setSaveMessage("minigamesMsg", `⚠ ${error.message}`, false);
-  } finally {
-    if (button) button.disabled = false;
-    sn7HideOperationLoader();
-  }
-}
+let automationCache=[];
+async function loadAutomations(){const list=$("sn7AutomationList");if(list)list.innerHTML='<div class="sn7-empty">Carregando automações...</div>';try{const data=await apiJson(`/api/automations/${BROADCASTER_ID}`);automationCache=data.automations||[];renderAutomations();return automationCache;}catch(e){if(list)list.innerHTML=`<div class="sn7-empty">⚠ ${esc(e.message)}</div>`;throw e;}}
+function renderAutomations(){const list=$("sn7AutomationList");if(!list)return;if(!automationCache.length){list.innerHTML='<div class="sn7-empty">Nenhuma automação criada ainda.</div>';return;}list.innerHTML=automationCache.map(a=>`<div class="sn7-automation-row"><div><strong>${esc(a.name)} <span class="sn7-automation-badge ${a.enabled?'':'off'}">${a.enabled?'ATIVA':'DESATIVADA'}</span></strong><small>${esc(a.message)}<br>📡 ${esc(a.platform)} · ⏱ ${Math.round(a.interval_seconds/60)} min · ${a.only_when_live?'somente ao vivo':'independente da live'}</small></div><div class="sn7-automation-actions"><button type="button" onclick="toggleAutomation(${a.id},${!a.enabled})">${a.enabled?'Desativar':'Ativar'}</button><button type="button" onclick="editAutomation(${a.id})">Editar</button></div></div>`).join('');}
+function openAutomationEditor(item=null){const modal=$("sn7AutomationEditor");if(!modal)return;$("automation_id").value=item?.id||"";$("automation_name").value=item?.name||"";$("automation_message").value=item?.message||"";$("automation_platform").value=item?.platform||"kick";$("automation_interval").value=String(item?.interval_seconds||1800);$("automation_live_only").checked=item?item.only_when_live!==false:true;$("automation_enabled").checked=item?item.enabled!==false:true;$("automationEditorTitle").textContent=item?"Editar automação":"Nova automação";$("automationDelete").hidden=!item;modal.hidden=false;modal.classList.add("open");}
+function closeAutomationEditor(){$("sn7AutomationEditor")?.classList.remove("open");if($("sn7AutomationEditor"))$("sn7AutomationEditor").hidden=true;}
+async function saveAutomation(){const id=$("automation_id")?.value;const body={name:$("automation_name")?.value,message:$("automation_message")?.value,platform:$("automation_platform")?.value,interval_seconds:Number($("automation_interval")?.value||1800),only_when_live:Boolean($("automation_live_only")?.checked),enabled:Boolean($("automation_enabled")?.checked)};const button=document.querySelector("#sn7AutomationEditor .save-row .btn");if(button)button.disabled=true;sn7ShowOperationLoader();try{const data=await apiJson(id?`/api/automations/${BROADCASTER_ID}/${id}`:`/api/automations/${BROADCASTER_ID}`,{method:id?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});automationCache=data.automations||[];renderAutomations();closeAutomationEditor();}catch(e){setSaveMessage("automationMsg",`⚠ ${e.message}`,false);}finally{if(button)button.disabled=false;sn7HideOperationLoader();}}
+async function toggleAutomation(id,enabled){try{const a=automationCache.find(x=>x.id===id);if(!a)return;const data=await apiJson(`/api/automations/${BROADCASTER_ID}/${id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({...a,enabled})});automationCache=data.automations||[];renderAutomations();}catch(e){alert(e.message);}}
+function editAutomation(id){const a=automationCache.find(x=>x.id===id);if(a)openAutomationEditor(a);}
+async function deleteAutomation(){const id=$("automation_id")?.value;if(!id)return;try{const data=await apiJson(`/api/automations/${BROADCASTER_ID}/${id}`,{method:"DELETE"});automationCache=data.automations||[];renderAutomations();closeAutomationEditor();}catch(e){alert(e.message);}}
+window.loadAutomations=loadAutomations;
 
 function setSaveMessage(id, text, ok = true) {
   const el = $(id);
@@ -522,18 +458,9 @@ function buildCommandCatalog() {
       ${commandDrawerMarkup("public", "🌐", "Comandos públicos", "Comandos que qualquer espectador pode usar.", "publicCommandsList")}
       ${commandDrawerMarkup("music", "🎵", "Comandos de música", "Fila e controles do player.", "musicCommandsList")}
       <div class="sn7-command-drawer sn7-command-drawer-minigames">
-        <button type="button" class="sn7-command-drawer-toggle" aria-expanded="false" onclick="toggleCommandDrawer('minigames')">
-          <span class="sn7-command-drawer-icon">🎮</span><span><strong>Mini Games</strong><small>Apostas, Slots e próximos jogos.</small></span><b class="sn7-command-drawer-count" id="minigamesCommandCount">0</b><i>⌄</i>
-        </button>
+        <button type="button" class="sn7-command-drawer-toggle" aria-expanded="false" onclick="toggleCommandDrawer('minigames')"><span class="sn7-command-drawer-icon">🎮</span><span><strong>Mini Games</strong><small>Cada jogo possui sua própria gaveta de comandos.</small></span><b class="sn7-command-drawer-count" id="minigamesCommandCount">0</b><i>⌄</i></button>
         <div class="sn7-command-drawer-body" id="minigamesDrawerBody" hidden>
-          <div class="sn7-command-subdrawer">
-            <button type="button" class="sn7-command-subdrawer-toggle" aria-expanded="false" onclick="toggleCommandDrawer('bets')"><span>🎲 Apostas</span><b id="betsCommandCount">0</b><i>⌄</i></button>
-            <div class="sn7-command-subdrawer-body" id="betsDrawerBody" hidden><div id="betsCommandsList"></div></div>
-          </div>
-          <div class="sn7-command-subdrawer">
-            <button type="button" class="sn7-command-subdrawer-toggle" aria-expanded="false" onclick="toggleCommandDrawer('slots')"><span>🎰 Slots</span><b id="slotsCommandCount">0</b><i>⌄</i></button>
-            <div class="sn7-command-subdrawer-body" id="slotsDrawerBody" hidden><div id="slotsCommandsList"></div></div>
-          </div>
+          ${['bets','slots','coinflip','polls','quiz','race','target','secret','survival','steal','vault','jackpot'].map(k=>`<div class="sn7-command-subdrawer"><button type="button" class="sn7-command-subdrawer-toggle" aria-expanded="false" onclick="toggleCommandDrawer('${k}')"><span>${({bets:'🎲 Apostas',slots:'🎰 Slots',coinflip:'🪙 Cara ou Coroa',polls:'📊 Enquetes',quiz:'🧠 Quiz',race:'🏃 Corrida',target:'🎯 Alvo',secret:'🔢 Número Secreto',survival:'🧟 Sobrevivência',steal:'💰 Roubo',vault:'🔐 Cofre',jackpot:'👑 Jackpot'})[k]}</span><b id="${k}CommandCount">0</b><i>⌄</i></button><div class="sn7-command-subdrawer-body" id="${k}DrawerBody" hidden><div id="${k}CommandsList"></div></div></div>`).join('')}
         </div>
       </div>
       ${commandDrawerMarkup("admin", "🛡️", "Comandos ADM", "Ferramentas de administração e economia.", "adminCommandsList")}
@@ -587,12 +514,13 @@ function renderCommands() {
     music: $("musicCommandsList"),
     admin: $("adminCommandsList"),
     custom: $("customCommandsList"),
-    bets: $("betsCommandsList"),
-    slots: $("slotsCommandsList"),
+    bets: $("betsCommandsList"), slots: $("slotsCommandsList"), coinflip: $("coinflipCommandsList"), polls: $("pollsCommandsList"), quiz: $("quizCommandsList"), race: $("raceCommandsList"), target: $("targetCommandsList"), secret: $("secretCommandsList"), survival: $("survivalCommandsList"), steal: $("stealCommandsList"), vault: $("vaultCommandsList"), jackpot: $("jackpotCommandsList"),
   };
   const rowsFor = (group) => {
     if (group === "bets") return commandCache.filter((x) => x.command_key === "duel" || x.command_key === "bet_accept" || x.command_key === "bet_decline");
     if (group === "slots") return commandCache.filter((x) => x.command_key === "slots");
+    const gameKeys={coinflip:["coinflip","coinflip_coroa"],polls:["poll","vote"],quiz:["quiz","quiz_answer"],race:["race"],target:["target"],secret:["secret"],survival:["survival"],steal:["steal"],vault:["vault"],jackpot:["jackpot"]};
+    if(gameKeys[group]) return commandCache.filter(x=>gameKeys[group].includes(x.command_key));
     if (group === "admin") return commandCache.filter((x) => x.category === "admin" || x.category === "mod");
     return commandCache.filter((x) => x.category === group);
   };
@@ -614,14 +542,14 @@ function renderCommands() {
 
   const counts = {
     public: rowsFor("public").length, music: rowsFor("music").length, admin: rowsFor("admin").length,
-    bets: rowsFor("bets").length, slots: rowsFor("slots").length, custom: rowsFor("custom").length,
+    bets: rowsFor("bets").length, slots: rowsFor("slots").length, coinflip: rowsFor("coinflip").length, polls: rowsFor("polls").length, quiz: rowsFor("quiz").length, race: rowsFor("race").length, target: rowsFor("target").length, secret: rowsFor("secret").length, survival: rowsFor("survival").length, steal: rowsFor("steal").length, vault: rowsFor("vault").length, jackpot: rowsFor("jackpot").length, custom: rowsFor("custom").length,
   };
   Object.entries(counts).forEach(([key, count]) => {
     const el = document.getElementById(`${key === "bets" || key === "slots" ? key : key}CommandsCount`);
     if (el) el.textContent = count;
   });
   const miniCount = document.getElementById("minigamesCommandCount");
-  if (miniCount) miniCount.textContent = counts.bets + counts.slots;
+  if (miniCount) miniCount.textContent = Object.keys(counts).filter(k=>!["public","music","admin","custom"].includes(k)).reduce((n,k)=>n+counts[k],0);
   if ($("commandPanelStatus")) $("commandPanelStatus").textContent = `${counts.custom} comando${counts.custom === 1 ? "" : "s"} personalizado${counts.custom === 1 ? "" : "s"}.`;
   syncMiniGamesFromCommandCache();
 }
@@ -630,10 +558,7 @@ function syncMiniGamesFromCommandCache() {
   const platform = sn7MiniGamesPlatform;
   const settings = sn7MiniGamesSettings[platform];
   if (!settings) return;
-  const status = {
-    bets: commandCache.find((x) => x.command_key === "duel")?.enabled === true,
-    slots: commandCache.find((x) => x.command_key === "slots")?.enabled === true,
-  };
+  const status = {bets:commandCache.find(x=>x.command_key==="duel")?.enabled===true,slots:commandCache.find(x=>x.command_key==="slots")?.enabled===true,coinflip:commandCache.find(x=>x.command_key==="coinflip")?.enabled===true,polls:commandCache.find(x=>x.command_key==="poll")?.enabled===true,quiz:commandCache.find(x=>x.command_key==="quiz")?.enabled===true,race:commandCache.find(x=>x.command_key==="race")?.enabled===true,target:commandCache.find(x=>x.command_key==="target")?.enabled===true,secret:commandCache.find(x=>x.command_key==="secret")?.enabled===true,survival:commandCache.find(x=>x.command_key==="survival")?.enabled===true,steal:commandCache.find(x=>x.command_key==="steal")?.enabled===true,vault:commandCache.find(x=>x.command_key==="vault")?.enabled===true,jackpot:commandCache.find(x=>x.command_key==="jackpot")?.enabled===true};
   sn7MiniGamesCommandStatus[platform] = status;
   updateMiniGamesStatus(settings, status);
 }

@@ -17,6 +17,16 @@ DEFAULTS = {
     "slot_min_bet": 10,
     "slot_max_bet": 1000,
     "slot_cooldown_seconds": 5,
+    "coinflip_enabled": True,
+    "polls_enabled": True,
+    "quiz_enabled": True,
+    "race_enabled": True,
+    "target_enabled": True,
+    "secret_enabled": True,
+    "survival_enabled": True,
+    "steal_enabled": True,
+    "vault_enabled": True,
+    "jackpot_enabled": True,
 }
 
 # Slots favor the house. We choose the outcome category first so matching
@@ -115,6 +125,16 @@ def ensure_minigame_table():
                     slot_bankroll_max BIGINT NOT NULL DEFAULT 50000,
                     slot_hourly_refill BIGINT NOT NULL DEFAULT 1000,
                     slot_min_bet BIGINT NOT NULL DEFAULT 10,
+                    coinflip_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    polls_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    quiz_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    race_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    target_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    secret_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    survival_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    steal_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    vault_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    jackpot_enabled BOOLEAN NOT NULL DEFAULT TRUE,
                     slot_max_bet BIGINT NOT NULL DEFAULT 1000,
                     slot_cooldown_seconds INTEGER NOT NULL DEFAULT 5,
                     last_slot_refill_at TIMESTAMPTZ,
@@ -125,6 +145,8 @@ def ensure_minigame_table():
             )
             cur.execute("ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS bets_enabled BOOLEAN NOT NULL DEFAULT TRUE")
             cur.execute("ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS slots_enabled BOOLEAN NOT NULL DEFAULT TRUE")
+            for col in ("coinflip_enabled","polls_enabled","quiz_enabled","race_enabled","target_enabled","secret_enabled","survival_enabled","steal_enabled","vault_enabled","jackpot_enabled"):
+                cur.execute(f"ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS {col} BOOLEAN NOT NULL DEFAULT TRUE")
             cur.execute(
                 "CREATE INDEX IF NOT EXISTS idx_minigame_settings_channel ON minigame_settings(broadcaster_user_id, platform)"
             )
@@ -151,6 +173,8 @@ def get_settings(bid, platform="kick"):
                 """
                 SELECT enabled, bets_enabled, slots_enabled, slot_bankroll, slot_bankroll_max, slot_hourly_refill,
                        slot_min_bet, slot_max_bet, slot_cooldown_seconds,
+                       coinflip_enabled, polls_enabled, quiz_enabled, race_enabled, target_enabled, secret_enabled,
+                       survival_enabled, steal_enabled, vault_enabled, jackpot_enabled,
                        last_slot_refill_at
                   FROM minigame_settings
                  WHERE broadcaster_user_id=%s AND platform=%s
@@ -173,8 +197,11 @@ def get_settings(bid, platform="kick"):
         "slot_min_bet": row[6],
         "slot_max_bet": row[7],
         "slot_cooldown_seconds": row[8],
+        "coinflip_enabled": row[9], "polls_enabled": row[10], "quiz_enabled": row[11], "race_enabled": row[12],
+        "target_enabled": row[13], "secret_enabled": row[14], "survival_enabled": row[15], "steal_enabled": row[16],
+        "vault_enabled": row[17], "jackpot_enabled": row[18],
     })
-    value["last_slot_refill_at"] = row[9].isoformat() if row[9] else None
+    value["last_slot_refill_at"] = row[19].isoformat() if row[19] else None
     return value
 
 
@@ -192,8 +219,9 @@ def update_settings(bid, platform, values):
                 """
                 INSERT INTO minigame_settings
                     (broadcaster_user_id,platform,enabled,bets_enabled,slots_enabled,slot_bankroll,slot_bankroll_max,
-                     slot_hourly_refill,slot_min_bet,slot_max_bet,slot_cooldown_seconds,last_slot_refill_at)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+                     slot_hourly_refill,slot_min_bet,slot_max_bet,slot_cooldown_seconds,
+                    coinflip_enabled,polls_enabled,quiz_enabled,race_enabled,target_enabled,secret_enabled,survival_enabled,steal_enabled,vault_enabled,jackpot_enabled,last_slot_refill_at)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
                 ON CONFLICT (broadcaster_user_id,platform) DO UPDATE SET
                     enabled=EXCLUDED.enabled,
                     bets_enabled=EXCLUDED.bets_enabled,
@@ -204,11 +232,16 @@ def update_settings(bid, platform, values):
                     slot_min_bet=EXCLUDED.slot_min_bet,
                     slot_max_bet=EXCLUDED.slot_max_bet,
                     slot_cooldown_seconds=EXCLUDED.slot_cooldown_seconds,
+                    coinflip_enabled=EXCLUDED.coinflip_enabled,polls_enabled=EXCLUDED.polls_enabled,quiz_enabled=EXCLUDED.quiz_enabled,
+                    race_enabled=EXCLUDED.race_enabled,target_enabled=EXCLUDED.target_enabled,secret_enabled=EXCLUDED.secret_enabled,
+                    survival_enabled=EXCLUDED.survival_enabled,steal_enabled=EXCLUDED.steal_enabled,vault_enabled=EXCLUDED.vault_enabled,jackpot_enabled=EXCLUDED.jackpot_enabled,
                     updated_at=NOW()
                 """,
                 (int(bid), platform, clean["enabled"], clean["bets_enabled"], clean["slots_enabled"],
                  clean["slot_bankroll"], clean["slot_bankroll_max"], clean["slot_hourly_refill"],
-                 clean["slot_min_bet"], clean["slot_max_bet"], clean["slot_cooldown_seconds"]),
+                 clean["slot_min_bet"], clean["slot_max_bet"], clean["slot_cooldown_seconds"],
+                 clean["coinflip_enabled"],clean["polls_enabled"],clean["quiz_enabled"],clean["race_enabled"],clean["target_enabled"],clean["secret_enabled"],
+                 clean["survival_enabled"],clean["steal_enabled"],clean["vault_enabled"],clean["jackpot_enabled"]),
             )
         conn.commit()
     finally:
@@ -219,7 +252,7 @@ def update_settings(bid, platform, values):
 def update_minigame_enabled(bid, platform, game, enabled):
     platform = _platform(platform)
     game = str(game or "").strip().lower()
-    field_by_game = {"bets": "bets_enabled", "slots": "slots_enabled"}
+    field_by_game = {"bets": "bets_enabled", "slots": "slots_enabled", "coinflip": "coinflip_enabled", "polls": "polls_enabled", "quiz": "quiz_enabled", "race": "race_enabled", "target": "target_enabled", "secret": "secret_enabled", "survival": "survival_enabled", "steal": "steal_enabled", "vault": "vault_enabled", "jackpot": "jackpot_enabled"}
     field = field_by_game.get(game)
     if not field:
         raise ValueError("Mini Game inválido.")
@@ -279,6 +312,174 @@ def _refill_locked(cur, bid, platform):
     )
     return int(added), min(max_bankroll, bankroll + added), hours
 
+
+
+
+GAME_COOLDOWN = {}
+
+def _game_allowed(bid, platform, game):
+    settings = get_settings(bid, platform)
+    return bool(settings.get("enabled", True) and settings.get(f"{game}_enabled", True))
+
+def _points_player_locked(cur, bid, platform, username):
+    cur.execute("SELECT points FROM players WHERE broadcaster_user_id=%s AND platform=%s AND username=%s FOR UPDATE", (int(bid), platform, username))
+    row=cur.fetchone(); return int(row[0] or 0) if row else 0
+
+def _adjust_points(bid, username, amount, platform, user_id=None):
+    ensure_player(bid, username, user_id, platform)
+    conn=get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE players SET points=GREATEST(0,points+%s),updated_at=NOW() WHERE broadcaster_user_id=%s AND platform=%s AND username=%s RETURNING points", (int(amount),int(bid),platform,username))
+            row=cur.fetchone(); conn.commit(); return int(row[0] or 0) if row else 0
+    finally: conn.close()
+
+def play_coinflip(bid, username, choice, amount, platform="kick", user_id=None):
+    if not _game_allowed(bid,platform,"coinflip"): return {"ok":False,"error":"🪙 Cara ou Coroa está desativado nesta plataforma."}
+    choice=str(choice or '').lower(); choice='cara' if choice in {'cara','heads'} else 'coroa' if choice in {'coroa','tails'} else ''
+    amount=int(amount)
+    if not choice or amount<=0: return {"ok":False,"error":"🪙 Use !cara <valor> ou !coroa <valor>."}
+    ensure_player(bid,username,user_id,platform); conn=get_conn()
+    try:
+        with conn.cursor() as cur:
+            balance=_points_player_locked(cur,bid,platform,username)
+            if balance<amount: conn.rollback(); return {"ok":False,"error":f"🪙 Saldo insuficiente. Você tem {balance} pontos."}
+            result=random.choice(("cara","coroa")); payout=amount*2 if result==choice else 0
+            cur.execute("UPDATE players SET points=points-%s+%s,updated_at=NOW() WHERE broadcaster_user_id=%s AND platform=%s AND username=%s RETURNING points",(amount,payout,int(bid),platform,username)); points=int(cur.fetchone()[0])
+        conn.commit()
+    finally: conn.close()
+    forget_rankings(bid); return {"ok":True,"choice":choice,"result":result,"amount":amount,"payout":payout,"points":points}
+
+def _game_table():
+    conn=get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""CREATE TABLE IF NOT EXISTS minigame_runtime (broadcaster_user_id BIGINT NOT NULL,platform TEXT NOT NULL,game TEXT NOT NULL,state JSONB NOT NULL DEFAULT '{}'::jsonb,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),PRIMARY KEY(broadcaster_user_id,platform,game))""")
+        conn.commit()
+    finally: conn.close()
+
+def _runtime_get(bid,platform,game,default=None):
+    _game_table(); conn=get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT state FROM minigame_runtime WHERE broadcaster_user_id=%s AND platform=%s AND game=%s",(int(bid),platform,game)); row=cur.fetchone()
+            return (row[0] if row and row[0] is not None else default) or {}
+    finally: conn.close()
+
+def _runtime_set(bid,platform,game,state):
+    _game_table(); conn=get_conn()
+    try:
+        with conn.cursor() as cur: cur.execute("INSERT INTO minigame_runtime(broadcaster_user_id,platform,game,state) VALUES(%s,%s,%s,%s) ON CONFLICT(broadcaster_user_id,platform,game) DO UPDATE SET state=EXCLUDED.state,updated_at=NOW()",(int(bid),platform,game,state))
+        conn.commit()
+    finally: conn.close()
+
+def start_poll(bid,username,question,options,platform="kick"):
+    if not _game_allowed(bid,platform,"polls"): return {"ok":False,"error":"📊 Enquetes estão desativadas nesta plataforma."}
+    options=[str(x).strip() for x in options if str(x).strip()][:5]
+    if len(options)<2 or not question: return {"ok":False,"error":"📊 Use !enquete pergunta | opção 1 | opção 2."}
+    state={"question":str(question)[:180],"options":options,"votes":{},"open":True,"started_at":time.time()}; _runtime_set(bid,platform,"poll",state); return {"ok":True,"state":state}
+
+def vote_poll(bid,username,option,platform="kick"):
+    state=_runtime_get(bid,platform,"poll",{})
+    if not state.get("open"): return {"ok":False,"error":"📊 Não há enquete aberta."}
+    options=state.get("options",[]); value=str(option).strip()
+    idx=None
+    for i,opt in enumerate(options,1):
+        if value==str(i) or value.lower()==str(opt).lower(): idx=i
+    if idx is None: return {"ok":False,"error":"📊 Opção inválida."}
+    votes=state.setdefault("votes",{}); votes[username.lower()]=idx; _runtime_set(bid,platform,"poll",state); return {"ok":True,"option":options[idx-1]}
+
+def close_poll(bid,platform="kick"):
+    state=_runtime_get(bid,platform,"poll",{})
+    if not state.get("open"): return {"ok":False,"error":"📊 Não há enquete aberta."}
+    counts=[0]*len(state.get("options",[]))
+    for v in state.get("votes",{}).values():
+        if isinstance(v,int) and 1<=v<=len(counts): counts[v-1]+=1
+    state["open"]=False; _runtime_set(bid,platform,"poll",state); return {"ok":True,"state":state,"counts":counts}
+
+def _start_or_join_runtime(bid,username,platform,game,ttl=45):
+    state=_runtime_get(bid,platform,game,{})
+    now=time.time()
+    if not state.get("open") or now-float(state.get("started_at",0))>ttl: state={"open":True,"started_at":now,"players":[]}
+    if username.lower() not in [x.lower() for x in state["players"]]: state["players"].append(username)
+    _runtime_set(bid,platform,game,state); return state
+
+def race_join(bid,username,platform="kick"):
+    if not _game_allowed(bid,platform,"race"): return {"ok":False,"error":"🏃 Corrida está desativada nesta plataforma."}
+    return {"ok":True,"state":_start_or_join_runtime(bid,username,platform,"race",45)}
+
+def race_finish(bid,platform="kick"):
+    state=_runtime_get(bid,platform,"race",{}); players=state.get("players",[])
+    if not players: return {"ok":False,"error":"🏃 Ninguém entrou na corrida."}
+    random.shuffle(players); prizes=[500,300,150,75,30]; winners=[]
+    for i,u in enumerate(players[:len(prizes)]): winners.append((u,prizes[i])); _adjust_points(bid,u,prizes[i],platform)
+    state["open"]=False; _runtime_set(bid,platform,"race",state); forget_rankings(bid); return {"ok":True,"winners":winners}
+
+def target_guess(bid,username,guess,platform="kick"):
+    if not _game_allowed(bid,platform,"target"): return {"ok":False,"error":"🎯 Alvo está desativado nesta plataforma."}
+    state=_runtime_get(bid,platform,"target",{})
+    if not state.get("open"): state={"open":True,"target":random.randint(1,100)}; _runtime_set(bid,platform,"target",state)
+    try: guess=int(guess)
+    except: return {"ok":False,"error":"🎯 Use um número entre 1 e 100."}
+    if not 1<=guess<=100: return {"ok":False,"error":"🎯 Use um número entre 1 e 100."}
+    if guess==int(state["target"]): _adjust_points(bid,username,300,platform); state["open"]=False; _runtime_set(bid,platform,"target",state); forget_rankings(bid); return {"ok":True,"win":True,"points":300}
+    return {"ok":True,"win":False,"distance":abs(guess-int(state["target"]))}
+
+def secret_guess(bid,username,guess,platform="kick"):
+    if not _game_allowed(bid,platform,"secret"): return {"ok":False,"error":"🔢 Número Secreto está desativado nesta plataforma."}
+    state=_runtime_get(bid,platform,"secret",{})
+    if not state.get("open"): state={"open":True,"target":random.randint(1,50)}; _runtime_set(bid,platform,"secret",state)
+    try: guess=int(guess)
+    except: return {"ok":False,"error":"🔢 Escolha um número entre 1 e 50."}
+    if guess==int(state["target"]): _adjust_points(bid,username,500,platform); state["open"]=False; _runtime_set(bid,platform,"secret",state); forget_rankings(bid); return {"ok":True,"win":True,"points":500}
+    return {"ok":True,"win":False,"hint":"maior" if guess<int(state["target"]) else "menor"}
+
+def survival_join(bid,username,platform="kick"):
+    if not _game_allowed(bid,platform,"survival"): return {"ok":False,"error":"🧟 Sobrevivência está desativada nesta plataforma."}
+    return {"ok":True,"state":_start_or_join_runtime(bid,username,platform,"survival",30)}
+
+def survival_finish(bid,platform="kick"):
+    state=_runtime_get(bid,platform,"survival",{}); players=state.get("players",[])
+    if not players: return {"ok":False,"error":"🧟 Ninguém entrou na sobrevivência."}
+    survivors=[u for u in players if random.random()<0.35] or [random.choice(players)]
+    winners=[]
+    for u in survivors: _adjust_points(bid,u,250,platform); winners.append((u,250))
+    state["open"]=False; _runtime_set(bid,platform,"survival",state); forget_rankings(bid); return {"ok":True,"winners":winners}
+
+def steal_points(bid,username,target,platform="kick",user_id=None):
+    if not _game_allowed(bid,platform,"steal"): return {"ok":False,"error":"💰 Roubo está desativado nesta plataforma."}
+    if username.lower()==target.lower(): return {"ok":False,"error":"💰 Você não pode roubar de si mesmo."}
+    ensure_player(bid,username,user_id,platform); conn=get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT username,points FROM players WHERE broadcaster_user_id=%s AND platform=%s AND username IN (%s,%s) FOR UPDATE",(int(bid),platform,username,target)); rows=cur.fetchall()
+            if len(rows)<2: conn.rollback(); return {"ok":False,"error":"💰 Usuário não encontrado."}
+            data={r[0].lower():(r[0],int(r[1])) for r in rows}; t=data.get(target.lower()); a=data.get(username.lower())
+            if not t or t[1]<10: conn.rollback(); return {"ok":False,"error":"💰 O alvo não tem pontos suficientes."}
+            if random.random()>0.22: conn.rollback(); return {"ok":True,"win":False}
+            amount=max(1,min(int(t[1]*0.10),500)); cur.execute("UPDATE players SET points=points+%s WHERE broadcaster_user_id=%s AND platform=%s AND username=%s",(amount,int(bid),platform,username)); cur.execute("UPDATE players SET points=GREATEST(0,points-%s) WHERE broadcaster_user_id=%s AND platform=%s AND username=%s",(amount,int(bid),platform,t[0])); cur.execute("SELECT points FROM players WHERE broadcaster_user_id=%s AND platform=%s AND username=%s",(int(bid),platform,username)); newp=int(cur.fetchone()[0]); conn.commit()
+    finally: conn.close()
+    forget_rankings(bid); return {"ok":True,"win":True,"amount":amount,"points":newp}
+
+def vault_play(bid,username,choice,platform="kick"):
+    if not _game_allowed(bid,platform,"vault"): return {"ok":False,"error":"🔐 Cofre está desativado nesta plataforma."}
+    try: choice=int(choice)
+    except: return {"ok":False,"error":"🔐 Escolha uma combinação de 1 a 9."}
+    if choice not in range(1,10): return {"ok":False,"error":"🔐 Escolha uma combinação de 1 a 9."}
+    if random.random()<0.08: _adjust_points(bid,username,400,platform); return {"ok":True,"win":True,"points":400}
+    return {"ok":True,"win":False}
+
+def jackpot_play(bid,username,platform="kick",user_id=None):
+    if not _game_allowed(bid,platform,"jackpot"): return {"ok":False,"error":"👑 Jackpot está desativado nesta plataforma."}
+    ensure_player(bid,username,user_id,platform); conn=get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT slot_bankroll FROM minigame_settings WHERE broadcaster_user_id=%s AND platform=%s FOR UPDATE",(int(bid),platform)); row=cur.fetchone(); bank=int(row[0] or 0) if row else 0
+            if bank<100: conn.rollback(); return {"ok":False,"error":"👑 O Jackpot ainda está acumulando pontos."}
+            if random.random()>0.05: conn.rollback(); return {"ok":True,"win":False}
+            prize=min(bank, max(100,bank//2)); cur.execute("UPDATE players SET points=points+%s WHERE broadcaster_user_id=%s AND platform=%s AND username=%s RETURNING points",(prize,int(bid),platform,username)); points=int(cur.fetchone()[0]); cur.execute("UPDATE minigame_settings SET slot_bankroll=slot_bankroll-%s WHERE broadcaster_user_id=%s AND platform=%s",(prize,int(bid),platform)); conn.commit()
+    finally: conn.close()
+    forget_rankings(bid); return {"ok":True,"win":True,"prize":prize,"points":points}
 
 def play_slots(bid, username, amount, platform="kick", user_id=None):
     platform = _platform(platform)
