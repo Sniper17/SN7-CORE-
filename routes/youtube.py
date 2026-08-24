@@ -287,6 +287,7 @@ def _poll_once(bid, conn):
                 "sender":{"user_id":author.get("channelId"),"username":author.get("displayName"),
                            "is_moderator":bool(author.get("isChatModerator")),"is_broadcaster":bool(author.get("isChatOwner"))},
                 "content":snippet.get("displayMessage") or snippet.get("textMessageDetails",{}).get("messageText",""),
+                "sn7_profile_id": bid,
                 "platform":"youtube"}
         _process_chat(norm, lambda _bid, msg: _send(conn, msg))
     token = data.get("nextPageToken")

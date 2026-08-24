@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, redirect, session
 from core.database import get_conn
 from core.auth import require_session_broadcaster
-from core.music import set_public_commands_cache, _spotify_access_token
+from core.music import set_public_commands_cache, _spotify_access_token, clear_queue
 import os
 import time
 import secrets
@@ -351,13 +351,9 @@ def clear_music(broadcaster_id):
         require_session_broadcaster(broadcaster_id)
     except PermissionError as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 401
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("DELETE FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(broadcaster_id),))
-        conn.commit()
-    finally:
-        conn.close()
+    # Usa o mesmo caminho do motor do player para limpar a fila e,
+    # principalmente, zerar current_queue_id/is_playing no mesmo reset.
+    clear_queue(broadcaster_id)
     return jsonify(snapshot(broadcaster_id))
 
 

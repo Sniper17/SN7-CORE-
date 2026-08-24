@@ -1051,7 +1051,10 @@ def _process_chat(payload, send_chat=None):
     # A presença individual é específica da Kick. Twitch/YouTube usam o
     # mesmo motor de comandos, mas não devem consultar a API da Kick.
     platform = str(payload.get("platform") or "kick").lower()
-    if platform == "kick" and _kick_channel_is_live(kick_bid):
+    # A consulta /livestreams da Kick pode levar até 10s e não é necessária
+    # para responder comandos. Presença continua sendo verificada em mensagens
+    # normais, mas comandos não ficam esperando a API de live.
+    if platform == "kick" and not content.startswith("!") and _kick_channel_is_live(kick_bid):
         try:
             presence_bonus = award_watch_presence(bid, user, uid, "kick")
             if presence_bonus:
@@ -1622,6 +1625,8 @@ def _process_webhook(payload, event_type):
             if bid > 0:
                 conn_for_channel = _get_connection(bid)
                 cache_bid = int(conn_for_channel.get("sn7_profile_id") if conn_for_channel else bid)
+                # Evita uma segunda consulta à conexão dentro do _process_chat.
+                payload["sn7_profile_id"] = cache_bid
                 _bot_status_cache[cache_bid] = (time.time(), True)
         except (TypeError, ValueError):
             pass

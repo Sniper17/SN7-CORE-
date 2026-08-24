@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from core.database import get_conn
 from core.services import get_channel, get_rank
+from core.auth import require_session_broadcaster
 
 ranking_bp = Blueprint("ranking", __name__)
 
@@ -43,6 +44,47 @@ def ranking(broadcaster_id):
     })
 
 
+@ranking_bp.get("/<int:broadcaster_id>/all")
+def all_rankings(broadcaster_id):
+    """Retorna os três rankings em uma única consulta para o painel."""
+    channel = get_channel(broadcaster_id)
+    limit = max(1, min(int(request.args.get("limit", channel["rank_limit"])), 50))
+    platforms = ("kick", "twitch", "youtube")
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT platform, username, points
+                  FROM players
+                 WHERE broadcaster_user_id=%s
+                   AND platform IN (%s,%s,%s)
+                   AND points>0
+                 ORDER BY platform ASC, points DESC, username ASC
+                """,
+                (int(broadcaster_id), *platforms),
+            )
+            grouped = {platform: [] for platform in platforms}
+            for platform, username, points in cur.fetchall():
+                rows = grouped.get(str(platform).lower())
+                if rows is not None and len(rows) < limit:
+                    rows.append({
+                        "position": len(rows) + 1,
+                        "username": username,
+                        "points": points,
+                    })
+    finally:
+        conn.close()
+
+    return jsonify({
+        "ok": True,
+        "title": channel["rank_title"],
+        "currency": channel["currency_name"],
+        "emoji": channel["currency_emoji"],
+        "rankings": grouped,
+    })
+
+
 @ranking_bp.get("/<int:broadcaster_id>/user")
 def user_rank(broadcaster_id):
     platform = str(request.args.get("platform") or "kick").strip().lower()
@@ -64,19 +106,31 @@ def user_rank(broadcaster_id):
 
 @ranking_bp.post("/<int:broadcaster_id>/reset")
 def reset_ranking(broadcaster_id):
+    platform = str(request.args.get("platform") or "").strip().lower()
+    if platform not in {"kick", "twitch", "youtube"}:
+        return jsonify({"ok": False, "error": "Informe uma plataforma válida para o reset."}), 400
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 401
+
     try:
         conn = get_conn()
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE players SET points=0, updated_at=NOW() WHERE broadcaster_user_id=%s",
-                    (broadcaster_id,),
+                    """
+                    UPDATE players
+                       SET points=0, updated_at=NOW()
+                     WHERE broadcaster_user_id=%s AND platform=%s
+                    """,
+                    (int(broadcaster_id), platform),
                 )
                 affected = cur.rowcount
             conn.commit()
         finally:
             conn.close()
-        return jsonify({"ok": True, "reset_users": affected})
+        return jsonify({"ok": True, "platform": platform, "reset_users": affected})
     except Exception as exc:
-        print(f"[RANKING] RESET erro: {exc}", flush=True)
+        print(f"[RANKING] RESET erro platform={platform}: {exc}", flush=True)
         return jsonify({"ok": False, "error": str(exc)}), 500

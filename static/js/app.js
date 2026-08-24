@@ -106,6 +106,9 @@ function activateTab(tab, options = {}) {
     }
     if (button.dataset.tab === "ranking" && typeof loadRanking === "function") {
       loadRanking().catch(() => {});
+      startRankingPolling();
+    } else {
+      stopRankingPolling();
     }
     if (button.dataset.tab === "profile" && typeof window.sn7LoadProfile === "function") {
       window.sn7LoadProfile();
@@ -855,22 +858,31 @@ async function saveSettingsAndClose(modalId, button) {
   }
 }
 
+
 function injectRankingStyles() {
   if ($("sn7-ranking-platform-style")) return;
   const style = document.createElement("style");
   style.id = "sn7-ranking-platform-style";
   style.textContent = `
     .sn7-ranking-platform-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;max-width:980px}
-    .sn7-ranking-platform-card{appearance:none;width:100%;text-align:left;color:inherit;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;cursor:pointer;min-height:170px;transition:transform .16s ease,border-color .16s ease,background .16s ease}
+    .sn7-ranking-platform-card{position:relative;width:100%;text-align:left;color:inherit;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;cursor:pointer;min-height:170px;transition:transform .16s ease,border-color .16s ease,background .16s ease;box-sizing:border-box}
     .sn7-ranking-platform-card:hover{transform:translateY(-1px);border-color:#394253;background:#141923}
     .sn7-ranking-platform-card:active{transform:scale(.985)}
+    .sn7-ranking-platform-card.sn7-ranking-card-loading{pointer-events:none}
+    .sn7-ranking-platform-card.sn7-ranking-card-loading::after{content:"";position:absolute;inset:0;z-index:20;background:rgba(11,13,18,.46);backdrop-filter:blur(2px);border-radius:inherit}
+    .sn7-ranking-platform-card.sn7-ranking-card-loading::before{content:"";position:absolute;left:50%;top:50%;width:27px;height:27px;margin:-13.5px 0 0 -13.5px;z-index:21;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7RankingCardSpin .72s linear infinite;box-sizing:border-box}
+    @keyframes sn7RankingCardSpin{to{transform:rotate(360deg)}}
     .sn7-ranking-platform-top{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+    .sn7-ranking-platform-top-info{min-width:0;flex:1}
     .sn7-ranking-platform-logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-weight:900;font-size:19px;flex:0 0 42px;background:#1b202a;border:1px solid #303744;overflow:hidden}.sn7-ranking-platform-logo svg{width:32px;height:32px;display:block}
     .sn7-ranking-platform-card.kick .sn7-ranking-platform-logo{color:#53e88a}
     .sn7-ranking-platform-card.twitch .sn7-ranking-platform-logo{color:#b78cff}
     .sn7-ranking-platform-card.youtube .sn7-ranking-platform-logo{color:#ff6b73}
     .sn7-ranking-platform-name{font-weight:800;font-size:16px}
     .sn7-ranking-platform-sub{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+    .sn7-ranking-platform-reset{appearance:none;flex:0 0 auto;border:1px solid #63383b;background:transparent;color:#ff9c9c;border-radius:8px;padding:7px 9px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}
+    .sn7-ranking-platform-reset:hover{background:rgba(239,68,68,.08);border-color:#8b4b50}
+    .sn7-ranking-platform-reset:disabled{opacity:.55;cursor:wait}
     .sn7-ranking-mini{display:grid;gap:7px}
     .sn7-ranking-mini-row{display:flex;gap:8px;align-items:center;font-size:12px}
     .sn7-ranking-mini-pos{width:22px;color:#8f98a8;font-weight:800}
@@ -887,6 +899,7 @@ function injectRankingStyles() {
     .sn7-platform-ranking-head p{margin:4px 0 0;color:var(--muted);font-size:12px}
     .sn7-platform-ranking-list{display:grid;gap:9px}
     @media(max-width:760px){.sn7-ranking-platform-grid{grid-template-columns:1fr}.sn7-ranking-platform-card{min-height:0}}
+    @media(prefers-reduced-motion:reduce){.sn7-ranking-platform-card.sn7-ranking-card-loading::before{animation:none}}
   `;
   document.head.appendChild(style);
 }
@@ -939,52 +952,104 @@ async function openPlatformRanking(platform) {
   }
 }
 
-async function loadRanking() {
+function renderRankingCards(data) {
   const list = $("sn7RankingList");
   if (!list) return;
-  injectRankingStyles();
-  list.innerHTML = '<div class="sn7-ranking-loading">Carregando rankings...</div>';
+  const rankings = data?.rankings || {};
+  const currency = data?.currency || "Pontos";
   const platforms = ["kick", "twitch", "youtube"];
-  try {
-    const results = await Promise.all(platforms.map(async (platform) => {
-      const data = await apiJson(`/api/ranking/${BROADCASTER_ID}?limit=50&platform=${encodeURIComponent(platform)}`);
-      return { platform, data, rows: Array.isArray(data.ranking) ? data.ranking : [] };
-    }));
-    list.innerHTML = results.map(({platform, data, rows}) => `
-      <button type="button" class="sn7-ranking-platform-card ${platform}" onclick="openPlatformRanking('${platform}')">
+  list.innerHTML = platforms.map((platform) => {
+    const rows = Array.isArray(rankings[platform]) ? rankings[platform] : [];
+    return `
+      <article class="sn7-ranking-platform-card ${platform}" role="button" tabindex="0"
+        onclick="openPlatformRanking('${platform}')"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openPlatformRanking('${platform}')}">
         <div class="sn7-ranking-platform-top">
           <span class="sn7-ranking-platform-logo">${rankingPlatformIcon(platform)}</span>
-          <div><div class="sn7-ranking-platform-name">${rankingPlatformLabel(platform)}</div>
-          <span class="sn7-ranking-platform-sub">Ranking e pontos da plataforma</span></div>
+          <div class="sn7-ranking-platform-top-info">
+            <div class="sn7-ranking-platform-name">${rankingPlatformLabel(platform)}</div>
+            <span class="sn7-ranking-platform-sub">Ranking e pontos da plataforma</span>
+          </div>
+          <button type="button" class="sn7-ranking-platform-reset"
+            onclick="event.stopPropagation();resetPlatformRanking('${platform}',this)"
+            onkeydown="event.stopPropagation()"
+            aria-label="Resetar pontos da ${rankingPlatformLabel(platform)}">↻ Resetar</button>
         </div>
-        <div class="sn7-ranking-mini">${renderRankingRows(rows, data.currency || "Pontos", true)}</div>
-      </button>
-    `).join("");
-    if (!results.length) list.innerHTML = '<div class="sn7-ranking-empty">Nenhuma plataforma disponível.</div>';
-  } catch (error) {
-    list.innerHTML = `<div class="sn7-ranking-empty">⚠ ${esc(error.message)}</div>`;
+        <div class="sn7-ranking-mini">${renderRankingRows(rows, currency, true)}</div>
+      </article>
+    `;
+  }).join("");
+}
+
+let sn7RankingLoadPromise = null;
+async function loadRanking(silent = false) {
+  const list = $("sn7RankingList");
+  if (!list) return;
+  if (sn7RankingLoadPromise) return sn7RankingLoadPromise;
+  injectRankingStyles();
+  if (!silent) list.innerHTML = '<div class="sn7-ranking-loading">Carregando rankings...</div>';
+  sn7RankingLoadPromise = (async () => {
+    try {
+      const data = await apiJson(`/api/ranking/${BROADCASTER_ID}/all?limit=50`);
+      renderRankingCards(data);
+    } catch (error) {
+      if (!silent || !list.querySelector(".sn7-ranking-platform-card")) {
+        list.innerHTML = `<div class="sn7-ranking-empty">⚠ ${esc(error.message)}</div>`;
+      }
+    } finally {
+      sn7RankingLoadPromise = null;
+    }
+  })();
+  return sn7RankingLoadPromise;
+}
+
+let sn7RankingPollTimer = null;
+function startRankingPolling() {
+  if (sn7RankingPollTimer) return;
+  sn7RankingPollTimer = setInterval(() => {
+    const tab = document.querySelector('nav button[data-tab="ranking"]');
+    if (!tab || !tab.classList.contains("active")) {
+      stopRankingPolling();
+      return;
+    }
+    loadRanking(true).catch(() => {});
+  }, 2000);
+}
+function stopRankingPolling() {
+  if (sn7RankingPollTimer) {
+    clearInterval(sn7RankingPollTimer);
+    sn7RankingPollTimer = null;
   }
 }
 
-async function resetRankingPoints() {
+async function resetPlatformRanking(platform, button) {
+  const label = rankingPlatformLabel(platform);
   const ok = await sn7ConfirmAction(
-    "Resetar ranking/pontos?",
-    "Tem certeza que deseja resetar os pontos do seu canal? Todos os pontos dos usuários serão zerados. Os usuários e as configurações do canal serão mantidos.",
-    "Continuar"
+    `Resetar pontos da ${label}?`,
+    `Todos os pontos dos usuários da ${label} serão zerados. Os rankings das outras plataformas continuarão intactos.`,
+    "Resetar"
   );
   if (!ok) return;
 
-  sn7ShowOperationLoader();
+  const card = button?.closest(".sn7-ranking-platform-card");
+  if (card) {
+    card.classList.add("sn7-ranking-card-loading");
+    card.setAttribute("aria-busy", "true");
+  }
+  if (button) button.disabled = true;
   try {
-    await apiJson(`/api/ranking/${BROADCASTER_ID}/reset`, { method: "POST" });
-    await loadRanking();
+    await apiJson(`/api/ranking/${BROADCASTER_ID}/reset?platform=${encodeURIComponent(platform)}`, { method: "POST" });
+    await loadRanking(true);
   } catch (error) {
     alert(error.message);
   } finally {
-    sn7HideOperationLoader();
+    if (card && document.body.contains(card)) {
+      card.classList.remove("sn7-ranking-card-loading");
+      card.removeAttribute("aria-busy");
+    }
+    if (button && document.body.contains(button)) button.disabled = false;
   }
 }
-
 
 async function saveSettings() {
   const data = {};
@@ -1061,6 +1126,7 @@ document.addEventListener("DOMContentLoaded", () => {
       sn7HideBootLoader();
       const activeTab = document.querySelector('nav button[data-tab].active')?.dataset.tab;
       if (activeTab === "music" && typeof window.loadMusic === "function") window.loadMusic().catch(() => {});
+      if (activeTab === "ranking" && typeof startRankingPolling === "function") startRankingPolling();
       if (activeTab === "profile" && typeof window.sn7LoadProfile === "function") window.sn7LoadProfile().catch(() => {});
       if (typeof window.sn7RestoreSavedModal === "function") {
         window.sn7RestoreSavedModal().catch(() => {});
@@ -1965,9 +2031,16 @@ async function removeMusicItem(id) {
 async function clearMusicQueue() {
   if (!confirm("Limpar todas as músicas que estão na fila?")) return;
   const button = document.querySelector(".sn7-queue-clear");
+  const card = document.querySelector(".sn7-music-queue-card");
+  const loader = $("sn7MusicQueueLoading");
   if (button) {
     button.disabled = true;
     button.textContent = "Limpando...";
+  }
+  if (card) card.setAttribute("aria-busy", "true");
+  if (loader) {
+    loader.classList.add("open");
+    loader.setAttribute("aria-hidden", "false");
   }
   try {
     musicRender(await musicApi("/queue/clear", {method:"POST"}));
@@ -1979,6 +2052,11 @@ async function clearMusicQueue() {
       setTimeout(() => { msg.hidden = true; }, 2200);
     }
   } finally {
+    if (loader) {
+      loader.classList.remove("open");
+      loader.setAttribute("aria-hidden", "true");
+    }
+    if (card) card.removeAttribute("aria-busy");
     if (button) {
       button.disabled = false;
       button.textContent = "Limpar fila";
