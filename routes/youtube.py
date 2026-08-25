@@ -16,6 +16,12 @@ from routes.kick import _process_chat
 youtube_bp = Blueprint("youtube", __name__)
 _worker_started = False
 _reward_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="sn7-youtube-reward")
+# Estado em memória do chat ativo de cada canal. O liveChatId muda a cada nova
+# transmissão, enquanto o pageToken antigo fica salvo no banco. Mantemos o ID
+# atual para detectar troca de live sem consultar broadcasts a cada poll.
+_live_state = {}
+_live_state_lock = threading.Lock()
+_LIVE_DISCOVERY_TTL = 30
 
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -213,9 +219,8 @@ def status(bid):
                               "display_name": conn["display_name"], "avatar_url": conn["avatar_url"]} if conn else None)})
 
 def _find_live_chat(conn):
-    # liveBroadcasts.list aceita exatamente um filtro entre
-    # broadcastStatus, id e mine. Não combinamos mine=true
-    # com broadcastStatus=active.
+    # liveBroadcasts.list aceita mine=true + broadcastType=all. Isso inclui
+    # transmissões públicas e não listadas; o chat precisa apenas estar ativo.
     headers = {"Authorization": f"Bearer {conn['access_token']}"}
     page_token = ""
 
@@ -255,6 +260,85 @@ def _find_live_chat(conn):
         page_token = data.get("nextPageToken") or ""
         if not page_token:
             return None
+
+
+def _get_live_chat_id(bid, conn, force=False):
+    """Retorna o liveChatId com cache curto e detecta troca de transmissão."""
+    now = time.time()
+    with _live_state_lock:
+        state = dict(_live_state.get(int(bid)) or {})
+
+    discovery_ttl = _LIVE_DISCOVERY_TTL if state.get("chat_id") else 5
+    if (
+        not force
+        and state.get("checked_at")
+        and now - float(state.get("checked_at") or 0) < discovery_ttl
+    ):
+        return state.get("chat_id"), False
+
+    chat_id = _find_live_chat(conn)
+    previous = state.get("chat_id")
+    changed = bool(previous and chat_id and previous != chat_id)
+
+    with _live_state_lock:
+        if chat_id:
+            _live_state[int(bid)] = {
+                "chat_id": chat_id,
+                "checked_at": now,
+            }
+        else:
+            # Mantemos o último ID por pouco tempo para evitar redescobertas
+            # caras a cada segundo quando a live está offline.
+            _live_state[int(bid)] = {
+                "chat_id": None,
+                "checked_at": now,
+            }
+
+    if changed:
+        print(
+            f"[YOUTUBE-CHAT] nova transmissão detectada para {bid}; "
+            f"chat anterior={previous}, novo={chat_id}",
+            flush=True,
+        )
+    elif chat_id and not previous:
+        print(
+            f"[YOUTUBE-CHAT] live detectada para {bid}; chat={chat_id}",
+            flush=True,
+        )
+
+    return chat_id, changed
+
+
+def _clear_cursor(bid, conn=None):
+    if conn is not None:
+        conn["cursor"] = ""
+    try:
+        _save_cursor(bid, "")
+    except Exception as exc:
+        print(f"[YOUTUBE-CHAT] não foi possível limpar cursor de {bid}: {exc}", flush=True)
+
+
+def _is_stale_chat_error(response, data):
+    if response.status_code not in {400, 403, 404}:
+        return False
+    error = data.get("error") or {}
+    details = error.get("errors") or []
+    reasons = {
+        str(item.get("reason") or "").lower()
+        for item in details
+        if isinstance(item, dict)
+    }
+    message = str(error.get("message") or "").lower()
+    return bool(
+        reasons.intersection({
+            "pagetokeninvalid",
+            "livechatended",
+            "livechatnotfound",
+            "livechatdisabled",
+        })
+        or "page token" in message
+        or "live chat" in message and ("ended" in message or "not found" in message)
+    )
 
 def _send(conn, text):
     response = requests.post(f"{API}/liveChat/messages", params={"part":"snippet"},
@@ -322,13 +406,26 @@ def _process_youtube_reward(bid, author, snippet):
 
 
 def _poll_once(bid, conn):
-    chat_id = _find_live_chat(conn)
+    chat_id, changed = _get_live_chat_id(bid, conn)
+
     if not chat_id:
+        # Sem live ativa, não há motivo para tocar no cursor salvo.
         return 5
+
+    # Um liveChatId diferente significa uma nova transmissão. O pageToken da
+    # transmissão anterior não pode ser reutilizado.
+    if changed:
+        _clear_cursor(bid, conn)
+
     conn["_chat_id"] = chat_id
-    params = {"liveChatId":chat_id,"part":"snippet,authorDetails","maxResults":200}
+    params = {
+        "liveChatId": chat_id,
+        "part": "snippet,authorDetails",
+        "maxResults": 200,
+    }
     if conn.get("cursor"):
         params["pageToken"] = conn["cursor"]
+
     response = requests.get(
         f"{API}/liveChat/messages",
         params=params,
@@ -336,10 +433,41 @@ def _poll_once(bid, conn):
         timeout=15,
     )
     data = response.json()
-    if response.status_code >= 400:
-        raise RuntimeError(
-            (data.get("error") or {}).get("message") or "YouTube chat indisponível."
+
+    # Se o processo reiniciou ou o cursor persistido pertence à live anterior,
+    # o YouTube pode rejeitá-lo. Limpamos e repetimos imediatamente sem cursor,
+    # em vez de ficar preso em um loop de 5s.
+    if response.status_code >= 400 and conn.get("cursor") and _is_stale_chat_error(response, data):
+        print(
+            f"[YOUTUBE-CHAT] cursor inválido/antigo para {bid}; "
+            f"reiniciando leitura do chat {chat_id}",
+            flush=True,
         )
+        _clear_cursor(bid, conn)
+        params.pop("pageToken", None)
+        response = requests.get(
+            f"{API}/liveChat/messages",
+            params=params,
+            headers={"Authorization": f"Bearer {conn['access_token']}"},
+            timeout=15,
+        )
+        data = response.json()
+
+    if response.status_code >= 400:
+        error = data.get("error") or {}
+        reason = ""
+        for item in error.get("errors") or []:
+            if isinstance(item, dict) and item.get("reason"):
+                reason = str(item["reason"])
+                break
+        raise RuntimeError(
+            error.get("message") or reason or "YouTube chat indisponível."
+        )
+
+    print(
+        f"[YOUTUBE-CHAT] {bid}: chat={chat_id}, mensagens={len(data.get('items') or [])}",
+        flush=True,
+    )
 
     for item in data.get("items") or []:
         snippet = item.get("snippet") or {}
@@ -352,17 +480,17 @@ def _poll_once(bid, conn):
             print(f"[SN7-REWARDS] fila YouTube falhou: {exc}", flush=True)
 
         norm = {
-            "broadcaster":{"user_id":bid,"username":conn["username"]},
-            "sender":{
-                "user_id":author.get("channelId"),
-                "username":author.get("displayName"),
-                "is_moderator":bool(author.get("isChatModerator")),
-                "is_broadcaster":bool(author.get("isChatOwner")),
+            "broadcaster": {"user_id": bid, "username": conn["username"]},
+            "sender": {
+                "user_id": author.get("channelId"),
+                "username": author.get("displayName"),
+                "is_moderator": bool(author.get("isChatModerator")),
+                "is_broadcaster": bool(author.get("isChatOwner")),
             },
-            "content":snippet.get("displayMessage")
-            or snippet.get("textMessageDetails",{}).get("messageText",""),
+            "content": snippet.get("displayMessage")
+            or snippet.get("textMessageDetails", {}).get("messageText", ""),
             "sn7_profile_id": bid,
-            "platform":"youtube",
+            "platform": "youtube",
         }
         _process_chat(norm, lambda _bid, msg: _send(conn, msg))
 
@@ -370,7 +498,9 @@ def _poll_once(bid, conn):
     if token:
         _save_cursor(bid, token)
         conn["cursor"] = token
+
     return max(1, int((data.get("pollingIntervalMillis") or 5000) / 1000))
+
 
 def _worker():
     while True:
@@ -435,7 +565,9 @@ def toggle(bid):
         return jsonify({
             "ok": True,
             "active": desired,
-            "waiting_for_live": bool(desired and not _find_live_chat(conn)),
+            # O worker descobre a live em segundo plano; não bloqueie o botão
+            # do painel com uma chamada de até 15s à API do YouTube.
+            "waiting_for_live": bool(desired),
         })
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 502
