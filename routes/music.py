@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, redirect, session
 from core.database import get_conn
 from core.auth import require_session_broadcaster
 from core.music import (
-    set_public_commands_cache, _spotify_access_token, clear_queue, skip_current, previous_current, _queue_duplicate_exists,
+    set_public_commands_cache, _spotify_access_token, clear_queue, skip_current, previous_current, select_current, _queue_duplicate_exists,
     current_and_queue, invalidate_queue_cache, invalidate_music_settings_cache,
 )
 import os
@@ -393,6 +393,31 @@ def previous_music(broadcaster_id):
     except Exception as exc:
         print(f'[MUSIC] previous erro: {exc}', flush=True)
         return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+
+@music_bp.post('/<int:broadcaster_id>/queue/select')
+def select_music(broadcaster_id):
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 401
+    data = request.get_json(silent=True) or {}
+    try:
+        queue_id = int(data.get('queue_id') or 0)
+    except (TypeError, ValueError):
+        queue_id = 0
+    if queue_id <= 0:
+        return jsonify({'ok': False, 'error': 'Música inválida.'}), 400
+    try:
+        current = select_current(broadcaster_id, queue_id)
+        if not current:
+            return jsonify({'ok': False, 'error': 'Essa música não está mais na fila.'}), 409
+        return jsonify(snapshot(broadcaster_id))
+    except Exception as exc:
+        print(f'[MUSIC] select erro: {exc}', flush=True)
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
 
 
 @music_bp.post('/<int:broadcaster_id>/queue/clear')

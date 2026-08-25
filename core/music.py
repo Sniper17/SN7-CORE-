@@ -614,6 +614,100 @@ def previous_current(bid):
     finally:
         conn.close()
 
+
+def select_current(bid, queue_id):
+    """Seleciona uma faixa da fila para tocar agora e devolve a atual para a fila."""
+    bid = int(bid)
+    queue_id = int(queue_id)
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """SELECT current_queue_id,is_playing
+                   FROM music_player_state
+                   WHERE broadcaster_user_id=%s
+                   FOR UPDATE""",
+                (bid,),
+            )
+            state_row = cur.fetchone()
+            if not state_row:
+                cur.execute(
+                    """INSERT INTO music_player_state(broadcaster_user_id,is_playing)
+                       VALUES(%s,FALSE)
+                       ON CONFLICT(broadcaster_user_id) DO NOTHING""",
+                    (bid,),
+                )
+                cur.execute(
+                    """SELECT current_queue_id,is_playing
+                       FROM music_player_state
+                       WHERE broadcaster_user_id=%s
+                       FOR UPDATE""",
+                    (bid,),
+                )
+                state_row = cur.fetchone()
+
+            current_id = int(state_row[0]) if state_row and state_row[0] else None
+            was_playing = bool(state_row[1]) if state_row else False
+
+            cur.execute(
+                """SELECT id,position,title,artist,provider,source_url,added_by
+                   FROM music_queue
+                   WHERE id=%s AND broadcaster_user_id=%s AND status='queued'
+                   FOR UPDATE""",
+                (queue_id, bid),
+            )
+            target = cur.fetchone()
+            if not target:
+                return None
+
+            if current_id == queue_id:
+                cur.execute(
+                    """SELECT id,title,artist,provider,source_url,added_by
+                       FROM music_queue
+                       WHERE id=%s AND broadcaster_user_id=%s""",
+                    (queue_id, bid),
+                )
+                target = cur.fetchone()
+                return {
+                    'id': target[0], 'title': target[1], 'artist': target[2] or '',
+                    'provider': target[3], 'source_url': target[4] or '', 'added_by': target[5] or '',
+                }
+
+            target_position = int(target[1] or 0)
+
+            if current_id:
+                cur.execute(
+                    """UPDATE music_queue
+                       SET status='queued', position=%s
+                       WHERE id=%s AND broadcaster_user_id=%s""",
+                    (target_position, current_id, bid),
+                )
+
+            cur.execute(
+                """UPDATE music_queue
+                   SET status='queued', position=%s
+                   WHERE id=%s AND broadcaster_user_id=%s""",
+                (target_position - 1, queue_id, bid),
+            )
+
+            cur.execute(
+                """UPDATE music_player_state
+                   SET current_queue_id=%s,is_playing=%s,
+                       position_ms=0,duration_ms=0,seek_position_ms=0,
+                       updated_at=NOW()
+                   WHERE broadcaster_user_id=%s""",
+                (queue_id, was_playing, bid),
+            )
+
+        conn.commit()
+        _notify_queue_changed(bid)
+        return {
+            'id': target[0], 'title': target[2], 'artist': target[3] or '',
+            'provider': target[4], 'source_url': target[5] or '', 'added_by': target[6] or '',
+        }
+    finally:
+        conn.close()
+
 def clear_queue(bid):
     conn = get_conn()
     try:

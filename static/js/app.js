@@ -2159,14 +2159,16 @@ function renderMusicQueue(queue) {
       return;
     }
     box.innerHTML = items.slice(0, 100).map((item, index) => `
-      <div class="sn7-music-row" data-queue-id="${Number(item.id) || 0}">
+      <div class="sn7-music-row sn7-music-row-selectable" data-queue-id="${Number(item.id) || 0}" role="button" tabindex="0"
+           onclick="selectMusicItem(${Number(item.id)})"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectMusicItem(${Number(item.id)})}">
         <span class="sn7-music-number">${index + 1}</span>
         <div class="sn7-music-row-info">
           <strong>${esc(item.title || "Sem título")}</strong>
           <small>${esc(item.artist || "Artista não informado")} · ${esc(item.added_by || "chat")}</small>
         </div>
         <span class="sn7-music-provider">${esc(item.provider || "link")}</span>
-        <button type="button" class="sn7-music-remove" onclick="removeMusicItem(${Number(item.id)})" aria-label="Remover ${esc(item.title || "música")}">×</button>
+        <button type="button" class="sn7-music-remove" onclick="event.stopPropagation();removeMusicItem(${Number(item.id)})" aria-label="Remover ${esc(item.title || "música")}">×</button>
       </div>`).join("");
   });
 }
@@ -2308,6 +2310,42 @@ async function musicSkip(fromAudio = false) {
 function musicPrevious() {
   const source = $("sn7MusicSourceStatus");
   if (source) source.textContent = "Histórico de reprodução ainda não está disponível.";
+}
+
+
+let sn7MusicSelectBusy = false;
+
+async function selectMusicItem(id) {
+  const queueId = Number(id);
+  if (!Number.isInteger(queueId) || queueId <= 0 || sn7MusicSelectBusy) return;
+
+  const row = document.querySelector(`.sn7-music-row[data-queue-id="${queueId}"]`);
+  if (row) row.classList.add("sn7-music-row-selecting");
+  sn7MusicSelectBusy = true;
+
+  try {
+    const data = await musicApi("/queue/select", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({queue_id: queueId})
+    });
+    musicRender(data);
+    const source = $("sn7MusicSourceStatus");
+    if (source && data?.current) {
+      source.textContent = `${data.state?.is_playing ? "Tocando" : "Selecionada"}: ${data.current.title}`;
+    }
+    await loadMusicQueueOnly();
+  } catch (error) {
+    const msg = $("sn7MusicQueueMessage");
+    if (msg) {
+      msg.textContent = `⚠ ${error.message || "Não foi possível selecionar a música."}`;
+      msg.hidden = false;
+      setTimeout(() => { msg.hidden = true; }, 2400);
+    }
+  } finally {
+    if (row) row.classList.remove("sn7-music-row-selecting");
+    sn7MusicSelectBusy = false;
+  }
 }
 
 async function removeMusicItem(id) {
@@ -2597,20 +2635,31 @@ async function saveMusicConfig() {
       return;
     }
     remoteBusy=true;
+    const playing=!Boolean(sn7MusicData?.state?.is_playing);
+    // Feedback imediato: o estado visual muda no mesmo toque.
+    const previous=Boolean(sn7MusicData?.state?.is_playing);
+    if(sn7MusicData?.state)sn7MusicData.state.is_playing=playing;
+    musicRenderPlaying(playing);
+    musicSetStatus(playing?"Reprodução iniciada.":"Música pausada.");
     try{
-      const playing=!Boolean(sn7MusicData?.state?.is_playing);
       const data=await musicApi("/state",{
         method:"PATCH",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({is_playing:playing})
       });
-      musicRender(data);
+      // Não desfazemos o feedback otimista se o estado retornado ainda estiver
+      // alguns milissegundos atrasado; o próximo poll do OBS sincroniza o áudio.
+      if(data?.state) {
+        sn7MusicData.state={...(sn7MusicData.state||{}),...data.state,is_playing:playing};
+      }
       musicSetStatus(
         playing
-          ?"Reprodução iniciada. O áudio sai pelo OBS conectado."
-          :"Música pausada no Core."
+          ?"Reprodução iniciada · áudio pelo OBS."
+          :"Música pausada."
       );
     }catch(error){
+      if(sn7MusicData?.state)sn7MusicData.state.is_playing=previous;
+      musicRenderPlaying(previous);
       musicSetStatus(`⚠ ${error.message||"Não foi possível alterar a reprodução."}`,true);
     }finally{remoteBusy=false;}
   };

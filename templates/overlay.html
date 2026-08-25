@@ -35,7 +35,7 @@
     spotifyReady:false, spotifyPlayer:null, spotifyDeviceId:null,
     spotifyState:null, spotifyInitPromise:null, spotifyToken:null,
     audio:null, audioUrl:null, lastEndedId:null, loadError:false,
-    lastSeekRevision:0, progressBusy:false, lastProgressSent:0
+    lastSeekRevision:0, progressBusy:false, lastProgressSent:0, loadingCurrent:false
   };
   const $ = id => document.getElementById(id);
   const fmt = value => {
@@ -54,7 +54,9 @@
 
   function render(snapshot){
     state.lastSnapshot=snapshot;
-    state.volume=Number(snapshot.state?.volume ?? 80);
+    const remoteVolume=Number(snapshot.state?.volume ?? 80);
+    const volumeChanged=remoteVolume!==state.volume;
+    state.volume=remoteVolume;
     const current=snapshot.current;
     const playing=!!snapshot.state?.is_playing;
     state.lastSeekRevision=Number(snapshot.state?.seek_revision ?? 0);
@@ -75,14 +77,26 @@
 
     if(current.id!==state.currentId || current.source_url!==state.audioUrl ||
        current.provider!==state.provider || state.loadError){
-      loadCurrent(current,state.volume,playing).catch(showError);
+      if(!state.loadingCurrent){
+        state.loadingCurrent=true;
+        loadCurrent(current,state.volume,playing)
+          .catch(showError)
+          .finally(()=>{state.loadingCurrent=false;});
+      }
     }else{
-      syncVolume(state.volume);
-      syncPlaying(playing);
+      if(volumeChanged) syncVolume(state.volume);
+      if(state.playing!==playing){
+        state.playing=playing;
+        syncPlaying(playing).catch(()=>{});
+      }
       applySeekIfNeeded(snapshot).catch(()=>{});
       const p=Number(snapshot.state?.position_ms||0);
       const d=Number(snapshot.state?.duration_ms||0);
-      if(d){ $("bar").style.width=`${Math.min(100,p/d*100)}%`; $("elapsed").textContent=fmt(p/1000); $("duration").textContent=fmt(d/1000); }
+      if(d){
+        $("bar").style.width=`${Math.min(100,p/d*100)}%`;
+        $("elapsed").textContent=fmt(p/1000);
+        $("duration").textContent=fmt(d/1000);
+      }
     }
   }
 
@@ -98,7 +112,7 @@
     if(state.spotifyPlayer){try{state.spotifyPlayer.pause()}catch(_){}}
     if(state.audio){try{state.audio.pause();state.audio.removeAttribute("src");state.audio.load()}catch(_){}}
     state.currentId=null; state.provider=null; state.audioUrl=null; state.loadError=false;
-    state.lastSeekRevision=0;
+    state.playing=false; state.lastSeekRevision=0;
   }
 
   function getYouTubeId(url){
@@ -269,6 +283,7 @@
     state.currentId=current.id;
     state.provider=current.provider;
     state.audioUrl=url;
+    state.playing=!!playing;
     state.lastEndedId=null;
     state.loadError=false;
     state.lastSeekRevision=Number(state.lastSnapshot?.state?.seek_revision||0);
@@ -311,6 +326,7 @@
   }
 
   async function updatePlaying(playing){
+    state.playing=!!playing;
     try{
       await fetch(`/control/${encodeURIComponent(TOKEN)}/playing`,{
         method:"POST",headers:{"Content-Type":"application/json"},
@@ -352,8 +368,10 @@
     if(state.lastEndedId===state.currentId)return;
     state.lastEndedId=state.currentId;
     try{
-      await fetch(`/control/${encodeURIComponent(TOKEN)}/skip`,{method:"POST",cache:"no-store"});
-      await poll();
+      const r=await fetch(`/control/${encodeURIComponent(TOKEN)}/skip`,{method:"POST",cache:"no-store"});
+      if(!r.ok)return;
+      const d=await r.json().catch(()=>null);
+      if(d?.ok)render(d);
     }catch(_){}
   }
 
@@ -391,7 +409,7 @@
     }
   },500);
 
-  setInterval(()=>poll().catch(()=>{}),2000);
+  setInterval(()=>poll().catch(()=>{}),300);
   poll().catch(showError);
 })();
 </script>

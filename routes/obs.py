@@ -15,7 +15,7 @@ obs_bp = Blueprint('obs', __name__)
 _overlay_rate_lock = Lock()
 _overlay_rate = {}
 _OVERLAY_RATE_WINDOW = 10.0
-_OVERLAY_RATE_LIMIT = 20
+_OVERLAY_RATE_LIMIT = 80
 
 
 def _public_base_url():

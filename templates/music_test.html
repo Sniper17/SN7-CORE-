@@ -123,6 +123,44 @@ body:before{content:"";position:fixed;inset:-35%;pointer-events:none;background:
 
 </style>
 
+
+<style id="sn7-final-performance">
+/* Smooth disc: pause freezes the current rotation instead of snapping back. */
+.disc{
+  animation:spin 5.5s linear infinite !important;
+  animation-play-state:paused !important;
+  will-change:transform;
+}
+.playerCard.playing .disc{animation-play-state:running !important}
+
+/* Equalizer is clipped to the lower arc of the circular disc. */
+.art .eq{
+  left:50% !important;
+  right:auto !important;
+  width:66% !important;
+  bottom:17% !important;
+  height:24% !important;
+  transform:translateX(-50%) !important;
+  border-radius:0 0 50% 50% !important;
+  overflow:hidden !important;
+  opacity:0 !important;
+  transition:opacity .28s ease !important;
+}
+.art .eq i{animation-play-state:paused !important}
+.playerCard.playing .art .eq{opacity:1 !important}
+.playerCard.playing .art .eq i{animation-play-state:running !important}
+
+/* Same touch response as the dashboard. */
+.btn,.action,.queue-head{
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  transition:transform .12s ease,background-color .12s ease,border-color .12s ease,opacity .12s ease !important;
+}
+.btn:active,.action:active,.queue-head:active{transform:scale(.965)}
+.btn.primary:active{transform:scale(.965)}
+.queue-row{cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s ease,background-color .12s ease,border-color .12s ease}
+.queue-row:active{transform:scale(.985)}
+</style>
 </head>
 <body>
 <main class="shell">
@@ -248,9 +286,31 @@ function renderQueue(queue){
     return;
   }
   $("queueList").innerHTML=items.slice(0,50).map((item,i)=>
-    `<div class="queue-row"><b>${i+1}</b><span>${escapeHtml(item.title||"Sem título")} · ${escapeHtml(item.artist||item.provider||"—")}</span></div>`
+    `<div class="queue-row" role="button" tabindex="0" data-queue-id="${Number(item.id)||0}"
+        onclick="selectTestQueue(${Number(item.id)||0})"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectTestQueue(${Number(item.id)||0})}">
+        <b>${i+1}</b><span>${escapeHtml(item.title||"Sem título")} · ${escapeHtml(item.artist||item.provider||"—")}</span></div>`
   ).join("");
 }
+async function selectTestQueue(id){
+  const queueId=Number(id);
+  if(!Number.isInteger(queueId)||queueId<=0)return;
+  try{
+    const r=await fetch(`/api/music/${encodeURIComponent(BID)}/queue/select`,{
+      method:"POST",credentials:"same-origin",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({queue_id:queueId})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.ok===false)throw Error(d.error||"Não foi possível selecionar a música.");
+    state.currentId=null;
+    window.__sn7TestCurrent=d.current||null;
+    await snapshot();
+    if(d.current?.provider==="spotify" && d.state?.is_playing)await playCurrent();
+    window.__sn7TestCurrent=null;
+  }catch(e){source(e.message||"Não foi possível selecionar a música.",true);}
+}
+
 async function snapshot(){
   const r=await fetch(`/api/music/${encodeURIComponent(BID)}`,{cache:"no-store",credentials:"same-origin"});
   const d=await r.json().catch(()=>({}));
@@ -330,11 +390,10 @@ async function waitForDevice(deviceId,timeout=8000){
   throw Error("O dispositivo Spotify não ficou disponível. Toque em Conectar novamente.");
 }
 async function initPlayer(){
-  if(state.player&&state.device){
-    try{await waitForDevice(state.device,1800);return state.player}catch(_){
-      try{state.player.disconnect()}catch(_){}
-      state.player=null;state.device=null;state.connected=false;
-    }
+  if(state.player&&state.device&&state.connected)return state.player;
+  if(state.player){
+    try{state.player.disconnect()}catch(_){}
+    state.player=null;state.device=null;state.connected=false;
   }
   await loadSpotifySdk();
   const initial=await token();
@@ -440,58 +499,71 @@ async function playUri(uri,deviceId){
   e.status=r.status;
   throw e;
 }
+async function syncCorePlaying(playing){
+  try{
+    await fetch(`/api/music/${encodeURIComponent(BID)}/state`,{
+      method:"PATCH",credentials:"same-origin",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({is_playing:!!playing}),
+      keepalive:true
+    });
+  }catch(_){}
+}
 async function playCurrent(){
   if(spotifyStartLock)return;
   spotifyStartLock=true;
   try{
-    const d=await snapshot();
-    const c=d.current;
-    const uri=spotifyTrackUri(c);
+    let c=window.__sn7TestCurrent||null;
+    if(!c || !c.id || c.id!==state.currentId){
+      const d=await snapshot();
+      c=d.current;
+    }
     if(!c)throw Error("Não existe uma música atual na fila.");
     if(String(c.provider||"").toLowerCase()!=="spotify")throw Error("A música atual não é uma faixa Spotify.");
+    const uri=spotifyTrackUri(c);
     if(!uri)throw Error("A faixa Spotify atual não possui um link válido.");
 
-    let player=await initPlayer();
+    const trackId=uri.split(":").pop();
+    const player=await initPlayer();
     if(typeof player.activateElement==="function"){
       try{await player.activateElement()}catch(_){}
     }
 
-    let device=state.device;
-    const startPlayback=async()=>{
-      await transfer(device);
-      await new Promise(r=>setTimeout(r,400));
-      await playUri(uri,device);
-      await player.resume().catch(()=>{});
-    };
-
-    try{
-      await startPlayback();
-    }catch(e){
-      if(e.status!==404&&!/device not found|device.*not.*found/i.test(e.message||""))throw e;
-      try{player.disconnect()}catch(_){}
-      state.player=null;state.device=null;state.connected=false;
-
-      player=await initPlayer();
-      device=state.device;
-      if(typeof player.activateElement==="function"){
-        try{await player.activateElement()}catch(_){}
+    const loadedId=state.spotifyState?.track_window?.current_track?.id||null;
+    if(loadedId===trackId){
+      await player.resume();
+    }else{
+      try{
+        await playUri(uri,state.device);
+      }catch(e){
+        if(e.status!==404&&!/device not found|device.*not.*found/i.test(e.message||""))throw e;
+        try{player.disconnect()}catch(_){}
+        state.player=null;state.device=null;state.connected=false;
+        const fresh=await initPlayer();
+        await playUri(uri,state.device);
       }
-      await startPlayback();
     }
 
     state.currentId=c.id;
+    state.spotifyState=null;
+    renderPlaying(true);
     status("Spotify reproduzindo.","ok");
     source(`SPOTIFY · ${c.title||"faixa atual"}`);
+    // Sincroniza o Core sem bloquear o clique.
+    syncCorePlaying(true);
   }finally{
     spotifyStartLock=false;
   }
 }
 async function pause(){
   if(!state.player)await initPlayer();
-  await state.player.pause();
+  // Feedback visual imediato, antes da ida à rede.
   renderPlaying(false);
   status("Spotify pausado.","ok");
+  try{await state.player.pause()}catch(e){throw e}
+  syncCorePlaying(false);
 }
+
 async function skip(){
   if(state.autoAdvanceLock)return;
   state.autoAdvanceLock=true;
@@ -501,11 +573,18 @@ async function skip(){
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.ok===false)throw Error(d.error||"Não foi possível avançar a fila.");
     state.currentId=null;
+    const current=d.current;
     await snapshot();
-    if(d.current?.provider==="spotify")await playCurrent();
-    else{renderPlaying(false);source(d.current?"Próxima faixa pronta.":"Fila finalizada.");}
+    if(current?.provider==="spotify"){
+      window.__sn7TestCurrent=current;
+      await playCurrent();
+      window.__sn7TestCurrent=null;
+    }else{
+      renderPlaying(false);
+      source(current?"Próxima faixa pronta.":"Fila finalizada.");
+    }
   }finally{
-    setTimeout(()=>state.autoAdvanceLock=false,1200);
+    setTimeout(()=>state.autoAdvanceLock=false,350);
   }
 }
 async function previous(){
@@ -517,11 +596,15 @@ async function previous(){
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.ok===false)throw Error(d.error||"Não existe uma música anterior disponível.");
     state.currentId=null;
+    const current=d.current;
     await snapshot();
-    if(d.current?.provider==="spotify")await playCurrent();
-    else source(d.current?"Faixa anterior pronta.":"Nenhuma anterior.");
+    if(current?.provider==="spotify"){
+      window.__sn7TestCurrent=current;
+      await playCurrent();
+      window.__sn7TestCurrent=null;
+    }else source(current?"Faixa anterior pronta.":"Nenhuma anterior.");
   }finally{
-    setTimeout(()=>state.autoAdvanceLock=false,1200);
+    setTimeout(()=>state.autoAdvanceLock=false,350);
   }
 }
 async function autoAdvance(){
@@ -530,17 +613,25 @@ async function autoAdvance(){
   try{
     const r=await fetch(`/api/music/${encodeURIComponent(BID)}/skip`,{method:"POST",credentials:"same-origin"});
     const d=await r.json().catch(()=>({}));
-    if(!r.ok||d.ok===false)throw Error(d.error||"Falha ao avançar a fila.");
+    if(!r.ok||d.ok===false)throw Error(d.error||"Falha no avanço automático.");
     state.currentId=null;
+    const current=d.current;
     await snapshot();
-    if(d.current?.provider==="spotify")await playCurrent();
-    else{renderPlaying(false);source(d.current?"Próxima faixa pronta.":"Fila finalizada.");}
+    if(current?.provider==="spotify"){
+      window.__sn7TestCurrent=current;
+      await playCurrent();
+      window.__sn7TestCurrent=null;
+    }else{
+      renderPlaying(false);
+      source(current?"Próxima faixa pronta.":"Fila finalizada.");
+    }
   }catch(e){
     source(e.message||"Falha no avanço automático.",true);
   }finally{
-    setTimeout(()=>state.autoAdvanceLock=false,1500);
+    setTimeout(()=>state.autoAdvanceLock=false,450);
   }
 }
+
 async function seek(event){
   const rect=$("progress").getBoundingClientRect();
   const ratio=Math.max(0,Math.min(1,(event.clientX-rect.left)/Math.max(1,rect.width)));
@@ -554,17 +645,16 @@ async function seek(event){
     source(e.message||"Não foi possível mover a música.",true);
   }
 }
-async function setVolume(v){
+function setVolume(v){
   const value=Math.max(0,Math.min(100,Math.round(Number(v)||0)));
   renderVolume(value);
-  try{
-    if(state.player)await state.player.setVolume(value/100);
-    await fetch(`/api/music/${encodeURIComponent(BID)}/state`,{
-      method:"PATCH",credentials:"same-origin",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({volume:value})
-    });
-  }catch(_){}
+  if(state.player)state.player.setVolume(value/100).catch(()=>{});
+  fetch(`/api/music/${encodeURIComponent(BID)}/state`,{
+    method:"PATCH",credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({volume:value}),
+    keepalive:true
+  }).catch(()=>{});
 }
 
 $("connect").onclick=()=>initPlayer().catch(e=>status(e.message,"error"));
@@ -612,7 +702,7 @@ setInterval(async()=>{
   }catch(_){}finally{
     state.syncBusy=false;
   }
-},3000);
+},700);
 
 setInterval(()=>{
   if(!state.player||!state.connected||!state.currentId)return;

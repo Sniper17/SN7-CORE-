@@ -2055,3 +2055,43 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
 .sn7-subtle:active {
   transform: scale(.965) !important;
 }
+
+
+/* SN7 MUSIC FINAL PERFORMANCE — equalizer follows the disc shape and pauses smoothly */
+.sn7-music-disc{
+  animation:sn7MusicSpin 5.5s linear infinite !important;
+  animation-play-state:paused !important;
+  will-change:transform;
+}
+.sn7-music-player.is-playing .sn7-music-disc{
+  animation-play-state:running !important;
+}
+.sn7-music-art .sn7-music-eq{
+  left:50% !important;
+  right:auto !important;
+  width:66% !important;
+  bottom:17% !important;
+  height:24% !important;
+  transform:translateX(-50%) !important;
+  border-radius:0 0 50% 50% !important;
+  overflow:hidden !important;
+  opacity:0 !important;
+  transition:opacity .28s ease !important;
+}
+.sn7-music-art .sn7-music-eq i{
+  animation-play-state:paused !important;
+}
+.sn7-music-player.is-playing .sn7-music-art .sn7-music-eq{
+  opacity:1 !important;
+}
+.sn7-music-player.is-playing .sn7-music-art .sn7-music-eq i{
+  animation-play-state:running !important;
+}
+.sn7-music-row-selectable{
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .12s ease,border-color .12s ease,transform .12s ease,opacity .12s ease !important;
+}
+.sn7-music-row-selectable:active{transform:scale(.985)}
+.sn7-music-row-selectable:focus-visible{outline:2px solid rgba(183,171,255,.55);outline-offset:1px}
+.sn7-music-row-selecting{opacity:.55;pointer-events:none}
