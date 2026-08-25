@@ -2529,3 +2529,278 @@ async function saveMusicConfig() {
     }, 120);
   }
 })();
+
+
+/* SN7 MUSIC V6 - player visual + seeking + auto-advance + previous */
+(() => {
+  let boundCurrentId = null;
+  let spotifyAutoAdvanceLock = false;
+  let volumeCommitTimer = null;
+
+  function musicSetStatus(text, error = false) {
+    const el = document.getElementById("sn7MusicSourceStatus");
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle("is-error", !!error);
+  }
+
+  window.musicRenderPlaying = function(playing) {
+    const player = document.getElementById("sn7MusicPlayer");
+    const btn = document.getElementById("sn7MusicPlay");
+    if (player) player.classList.toggle("is-playing", !!playing);
+    if (btn) {
+      btn.classList.toggle("is-playing", !!playing);
+      btn.innerHTML = playing
+        ? '<span class="sn7-pause-icon" aria-hidden="true"><i></i><i></i></span>'
+        : '<span class="sn7-play-icon" aria-hidden="true"></span>';
+      btn.setAttribute("aria-label", playing ? "Pausar" : "Reproduzir");
+      btn.title = playing ? "Pausar" : "Reproduzir";
+    }
+    if (sn7MusicData?.state) sn7MusicData.state.is_playing = !!playing;
+  };
+
+  window.musicRenderProgress = function() {
+    const audio = sn7MusicAudio;
+    if (!audio) return;
+    const duration = Number(audio.duration) || 0;
+    const current = Number(audio.currentTime) || 0;
+    const pct = duration ? Math.min(100, current / duration * 100) : 0;
+    const bar = document.getElementById("sn7MusicProgressBar");
+    const track = document.getElementById("sn7MusicProgress");
+    if (bar) bar.style.width = `${pct}%`;
+    if (track) {
+      track.style.setProperty("--sn7-progress", `${pct}%`);
+      track.setAttribute("aria-valuenow", String(Math.round(pct)));
+    }
+    const elapsed = document.getElementById("sn7MusicElapsed");
+    const total = document.getElementById("sn7MusicDuration");
+    if (elapsed) elapsed.textContent = musicFormatTime(current);
+    if (total) total.textContent = duration ? musicFormatTime(duration) : "—";
+  };
+
+  window.musicRenderVolume = function(value) {
+    const volume = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+    const valueEl = document.getElementById("sn7MusicVolumeValue");
+    const range = document.getElementById("sn7MusicVolumeRange");
+    const icon = document.getElementById("sn7MusicVolumeIcon");
+    if (valueEl) valueEl.textContent = String(volume);
+    if (range) range.value = String(volume);
+    if (icon) {
+      icon.classList.toggle("is-muted", volume === 0);
+      icon.classList.toggle("is-low", volume > 0 && volume <= 30);
+      icon.classList.toggle("is-medium", volume > 30 && volume <= 70);
+      icon.classList.toggle("is-high", volume > 70);
+    }
+  };
+
+  function directAudioUrl(url) {
+    return /^https?:\/\//i.test(String(url || "")) && /\.(mp3|m4a|aac|ogg|wav|opus)(\?.*)?$/i.test(String(url || ""));
+  }
+
+  async function startCurrentIfNeeded(current, shouldPlay) {
+    if (!current || !shouldPlay) return;
+    const provider = String(current.provider || "").toLowerCase();
+    const url = String(current.source_url || "");
+    if (provider === "spotify" && /^spotify:track:[A-Za-z0-9]+$/.test(url)) {
+      try {
+        await musicPlaySpotify(current);
+        musicSetStatus(`Spotify · ${current.title || "reproduzindo"}`);
+      } catch (error) {
+        musicSetStatus(`⚠ ${error.message || "Spotify não iniciou."}`, true);
+        musicRenderPlaying(false);
+      }
+      return;
+    }
+    if (directAudioUrl(url)) {
+      const audio = ensureMusicAudio();
+      try {
+        await audio.play();
+        musicSetStatus("Áudio direto · reproduzindo");
+      } catch (error) {
+        musicSetStatus("Toque em Reproduzir para iniciar o áudio.", false);
+        musicRenderPlaying(false);
+      }
+      return;
+    }
+    if (provider === "youtube") musicSetStatus("YouTube precisa do player oficial para reproduzir.");
+    else musicSetStatus("Fonte sem áudio reproduzível neste player.");
+  }
+
+  window.musicRender = function(data) {
+    sn7MusicData = data || {settings:{}, state:{}, current:null, queue:[]};
+    const current = sn7MusicData.current;
+    const queue = Array.isArray(sn7MusicData.queue) ? sn7MusicData.queue : [];
+    const title = document.getElementById("sn7MusicTitle");
+    const artist = document.getElementById("sn7MusicArtist");
+    const art = document.getElementById("sn7MusicArt");
+    const source = document.getElementById("sn7MusicSourceStatus");
+    const volume = Number(sn7MusicData.state?.volume ?? 80);
+    const currentId = current?.id ?? null;
+    const changed = currentId !== boundCurrentId;
+
+    if (title) title.textContent = current?.title || "Nenhuma música";
+    if (artist) artist.textContent = current?.artist || (queue.length ? "Pronta para a próxima reprodução." : "A fila está pronta para receber músicas.");
+    if (art) art.classList.toggle("has-track", !!current);
+    if (source && !current) source.textContent = "Player pronto";
+    const count = document.getElementById("sn7MusicQueueCount");
+    if (count) count.textContent = String(queue.length);
+
+    musicRenderVolume(volume);
+    musicRenderPlaying(Boolean(sn7MusicData.state?.is_playing));
+    renderMusicQueue(queue);
+
+    const audio = ensureMusicAudio();
+    const url = String(current?.source_url || "");
+    const provider = String(current?.provider || "").toLowerCase();
+    const shouldPlay = Boolean(sn7MusicData.state?.is_playing);
+
+    if (provider === "spotify" && /^spotify:track:[A-Za-z0-9]+$/.test(url)) {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      audio.volume = volume / 100;
+      if (sn7SpotifyPlayer) sn7SpotifyPlayer.setVolume(volume / 100).catch(() => {});
+      if (changed) {
+        sn7SpotifyCurrentUri = "";
+        if (shouldPlay) startCurrentIfNeeded(current, true);
+      } else if (!shouldPlay && sn7SpotifyPlayer) {
+        sn7SpotifyPlayer.pause().catch(() => {});
+      }
+    } else if (directAudioUrl(url)) {
+      if (audio.src !== url) {
+        audio.src = url;
+        audio.volume = volume / 100;
+        audio.load();
+      } else {
+        audio.volume = volume / 100;
+      }
+      if (changed) {
+        if (shouldPlay) startCurrentIfNeeded(current, true);
+        else audio.pause();
+      } else if (shouldPlay && audio.paused) {
+        startCurrentIfNeeded(current, true);
+      } else if (!shouldPlay && !audio.paused) {
+        audio.pause();
+      }
+    } else {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      if (changed && shouldPlay) startCurrentIfNeeded(current, true);
+    }
+
+    boundCurrentId = currentId;
+    musicRenderProgress();
+  };
+
+  window.musicSetVolume = function(value) {
+    const volume = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+    if (sn7MusicData?.state) sn7MusicData.state.volume = volume;
+    const audio = ensureMusicAudio();
+    audio.volume = volume / 100;
+    if (sn7SpotifyPlayer) sn7SpotifyPlayer.setVolume(volume / 100).catch(() => {});
+    musicRenderVolume(volume);
+    clearTimeout(volumeCommitTimer);
+    volumeCommitTimer = setTimeout(async () => {
+      try {
+        const data = await musicApi("/state", {
+          method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({volume})
+        });
+        sn7MusicData = {...(sn7MusicData || {}), ...data};
+      } catch (_) {}
+    }, 180);
+  };
+
+  window.musicChangeVolume = function(delta) {
+    const current = Number(sn7MusicData?.state?.volume ?? 80);
+    musicSetVolume(Math.max(0, Math.min(100, current + Number(delta || 0))));
+  };
+
+  window.musicSeek = async function(event) {
+    if (event?.target?.closest?.("button") && event.target.closest("button") !== document.getElementById("sn7MusicProgress")) return;
+    const track = document.getElementById("sn7MusicProgress");
+    if (!track) return;
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (Number(event.clientX) - rect.left) / Math.max(1, rect.width)));
+    const audio = ensureMusicAudio();
+    const duration = Number(audio.duration) || 0;
+    const current = sn7MusicData?.current;
+    const provider = String(current?.provider || "").toLowerCase();
+    try {
+      if (provider === "spotify" && sn7SpotifyPlayer) {
+        const state = await sn7SpotifyPlayer.getCurrentState();
+        const ms = Number(state?.duration || 0) * ratio;
+        if (ms > 0) await sn7SpotifyPlayer.seek(Math.round(ms));
+      } else if (duration > 0 && isFinite(duration)) {
+        audio.currentTime = duration * ratio;
+      }
+    } catch (_) {}
+  };
+
+  window.musicSeekKey = function(event) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const audio = ensureMusicAudio();
+    const step = event.key === "ArrowRight" ? 10 : -10;
+    const current = sn7MusicData?.current;
+    const provider = String(current?.provider || "").toLowerCase();
+    if (provider === "spotify" && sn7SpotifyPlayer) {
+      sn7SpotifyPlayer.getCurrentState().then(state => {
+        if (!state) return;
+        sn7SpotifyPlayer.seek(Math.max(0, Math.min(state.duration, state.position + step * 1000))).catch(() => {});
+      }).catch(() => {});
+    } else if (Number.isFinite(audio.duration)) {
+      audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + step));
+    }
+  };
+
+  window.musicPrevious = async function() {
+    try {
+      const data = await musicApi("/previous", {method:"POST"});
+      boundCurrentId = null;
+      musicRender(data);
+      musicSetStatus(data.current ? `Anterior: ${data.current.title}` : "Nenhuma música anterior.");
+    } catch (error) {
+      musicSetStatus(`⚠ ${error.message || "Não foi possível voltar."}`, true);
+    }
+  };
+
+  window.musicSkip = async function() {
+    const current = sn7MusicData?.current;
+    if (!current) return;
+    try {
+      const audio = ensureMusicAudio();
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      if (sn7SpotifyPlayer) sn7SpotifyPlayer.pause().catch(() => {});
+      sn7SpotifyCurrentUri = "";
+      const data = await musicApi("/skip", {method:"POST"});
+      boundCurrentId = null;
+      musicRender(data);
+      musicSetStatus(data.current ? `Próxima: ${data.current.title}` : "Fila finalizada.");
+    } catch (error) {
+      musicSetStatus(`⚠ ${error.message || "Não foi possível avançar a fila."}`, true);
+    }
+  };
+
+
+})();
+
+/* SN7 MUSIC V6 - Spotify end-of-track safety net */
+let sn7SpotifyPollLock = false;
+setInterval(() => {
+  try {
+    if (!sn7SpotifyPlayer || !sn7MusicData?.current) return;
+    const provider = String(sn7MusicData.current.provider || '').toLowerCase();
+    if (provider !== 'spotify' || !sn7MusicData?.state?.is_playing) return;
+    sn7SpotifyPlayer.getCurrentState().then(state => {
+      if (!state || state.paused || !state.duration || sn7SpotifyPollLock) return;
+      if (state.position >= state.duration - 900) {
+        sn7SpotifyPollLock = true;
+        setTimeout(() => { sn7SpotifyPollLock = false; }, 1800);
+        if (typeof window.musicSkip === 'function') window.musicSkip();
+      }
+    }).catch(() => {});
+  } catch (_) {}
+}, 500);

@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, redirect, session
 from core.database import get_conn
 from core.auth import require_session_broadcaster
 from core.music import (
-    set_public_commands_cache, _spotify_access_token, clear_queue, _queue_duplicate_exists,
+    set_public_commands_cache, _spotify_access_token, clear_queue, skip_current, previous_current, _queue_duplicate_exists,
     current_and_queue, invalidate_queue_cache, invalidate_music_settings_cache,
 )
 import os
@@ -358,23 +358,29 @@ def skip_music(broadcaster_id):
         require_session_broadcaster(broadcaster_id)
     except PermissionError as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 401
-    conn = get_conn()
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT current_queue_id FROM music_player_state WHERE broadcaster_user_id=%s FOR UPDATE", (int(broadcaster_id),))
-            row = cur.fetchone()
-            current_id = row[0] if row else None
-            if current_id:
-                cur.execute("UPDATE music_queue SET status='played' WHERE id=%s AND broadcaster_user_id=%s", (current_id, int(broadcaster_id)))
-            cur.execute("SELECT id FROM music_queue WHERE broadcaster_user_id=%s AND status='queued' ORDER BY position ASC,id ASC LIMIT 1", (int(broadcaster_id),))
-            nxt = cur.fetchone()
-            next_id = nxt[0] if nxt else None
-            cur.execute("UPDATE music_player_state SET current_queue_id=%s, is_playing=%s, updated_at=NOW() WHERE broadcaster_user_id=%s", (next_id, bool(next_id), int(broadcaster_id)))
-        conn.commit()
-    finally:
-        conn.close()
-    invalidate_queue_cache(broadcaster_id)
-    return jsonify(snapshot(broadcaster_id))
+        skip_current(broadcaster_id)
+        invalidate_queue_cache(broadcaster_id)
+        return jsonify(snapshot(broadcaster_id))
+    except Exception as exc:
+        print(f'[MUSIC] skip erro: {exc}', flush=True)
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
+@music_bp.post('/<int:broadcaster_id>/previous')
+def previous_music(broadcaster_id):
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 401
+    try:
+        current = previous_current(broadcaster_id)
+        if not current:
+            return jsonify({'ok': False, 'error': 'Não existe uma música anterior disponível.'}), 409
+        return jsonify(snapshot(broadcaster_id))
+    except Exception as exc:
+        print(f'[MUSIC] previous erro: {exc}', flush=True)
+        return jsonify({'ok': False, 'error': str(exc)}), 500
 
 
 @music_bp.post('/<int:broadcaster_id>/queue/clear')

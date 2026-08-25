@@ -196,6 +196,15 @@ CREATE TABLE IF NOT EXISTS music_player_state (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS music_play_history (
+    id BIGSERIAL PRIMARY KEY,
+    broadcaster_user_id BIGINT NOT NULL,
+    queue_id BIGINT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_music_play_history_channel
+ON music_play_history(broadcaster_user_id,id DESC);
+
 CREATE TABLE IF NOT EXISTS music_connections (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT NOT NULL,

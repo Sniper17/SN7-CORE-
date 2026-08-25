@@ -512,30 +512,111 @@ def set_playing(bid, playing):
 
 
 def skip_current(bid):
+    """Avança a fila e registra a faixa atual no histórico para o botão anterior."""
+    bid = int(bid)
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute('SELECT current_queue_id FROM music_player_state WHERE broadcaster_user_id=%s FOR UPDATE', (int(bid),))
+            cur.execute(
+                'SELECT current_queue_id FROM music_player_state WHERE broadcaster_user_id=%s FOR UPDATE',
+                (bid,),
+            )
             row = cur.fetchone()
             current_id = row[0] if row else None
+
             if current_id:
-                cur.execute("UPDATE music_queue SET status='played' WHERE id=%s AND broadcaster_user_id=%s", (current_id, int(bid)))
-            cur.execute("SELECT id,title,artist,provider FROM music_queue WHERE broadcaster_user_id=%s AND status='queued' ORDER BY position,id LIMIT 1", (int(bid),))
+                cur.execute(
+                    'INSERT INTO music_play_history(broadcaster_user_id,queue_id) VALUES(%s,%s)',
+                    (bid, int(current_id)),
+                )
+                cur.execute(
+                    "UPDATE music_queue SET status='played' WHERE id=%s AND broadcaster_user_id=%s",
+                    (current_id, bid),
+                )
+
+            cur.execute(
+                "SELECT id,title,artist,provider,source_url,added_by FROM music_queue "
+                "WHERE broadcaster_user_id=%s AND status='queued' "
+                "ORDER BY position,id LIMIT 1",
+                (bid,),
+            )
             nxt = cur.fetchone()
             next_id = nxt[0] if nxt else None
-            cur.execute('UPDATE music_player_state SET current_queue_id=%s,is_playing=%s,updated_at=NOW() WHERE broadcaster_user_id=%s', (next_id, bool(next_id), int(bid)))
+            cur.execute(
+                'UPDATE music_player_state SET current_queue_id=%s,is_playing=%s,updated_at=NOW() WHERE broadcaster_user_id=%s',
+                (next_id, bool(next_id), bid),
+            )
         conn.commit()
         _notify_queue_changed(bid)
-        return {'id': nxt[0], 'title': nxt[1], 'artist': nxt[2], 'provider': nxt[3]} if nxt else None
+        return ({
+            'id': nxt[0], 'title': nxt[1], 'artist': nxt[2] or '',
+            'provider': nxt[3], 'source_url': nxt[4] or '', 'added_by': nxt[5] or '',
+        } if nxt else None)
     finally:
         conn.close()
 
+
+def previous_current(bid):
+    """Volta uma faixa no histórico de reprodução, preservando a fila."""
+    bid = int(bid)
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT current_queue_id,is_playing FROM music_player_state WHERE broadcaster_user_id=%s FOR UPDATE',
+                (bid,),
+            )
+            state_row = cur.fetchone()
+            was_playing = bool(state_row[1]) if state_row else False
+            current_id = state_row[0] if state_row else None
+
+            cur.execute(
+                "SELECT h.id,h.queue_id,q.id,q.title,q.artist,q.provider,q.source_url,q.added_by "
+                "FROM music_play_history h "
+                "JOIN music_queue q ON q.id=h.queue_id AND q.broadcaster_user_id=h.broadcaster_user_id "
+                "WHERE h.broadcaster_user_id=%s ORDER BY h.id DESC LIMIT 1 FOR UPDATE OF h,q",
+                (bid,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+
+            history_id, previous_id = int(row[0]), int(row[1])
+            if current_id and int(current_id) != previous_id:
+                cur.execute(
+                    "UPDATE music_queue SET status='queued', position="
+                    "(SELECT COALESCE(MIN(position),0)-1 FROM music_queue WHERE broadcaster_user_id=%s AND status='queued') "
+                    "WHERE id=%s AND broadcaster_user_id=%s",
+                    (bid, int(current_id), bid),
+                )
+
+            cur.execute(
+                "UPDATE music_queue SET status='queued', position="
+                "(SELECT COALESCE(MIN(position),0)-1 FROM music_queue WHERE broadcaster_user_id=%s AND status='queued' AND id<>%s) "
+                "WHERE id=%s AND broadcaster_user_id=%s",
+                (bid, previous_id, previous_id, bid),
+            )
+            cur.execute('DELETE FROM music_play_history WHERE id=%s AND broadcaster_user_id=%s', (history_id, bid))
+            cur.execute(
+                'UPDATE music_player_state SET current_queue_id=%s,is_playing=%s,updated_at=NOW() WHERE broadcaster_user_id=%s',
+                (previous_id, was_playing, bid),
+            )
+
+        conn.commit()
+        _notify_queue_changed(bid)
+        return {
+            'id': row[2], 'title': row[3], 'artist': row[4] or '',
+            'provider': row[5], 'source_url': row[6] or '', 'added_by': row[7] or '',
+        }
+    finally:
+        conn.close()
 
 def clear_queue(bid):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(bid),))
+            cur.execute("DELETE FROM music_play_history WHERE broadcaster_user_id=%s", (int(bid),))
             cur.execute('UPDATE music_player_state SET current_queue_id=NULL,is_playing=FALSE,updated_at=NOW() WHERE broadcaster_user_id=%s', (int(bid),))
         conn.commit()
         _notify_queue_changed(bid)
