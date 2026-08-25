@@ -18,6 +18,7 @@ from core.services import ensure_channel, ensure_player, get_channel, get_player
 from core.command_system import find_command, list_commands
 from core.auth import get_session_broadcaster_id, stable_channel_id
 from core.cache import forget_rankings
+from threading import RLock
 
 
 kick_bp = Blueprint("kick", __name__)
@@ -37,6 +38,18 @@ _bot_status_cache = {}
 _bot_status_cache_ttl = 30
 _profile_cache = {}
 _profile_cache_ttl = 8
+
+# Cache curto da conexão usada para enviar respostas. O caminho anterior
+# consultava o PostgreSQL em praticamente toda mensagem enviada.
+_connection_cache = {}
+_connection_cache_ttl = 15
+_connection_cache_lock = RLock()
+
+# Cobre duplicações entregues por mais de uma assinatura/webhook durante
+# reconexões. O message_id continua sendo deduplicado no PostgreSQL.
+_recent_chat_events = {}
+_recent_chat_events_ttl = 2.0
+_recent_chat_events_lock = RLock()
 
 
 def _env(name, default=""):
@@ -253,7 +266,7 @@ def _save_connection(user, token_data, profile_id=None):
     ensure_channel(profile_id, username)
     return profile_id
 
-def _get_connection(broadcaster_id):
+def _get_connection_from_db(broadcaster_id):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -264,16 +277,42 @@ def _get_connection(broadcaster_id):
                     WHERE broadcaster_user_id=%s OR sn7_profile_id=%s
                     ORDER BY CASE WHEN sn7_profile_id=%s THEN 0 ELSE 1 END
                     LIMIT 1""",
-                (int(broadcaster_id),int(broadcaster_id),int(broadcaster_id)),
+                (int(broadcaster_id), int(broadcaster_id), int(broadcaster_id)),
             )
-            row=cur.fetchone()
+            row = cur.fetchone()
     finally:
         conn.close()
-    if not row:return None
-    return {"broadcaster_user_id":int(row[0]),"sn7_profile_id":int(row[1] or row[0]),
-            "username":row[2] or "","profile_picture_url":row[3] or "",
-            "access_token":row[4],"refresh_token":row[5],"expires_at":row[6] or 0,
-            "scope":row[7] or "","bot_active":bool(row[8])}
+    if not row:
+        return None
+    return {
+        "broadcaster_user_id": int(row[0]),
+        "sn7_profile_id": int(row[1] or row[0]),
+        "username": row[2] or "",
+        "profile_picture_url": row[3] or "",
+        "access_token": row[4],
+        "refresh_token": row[5],
+        "expires_at": row[6] or 0,
+        "scope": row[7] or "",
+        "bot_active": bool(row[8]),
+    }
+
+
+def _get_connection(broadcaster_id):
+    """Lê a conexão do cache por poucos segundos antes de consultar o banco."""
+    bid = int(broadcaster_id)
+    now = time.monotonic()
+    with _connection_cache_lock:
+        item = _connection_cache.get(bid)
+        if item and item[0] > now:
+            return dict(item[1]) if item[1] else None
+
+    value = _get_connection_from_db(bid)
+    with _connection_cache_lock:
+        _connection_cache[bid] = (
+            now + _connection_cache_ttl,
+            dict(value) if value else None,
+        )
+    return value
 
 def _update_tokens(broadcaster_id, token_data):
     now = int(time.time())
@@ -293,6 +332,8 @@ def _update_tokens(broadcaster_id, token_data):
         conn.commit()
     finally:
         conn.close()
+    with _connection_cache_lock:
+        _connection_cache.pop(int(broadcaster_id), None)
 
 
 def _refresh_connection(conn_data):
@@ -333,7 +374,7 @@ def _valid_connection(broadcaster_id):
         return None
     if not conn_data.get("access_token"):
         return None
-    if int(conn_data.get("expires_at") or 0) <= int(time.time()) + 60:
+    if int(conn_data.get("expires_at") or 0) <= int(time.time()) + 10:
         return _refresh_connection(conn_data)
     return conn_data
 
@@ -1209,7 +1250,7 @@ def _process_chat(payload, send_chat=None):
             result=play_coinflip(bid,user,choice,amount,platform,uid)
             if not result.get("ok"): send_chat(bid,result["error"]); return
             icon="🪙" if result["result"]=="cara" else "👑"
-            text=f"{icon} Saiu {result['result']}! " + (f"🎉 Você venceu +{result['payout']} {currency}." if result['payout'] else f"💥 Você perdeu {result['amount']} {currency}.") + f" Saldo: {result['points']} {currency}."
+            text=f"{icon} Saiu {result['result']}! " + (f"🎉 Você venceu +{result['payout']} {currency}." if result['payout'] else f"💥 Você perdeu {result['amount']} {currency}.")
             send_chat(bid,_render_response(cfg["response"],{"user":_mention(user),"choice":choice,"coinflip_result":text,"new_points":result["points"],"currency":currency})); return
 
         if key == "poll":
@@ -1763,6 +1804,30 @@ def _process_chat(payload, send_chat=None):
     except Exception as exc:
         print(f"[KICK-CHAT] erro processando {content!r}: {exc}", flush=True)
 
+def _remember_recent_chat(payload):
+    """Deduplica uma mensagem mesmo quando IDs de webhook diferem."""
+    broadcaster = payload.get("broadcaster") or {}
+    sender = payload.get("sender") or {}
+    try:
+        bid = int(broadcaster.get("user_id") or 0)
+    except (TypeError, ValueError):
+        bid = 0
+    try:
+        uid = int(sender.get("user_id") or 0)
+    except (TypeError, ValueError):
+        uid = 0
+    content = str(payload.get("content") or "").strip().lower()
+    key = (bid, uid, content)
+    now = time.monotonic()
+    with _recent_chat_events_lock:
+        for old_key, expires in list(_recent_chat_events.items()):
+            if expires <= now:
+                _recent_chat_events.pop(old_key, None)
+        already_seen = key in _recent_chat_events and _recent_chat_events[key] > now
+        _recent_chat_events[key] = now + _recent_chat_events_ttl
+        return already_seen
+
+
 def _process_webhook(payload, event_type):
     print(f"[KICK-WEBHOOK] evento recebido para processamento: {event_type}", flush=True)
     if event_type == "chat.message.sent":
@@ -1781,6 +1846,9 @@ def _process_webhook(payload, event_type):
                 _bot_status_cache[cache_bid] = (time.time(), True)
         except (TypeError, ValueError):
             pass
+        if _remember_recent_chat(payload):
+            print("[KICK-WEBHOOK] mensagem duplicada detectada no cache; ignorando", flush=True)
+            return
         _process_chat(payload)
         return
 

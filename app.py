@@ -25,7 +25,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.35"
+SN7_VERSION = "1.9.36"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 

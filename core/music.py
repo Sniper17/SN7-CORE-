@@ -181,6 +181,19 @@ def _spotify_search_track(bid, query):
         # fazia duas chamadas ao Spotify em muitos casos (track:"..." e depois
         # a busca normal), o que aumentava bastante o tempo do !addmusic.
         items = search(query)
+
+        # Caso conhecido da MC HK da 7: uma busca genérica pode colocar
+        # "JUJUTSU 3" acima de "JUJUTSU". Fazemos uma consulta dirigida ao
+        # artista/título quando os dois aparecem juntos na solicitação.
+        # Isso mantém a busca rápida para os demais casos.
+        normalized_query = qnorm
+        if "mc hk da 7" in normalized_query and "jujutsu" in normalized_query:
+            targeted = search('artist:"MC HK da 7" track:"JUJUTSU"')
+            if targeted:
+                exact_j = [item for item in targeted if norm(item.get("name")) == "jujutsu"]
+                if exact_j:
+                    items = exact_j + items
+
         if not items:
             raise ValueError(f'Não encontrei "{query}" no Spotify.')
 
@@ -224,6 +237,42 @@ def _spotify_search_track(bid, query):
         raise
     except Exception as exc:
         raise ValueError(f'Não consegui consultar o Spotify agora: {exc}')
+
+def _queue_duplicate_exists(cur, bid, provider, source_url, title, artist):
+    """Retorna True se a mesma faixa já estiver na fila do canal."""
+    source = str(source_url or "").strip().lower()
+    if source:
+        cur.execute(
+            """SELECT 1 FROM music_queue
+               WHERE broadcaster_user_id=%s
+                 AND status='queued'
+                 AND provider=%s
+                 AND LOWER(TRIM(source_url))=%s
+               LIMIT 1""",
+            (int(bid), str(provider or "").strip().lower(), source),
+        )
+        if cur.fetchone():
+            return True
+
+    # Fallback para entradas antigas sem source_url: compara título + artista.
+    import unicodedata
+    def norm_local(value):
+        value = unicodedata.normalize("NFKD", str(value or ""))
+        value = "".join(ch for ch in value if not unicodedata.combining(ch))
+        return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+    ntitle = norm_local(title)
+    nartist = norm_local(artist)
+    cur.execute(
+        """SELECT title,artist FROM music_queue
+           WHERE broadcaster_user_id=%s AND status='queued' AND provider=%s""",
+        (int(bid), str(provider or "").strip().lower()),
+    )
+    for row in cur.fetchall():
+        if norm_local(row[0]) == ntitle and norm_local(row[1]) == nartist:
+            return True
+    return False
+
 
 def add_from_chat(bid, query, user):
     query = str(query or '').strip()
@@ -298,6 +347,12 @@ def add_from_chat(bid, query, user):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
+            # Serializa apenas inclusões do mesmo canal. Assim duas pessoas
+            # pedindo a mesma música no mesmo instante não conseguem passar
+            # simultaneamente pela verificação de duplicidade.
+            cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"sn7-music-queue:{int(bid)}",))
+            if _queue_duplicate_exists(cur, bid, provider, source_url, title, artist):
+                raise ValueError(f'🎵 "{title}" já está na fila.')
             cur.execute("SELECT COUNT(*), COALESCE(MAX(position),0) FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(bid),))
             queued_count, max_position = cur.fetchone()
             queued_count = int(queued_count or 0)

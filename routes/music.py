@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, redirect, session
 from core.database import get_conn
 from core.auth import require_session_broadcaster
-from core.music import set_public_commands_cache, _spotify_access_token, clear_queue
+from core.music import set_public_commands_cache, _spotify_access_token, clear_queue, _queue_duplicate_exists
 import os
 import time
 import secrets
@@ -278,6 +278,9 @@ def add_music(broadcaster_id):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
+            cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"sn7-music-queue:{int(broadcaster_id)}",))
+            if _queue_duplicate_exists(cur, broadcaster_id, provider, source_url, title, artist):
+                return jsonify({'ok': False, 'error': f'🎵 "{title}" já está na fila.'}), 409
             cur.execute("SELECT COUNT(*) FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(broadcaster_id),))
             if int(cur.fetchone()[0] or 0) >= 100:
                 return jsonify({'ok': False, 'error': 'A fila deste canal já atingiu o limite de 100 músicas.'}), 409
