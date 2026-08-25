@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, render_template, request, redirect, session
 from core.database import init_db, get_conn
 from core.auth import get_session_broadcaster_id, require_session_broadcaster
+from core.security import audit_request_start, audit_request_end
 from routes.economy import economy_bp
 from routes.minigames import minigames_bp
 from routes.automations import automations_bp
@@ -24,8 +25,15 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.34"
+SN7_VERSION = "1.9.35"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
+
+
+
+@app.before_request
+def security_audit_start():
+    # Auditoria somente. Não altera OAuth, sessão, autorização ou roteamento.
+    audit_request_start()
 
 app.register_blueprint(economy_bp, url_prefix="/api/economy")
 app.register_blueprint(minigames_bp, url_prefix="/api/minigames")
@@ -56,6 +64,12 @@ def response_headers(response):
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     return response
+
+
+@app.after_request
+def security_audit_end(response):
+    # Auditoria somente. Não altera o corpo, status ou headers existentes.
+    return audit_request_end(response)
 
 
 @app.before_request
