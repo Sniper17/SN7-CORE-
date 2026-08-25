@@ -1049,12 +1049,26 @@ def _process_chat(payload, send_chat=None):
         send_chat = lambda _bid, message: _send_chat(kick_bid, message)
     broadcaster = payload.get("broadcaster") or {}
     sender = payload.get("sender") or {}
+    platform = str(payload.get("platform") or "kick").strip().lower()
     try:
         kick_bid = int(broadcaster.get("user_id"))
-        uid = int(sender.get("user_id")) if sender.get("user_id") else None
     except (TypeError, ValueError):
-        print(f"[KICK-CHAT] payload sem IDs válidos: {payload}", flush=True)
+        print(f"[CHAT] broadcaster ID inválido: {payload}", flush=True)
         return
+
+    # A Kick usa IDs numéricos e pode armazená-los em players.kick_user_id.
+    # YouTube usa channel IDs como "UC..." e Twitch também pode usar IDs
+    # externos que não são BIGINT. O motor de comandos identifica esses
+    # usuários por plataforma + username, então não tente converter esses
+    # IDs para int. Essa conversão era o motivo pelo qual o YouTube chegava
+    # ao _process_chat e era descartado antes de executar qualquer comando.
+    uid = None
+    if platform == "kick" and sender.get("user_id"):
+        try:
+            uid = int(sender.get("user_id"))
+        except (TypeError, ValueError):
+            print(f"[KICK-CHAT] ID de usuário Kick inválido: {sender.get('user_id')!r}", flush=True)
+            return
 
     # Integrações diferentes podem entregar o ID externo da plataforma,
     # enquanto o motor de comandos trabalha com o ID interno do perfil SN7.
@@ -1071,7 +1085,6 @@ def _process_chat(payload, send_chat=None):
         conn_for_channel = _get_connection(kick_bid)
         bid = int(conn_for_channel.get("sn7_profile_id") if conn_for_channel else kick_bid)
 
-    platform = str(payload.get("platform") or "kick").strip().lower()
     if platform not in {"kick", "twitch", "youtube"}:
         platform = "kick"
     user = str(sender.get("username") or sender.get("slug") or "").strip()

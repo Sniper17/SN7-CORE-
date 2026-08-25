@@ -358,7 +358,9 @@ def _save_cursor(bid, cursor):
 
 def _process_youtube_reward(bid, author, snippet):
     try:
-        user_id = author.get("channelId")
+        # channelId do YouTube tem formato "UC..." e não é BIGINT.
+        # O cadastro de jogadores usa o username para plataformas não-Kick.
+        user_id = None
         username = str(author.get("displayName") or "").strip()
         if not username:
             return
