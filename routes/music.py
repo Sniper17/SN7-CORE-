@@ -1,7 +1,10 @@
 from flask import Blueprint, jsonify, request, redirect, session
 from core.database import get_conn
 from core.auth import require_session_broadcaster
-from core.music import set_public_commands_cache, _spotify_access_token, clear_queue, _queue_duplicate_exists
+from core.music import (
+    set_public_commands_cache, _spotify_access_token, clear_queue, _queue_duplicate_exists,
+    current_and_queue, invalidate_queue_cache, invalidate_music_settings_cache,
+)
 import os
 import time
 import secrets
@@ -147,6 +150,17 @@ def get_music(broadcaster_id):
         return jsonify({'ok': False, 'error': str(exc)}), 500
 
 
+@music_bp.get('/<int:broadcaster_id>/queue')
+def get_music_queue(broadcaster_id):
+    """Endpoint leve usado pelo painel para sincronizar a fila rapidamente."""
+    try:
+        current, queue = current_and_queue(broadcaster_id)
+        return jsonify({'ok': True, 'current': current, 'queue': queue})
+    except Exception as exc:
+        print(f'[MUSIC] GET fila erro: {exc}', flush=True)
+        return jsonify({'ok': False, 'error': str(exc)}), 500
+
+
 @music_bp.patch('/<int:broadcaster_id>/settings')
 def update_music_settings(broadcaster_id):
     try:
@@ -171,6 +185,7 @@ def update_music_settings(broadcaster_id):
         conn.commit()
         if 'public_commands' in values:
             set_public_commands_cache(broadcaster_id, values['public_commands'])
+        invalidate_music_settings_cache(broadcaster_id)
     finally:
         conn.close()
 
@@ -304,7 +319,19 @@ def add_music(broadcaster_id):
         conn.commit()
     finally:
         conn.close()
-    return jsonify({**snapshot(broadcaster_id), 'added_id': item_id})
+    invalidate_queue_cache(broadcaster_id)
+    return jsonify({
+        'ok': True,
+        'added_id': item_id,
+        'item': {
+            'id': item_id,
+            'provider': provider,
+            'title': title,
+            'artist': artist,
+            'added_by': added_by,
+            'position': position,
+        },
+    })
 
 
 @music_bp.post('/<int:broadcaster_id>/queue/<int:item_id>/remove')
@@ -321,7 +348,8 @@ def remove_music(broadcaster_id, item_id):
         conn.commit()
     finally:
         conn.close()
-    return jsonify(snapshot(broadcaster_id))
+    invalidate_queue_cache(broadcaster_id)
+    return jsonify({'ok': True, 'removed_id': int(item_id)})
 
 
 @music_bp.post('/<int:broadcaster_id>/skip')
@@ -345,6 +373,7 @@ def skip_music(broadcaster_id):
         conn.commit()
     finally:
         conn.close()
+    invalidate_queue_cache(broadcaster_id)
     return jsonify(snapshot(broadcaster_id))
 
 
@@ -357,7 +386,8 @@ def clear_music(broadcaster_id):
     # Usa o mesmo caminho do motor do player para limpar a fila e,
     # principalmente, zerar current_queue_id/is_playing no mesmo reset.
     clear_queue(broadcaster_id)
-    return jsonify(snapshot(broadcaster_id))
+    invalidate_queue_cache(broadcaster_id)
+    return jsonify({'ok': True, 'queue': [], 'current': None})
 
 
 # ---------------------------------------------------------------------------

@@ -2101,20 +2101,52 @@ function renderMusicQueue(queue) {
 }
 
 let sn7MusicQueuePollTimer = null;
+let sn7MusicQueuePollBusy = false;
+
+async function loadMusicQueueOnly() {
+  if (!musicHasChannel() || sn7MusicQueuePollBusy) return;
+  sn7MusicQueuePollBusy = true;
+  try {
+    const data = await musicApi("/queue");
+    const previousCurrentId = sn7MusicData?.current?.id ?? null;
+    const current = data?.current || null;
+    const queue = Array.isArray(data?.queue) ? data.queue : [];
+    sn7MusicData = {
+      ...(sn7MusicData || {}),
+      current,
+      queue,
+    };
+    const count = $("sn7MusicQueueCount");
+    if (count) count.textContent = String(queue.length);
+    renderMusicQueue(queue);
+    if ((current?.id ?? null) !== previousCurrentId) {
+      // Só fazemos o snapshot completo quando a música atual realmente mudou.
+      // Adições/remoções comuns não precisam recarregar player, settings e estado.
+      musicRender(sn7MusicData);
+    } else {
+      const title = $("sn7MusicTitle");
+      const artist = $("sn7MusicArtist");
+      if (title) title.textContent = current?.title || "Nenhuma música";
+      if (artist) artist.textContent = current?.artist || (queue.length ? "Pronta para a próxima reprodução." : "A fila está pronta para receber músicas.");
+    }
+  } finally {
+    sn7MusicQueuePollBusy = false;
+  }
+}
 
 function startMusicQueuePolling() {
   if (sn7MusicQueuePollTimer) return;
-  // O chat do bot atualiza a fila no banco imediatamente. Mantemos o painel
-  // sincronizado em ~1s enquanto a aba Música estiver aberta, em vez de
-  // depender de uma nova navegação/modal para buscar o estado.
+  // A fila é sincronizada por um endpoint leve, sem repetir o snapshot
+  // completo do player a cada segundo.
   sn7MusicQueuePollTimer = setInterval(() => {
     const musicTab = document.querySelector('nav button[data-tab="music"]');
     if (!musicTab || !musicTab.classList.contains("active")) {
       stopMusicQueuePolling();
       return;
     }
-    loadMusic().catch(() => {});
-  }, 1000);
+    loadMusicQueueOnly().catch(() => {});
+  }, 700);
+  loadMusicQueueOnly().catch(() => {});
 }
 
 function stopMusicQueuePolling() {
@@ -2284,14 +2316,28 @@ function musicPrevious() {
 
 async function removeMusicItem(id) {
   if (!Number.isInteger(Number(id))) return;
-  const button = document.querySelector(`.sn7-music-remove[onclick*="${Number(id)}"]`);
+  const numericId = Number(id);
+  const button = document.querySelector(`.sn7-music-remove[onclick*="${numericId}"]`);
+  const row = button?.closest(".sn7-music-row");
+
+  // Feedback imediato: não esperamos a resposta do PostgreSQL para o usuário
+  // perceber que o clique foi aceito.
   if (button) {
     button.disabled = true;
-    button.textContent = "…";
+    button.innerHTML = '<span class="sn7-inline-spinner" aria-hidden="true"></span>';
+    button.setAttribute("aria-busy", "true");
   }
+  if (row) row.classList.add("sn7-music-row-removing");
+
+  // Remove visualmente de forma otimista. Se o backend falhar, a próxima
+  // sincronização restaura a fila real.
+  if (row) row.remove();
+
   try {
-    musicRender(await musicApi(`/queue/${Number(id)}/remove`, {method:"POST"}));
+    await musicApi(`/queue/${numericId}/remove`, {method:"POST"});
+    await loadMusicQueueOnly();
   } catch (_) {
+    await loadMusicQueueOnly().catch(() => {});
     const msg = $("sn7MusicQueueMessage");
     if (msg) {
       msg.textContent = "Não foi possível remover a música.";
@@ -2321,7 +2367,10 @@ async function clearMusicQueue() {
     loader.setAttribute("aria-hidden", "false");
   }
   try {
-    musicRender(await musicApi("/queue/clear", {method:"POST"}));
+    await musicApi("/queue/clear", {method:"POST"});
+    sn7MusicData = {...(sn7MusicData || {}), current: null, queue: [], state: {...(sn7MusicData?.state || {}), current_queue_id: null, is_playing: false}};
+    musicRender(sn7MusicData);
+    await loadMusicQueueOnly();
   } catch (_) {
     const msg = $("sn7MusicQueueMessage");
     if (msg) {

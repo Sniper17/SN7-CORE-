@@ -220,18 +220,51 @@ CREATE TABLE IF NOT EXISTS minigame_settings (
     broadcaster_user_id BIGINT NOT NULL,
     platform TEXT NOT NULL DEFAULT 'kick',
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    bets_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    slots_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     slot_bankroll BIGINT NOT NULL DEFAULT 10000,
     slot_bankroll_max BIGINT NOT NULL DEFAULT 50000,
     slot_hourly_refill BIGINT NOT NULL DEFAULT 1000,
     slot_min_bet BIGINT NOT NULL DEFAULT 10,
+    coinflip_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    polls_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    quiz_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    race_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    target_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    secret_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    survival_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    steal_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    vault_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    jackpot_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     slot_max_bet BIGINT NOT NULL DEFAULT 1000,
     slot_cooldown_seconds INTEGER NOT NULL DEFAULT 5,
     last_slot_refill_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (broadcaster_user_id, platform)
 );
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS bets_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS slots_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS coinflip_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS polls_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS quiz_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS race_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS target_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS secret_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS survival_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS steal_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS vault_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS jackpot_enabled BOOLEAN NOT NULL DEFAULT TRUE;
 CREATE INDEX IF NOT EXISTS idx_minigame_settings_channel
     ON minigame_settings(broadcaster_user_id, platform);
+
+CREATE TABLE IF NOT EXISTS minigame_runtime (
+    broadcaster_user_id BIGINT NOT NULL,
+    platform TEXT NOT NULL,
+    game TEXT NOT NULL,
+    state JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (broadcaster_user_id, platform, game)
+);
 
 -- Safe migrations for databases created before Music OAuth/public controls.
 ALTER TABLE music_settings

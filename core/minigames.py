@@ -1,6 +1,7 @@
 import random
 import time
 from datetime import datetime, timezone
+from threading import RLock
 
 from core.cache import forget_rankings
 from core.database import get_conn
@@ -28,6 +29,15 @@ DEFAULTS = {
     "vault_enabled": True,
     "jackpot_enabled": True,
 }
+
+# Configurações de minigames são estáveis durante a live. Evitamos consultar
+# e migrar o schema do PostgreSQL a cada comando (era um dos maiores gargalos
+# de !cara/!coroa e dos demais minigames).
+_MINIGAME_SCHEMA_READY = False
+_MINIGAME_RUNTIME_READY = False
+_MINIGAME_SCHEMA_LOCK = RLock()
+_SETTINGS_CACHE = {}
+_SETTINGS_CACHE_TTL = 10.0
 
 # Slots favor the house. We choose the outcome category first so matching
 # symbols remain rare and the channel economy stays sustainable.
@@ -110,54 +120,103 @@ def _normalize(values):
 
 
 def ensure_minigame_table():
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS minigame_settings (
-                    broadcaster_user_id BIGINT NOT NULL,
-                    platform TEXT NOT NULL DEFAULT 'kick',
-                    enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    bets_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    slots_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    slot_bankroll BIGINT NOT NULL DEFAULT 10000,
-                    slot_bankroll_max BIGINT NOT NULL DEFAULT 50000,
-                    slot_hourly_refill BIGINT NOT NULL DEFAULT 1000,
-                    slot_min_bet BIGINT NOT NULL DEFAULT 10,
-                    coinflip_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    polls_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    quiz_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    race_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    target_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    secret_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    survival_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    steal_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    vault_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    jackpot_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    slot_max_bet BIGINT NOT NULL DEFAULT 1000,
-                    slot_cooldown_seconds INTEGER NOT NULL DEFAULT 5,
-                    last_slot_refill_at TIMESTAMPTZ,
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                    PRIMARY KEY (broadcaster_user_id, platform)
+    """Garante o schema uma única vez por processo.
+
+    A versão anterior executava CREATE/ALTER/INDEX em toda chamada de
+    get_settings(), fazendo cada comando financeiro pagar o custo de uma
+    migração de schema. O boot do SN7 já inicializa o banco; aqui mantemos uma
+    proteção para bancos antigos, mas só executamos essa rotina uma vez.
+    """
+    global _MINIGAME_SCHEMA_READY
+    if _MINIGAME_SCHEMA_READY:
+        return
+    with _MINIGAME_SCHEMA_LOCK:
+        if _MINIGAME_SCHEMA_READY:
+            return
+        conn = get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS minigame_settings (
+                        broadcaster_user_id BIGINT NOT NULL,
+                        platform TEXT NOT NULL DEFAULT 'kick',
+                        enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        bets_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        slots_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        slot_bankroll BIGINT NOT NULL DEFAULT 10000,
+                        slot_bankroll_max BIGINT NOT NULL DEFAULT 50000,
+                        slot_hourly_refill BIGINT NOT NULL DEFAULT 1000,
+                        slot_min_bet BIGINT NOT NULL DEFAULT 10,
+                        coinflip_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        polls_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        quiz_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        race_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        target_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        secret_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        survival_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        steal_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        vault_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        jackpot_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        slot_max_bet BIGINT NOT NULL DEFAULT 1000,
+                        slot_cooldown_seconds INTEGER NOT NULL DEFAULT 5,
+                        last_slot_refill_at TIMESTAMPTZ,
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        PRIMARY KEY (broadcaster_user_id, platform)
+                    )
+                    """
                 )
-                """
-            )
-            cur.execute("ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS bets_enabled BOOLEAN NOT NULL DEFAULT TRUE")
-            cur.execute("ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS slots_enabled BOOLEAN NOT NULL DEFAULT TRUE")
-            for col in ("coinflip_enabled","polls_enabled","quiz_enabled","race_enabled","target_enabled","secret_enabled","survival_enabled","steal_enabled","vault_enabled","jackpot_enabled"):
-                cur.execute(f"ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS {col} BOOLEAN NOT NULL DEFAULT TRUE")
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_minigame_settings_channel ON minigame_settings(broadcaster_user_id, platform)"
-            )
-        conn.commit()
-    finally:
-        conn.close()
+                for col, definition in (
+                    ("bets_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("slots_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("coinflip_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("polls_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("quiz_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("race_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("target_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("secret_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("survival_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("steal_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("vault_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("jackpot_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                ):
+                    cur.execute(f"ALTER TABLE minigame_settings ADD COLUMN IF NOT EXISTS {col} {definition}")
+                cur.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_minigame_settings_channel "
+                    "ON minigame_settings(broadcaster_user_id, platform)"
+                )
+            conn.commit()
+            _MINIGAME_SCHEMA_READY = True
+        finally:
+            conn.close()
+
+
+def mark_minigame_schema_ready():
+    """Chamado após init_db(): o boot já garantiu o schema e as migrações."""
+    global _MINIGAME_SCHEMA_READY, _MINIGAME_RUNTIME_READY
+    _MINIGAME_SCHEMA_READY = True
+    _MINIGAME_RUNTIME_READY = True
+
+
+def _invalidate_settings_cache(bid, platform=None):
+    bid = int(bid)
+    if platform is None:
+        for key in [k for k in _SETTINGS_CACHE if k[0] == bid]:
+            _SETTINGS_CACHE.pop(key, None)
+    else:
+        _SETTINGS_CACHE.pop((bid, _platform(platform)), None)
 
 
 def get_settings(bid, platform="kick"):
     platform = _platform(platform)
+    bid = int(bid)
     ensure_minigame_table()
+    cache_key = (bid, platform)
+    now = time.monotonic()
+    cached = _SETTINGS_CACHE.get(cache_key)
+    if cached and now - cached[0] < _SETTINGS_CACHE_TTL:
+        return dict(cached[1])
+
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -167,7 +226,7 @@ def get_settings(bid, platform="kick"):
                 VALUES (%s,%s,NOW())
                 ON CONFLICT (broadcaster_user_id, platform) DO NOTHING
                 """,
-                (int(bid), platform),
+                (bid, platform),
             )
             cur.execute(
                 """
@@ -179,29 +238,26 @@ def get_settings(bid, platform="kick"):
                   FROM minigame_settings
                  WHERE broadcaster_user_id=%s AND platform=%s
                 """,
-                (int(bid), platform),
+                (bid, platform),
             )
             row = cur.fetchone()
         conn.commit()
     finally:
         conn.close()
     if not row:
-        return dict(DEFAULTS)
-    value = _normalize({
-        "enabled": row[0],
-        "bets_enabled": row[1],
-        "slots_enabled": row[2],
-        "slot_bankroll": row[3],
-        "slot_bankroll_max": row[4],
-        "slot_hourly_refill": row[5],
-        "slot_min_bet": row[6],
-        "slot_max_bet": row[7],
-        "slot_cooldown_seconds": row[8],
-        "coinflip_enabled": row[9], "polls_enabled": row[10], "quiz_enabled": row[11], "race_enabled": row[12],
-        "target_enabled": row[13], "secret_enabled": row[14], "survival_enabled": row[15], "steal_enabled": row[16],
-        "vault_enabled": row[17], "jackpot_enabled": row[18],
-    })
-    value["last_slot_refill_at"] = row[19].isoformat() if row[19] else None
+        value = dict(DEFAULTS)
+    else:
+        value = _normalize({
+            "enabled": row[0], "bets_enabled": row[1], "slots_enabled": row[2],
+            "slot_bankroll": row[3], "slot_bankroll_max": row[4], "slot_hourly_refill": row[5],
+            "slot_min_bet": row[6], "slot_max_bet": row[7], "slot_cooldown_seconds": row[8],
+            "coinflip_enabled": row[9], "polls_enabled": row[10], "quiz_enabled": row[11],
+            "race_enabled": row[12], "target_enabled": row[13], "secret_enabled": row[14],
+            "survival_enabled": row[15], "steal_enabled": row[16], "vault_enabled": row[17],
+            "jackpot_enabled": row[18],
+        })
+        value["last_slot_refill_at"] = row[19].isoformat() if row[19] else None
+    _SETTINGS_CACHE[cache_key] = (now, dict(value))
     return value
 
 
@@ -246,6 +302,7 @@ def update_settings(bid, platform, values):
         conn.commit()
     finally:
         conn.close()
+    _invalidate_settings_cache(bid, platform)
     return get_settings(bid, platform)
 
 
@@ -272,6 +329,7 @@ def update_minigame_enabled(bid, platform, game, enabled):
         conn.commit()
     finally:
         conn.close()
+    _invalidate_settings_cache(bid, platform)
     return get_settings(bid, platform)
 
 def _refill_locked(cur, bid, platform):
@@ -351,12 +409,31 @@ def play_coinflip(bid, username, choice, amount, platform="kick", user_id=None):
     forget_rankings(bid); return {"ok":True,"choice":choice,"result":result,"amount":amount,"payout":payout,"points":points}
 
 def _game_table():
-    conn=get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""CREATE TABLE IF NOT EXISTS minigame_runtime (broadcaster_user_id BIGINT NOT NULL,platform TEXT NOT NULL,game TEXT NOT NULL,state JSONB NOT NULL DEFAULT '{}'::jsonb,updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),PRIMARY KEY(broadcaster_user_id,platform,game))""")
-        conn.commit()
-    finally: conn.close()
+    """O schema do runtime já é criado no boot do banco."""
+    global _MINIGAME_RUNTIME_READY
+    if _MINIGAME_RUNTIME_READY:
+        return
+    with _MINIGAME_SCHEMA_LOCK:
+        if _MINIGAME_RUNTIME_READY:
+            return
+        conn = get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """CREATE TABLE IF NOT EXISTS minigame_runtime (
+                        broadcaster_user_id BIGINT NOT NULL,
+                        platform TEXT NOT NULL,
+                        game TEXT NOT NULL,
+                        state JSONB NOT NULL DEFAULT '{}'::jsonb,
+                        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                        PRIMARY KEY(broadcaster_user_id,platform,game)
+                    )"""
+                )
+            conn.commit()
+            _MINIGAME_RUNTIME_READY = True
+        finally:
+            conn.close()
+
 
 def _runtime_get(bid,platform,game,default=None):
     _game_table(); conn=get_conn()

@@ -4,9 +4,36 @@ import os
 import base64
 import re
 import requests
+from threading import RLock
 
 from core.database import get_conn
 
+
+
+
+def invalidate_music_settings_cache(bid):
+    _MUSIC_SETTINGS_CACHE.pop(int(bid), None)
+
+
+def _music_settings(bid):
+    bid = int(bid)
+    now = time.monotonic()
+    cached = _MUSIC_SETTINGS_CACHE.get(bid)
+    if cached and now - cached[0] < _MUSIC_SETTINGS_CACHE_TTL:
+        return cached[1]
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                'SELECT allow_youtube,allow_spotify,allow_soundcloud,allow_links '
+                'FROM music_settings WHERE broadcaster_user_id=%s',
+                (bid,),
+            )
+            settings = cur.fetchone() or (True, True, False, False)
+    finally:
+        conn.close()
+    _MUSIC_SETTINGS_CACHE[bid] = (now, settings)
+    return settings
 
 def _provider(url):
     if not url:
@@ -24,6 +51,39 @@ def _provider(url):
 PLAYABLE_PROVIDERS = {'youtube', 'spotify', 'link'}
 DIRECT_AUDIO_EXTENSIONS = ('.mp3', '.m4a', '.aac', '.ogg', '.wav', '.opus')
 
+# Estado da fila fica em memória durante a live. O banco continua sendo a
+# fonte de verdade, mas não precisamos abrir/consultar PostgreSQL a cada
+# atualização visual do painel.
+_QUEUE_CACHE = {}
+_QUEUE_CACHE_TTL = 15.0
+_QUEUE_CACHE_LOCK = RLock()
+_QUEUE_CHANGE_LISTENERS = []
+_SPOTIFY_TOKEN_CACHE = {}
+_SPOTIFY_TOKEN_CACHE_TTL = 300.0
+_MUSIC_SETTINGS_CACHE = {}
+_MUSIC_SETTINGS_CACHE_TTL = 30.0
+
+
+def register_queue_change_listener(callback):
+    if callable(callback) and callback not in _QUEUE_CHANGE_LISTENERS:
+        _QUEUE_CHANGE_LISTENERS.append(callback)
+
+
+def _notify_queue_changed(bid):
+    bid = int(bid)
+    invalidate_queue_cache(bid)
+    for callback in tuple(_QUEUE_CHANGE_LISTENERS):
+        try:
+            callback(bid)
+        except Exception:
+            pass
+
+
+def invalidate_queue_cache(bid):
+    with _QUEUE_CACHE_LOCK:
+        _QUEUE_CACHE.pop(int(bid), None)
+
+
 
 def _is_direct_audio_url(url):
     path = urlparse(str(url or '').strip()).path.lower()
@@ -31,7 +91,12 @@ def _is_direct_audio_url(url):
 
 
 def _spotify_access_token(bid):
-    """Retorna um token Spotify válido para buscas feitas pelo !addmusic."""
+    """Retorna um token Spotify válido, evitando uma consulta ao banco a cada busca."""
+    bid = int(bid)
+    now = time.time()
+    cached = _SPOTIFY_TOKEN_CACHE.get(bid)
+    if cached and now - cached[1] < _SPOTIFY_TOKEN_CACHE_TTL:
+        return cached[0]
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -50,14 +115,22 @@ def _spotify_access_token(bid):
     access_token, refresh_token, expires_at = row
     now = int(time.time())
     if access_token and (not expires_at or int(expires_at) > now + 60):
-        return str(access_token)
+        token = str(access_token)
+        _SPOTIFY_TOKEN_CACHE[bid] = (token, now)
+        return token
     if not refresh_token:
-        return str(access_token) if access_token else None
+        token = str(access_token) if access_token else None
+        if token:
+            _SPOTIFY_TOKEN_CACHE[bid] = (token, now)
+        return token
 
     client_id = os.environ.get('SPOTIFY_CLIENT_ID', '').strip()
     client_secret = os.environ.get('SPOTIFY_CLIENT_SECRET', '').strip()
     if not client_id or not client_secret:
-        return str(access_token) if access_token else None
+        token = str(access_token) if access_token else None
+        if token:
+            _SPOTIFY_TOKEN_CACHE[bid] = (token, now)
+        return token
 
     basic = base64.b64encode(f'{client_id}:{client_secret}'.encode()).decode()
     try:
@@ -86,9 +159,13 @@ def _spotify_access_token(bid):
             conn.commit()
         finally:
             conn.close()
+        _SPOTIFY_TOKEN_CACHE[bid] = (new_token, now)
         return new_token
     except Exception:
-        return str(access_token) if access_token else None
+        token = str(access_token) if access_token else None
+        if token:
+            _SPOTIFY_TOKEN_CACHE[bid] = (token, now)
+        return token
 
 
 def _spotify_search_track(bid, query):
@@ -281,15 +358,8 @@ def add_from_chat(bid, query, user):
     provider = _provider(query if query.startswith(('http://', 'https://')) else '')
     source_url = query if provider != 'unknown' else ''
 
-    # Carrega as permissões antes de consultar qualquer serviço externo.
-    conn = get_conn()
-    try:
-        with conn.cursor() as cur:
-            cur.execute('SELECT allow_youtube,allow_spotify,allow_soundcloud,allow_links FROM music_settings WHERE broadcaster_user_id=%s', (int(bid),))
-            settings = cur.fetchone() or (True, True, False, False)
-    finally:
-        conn.close()
-
+    # Permissões ficam em cache durante a live; alterações do painel invalidam o cache.
+    settings = _music_settings(bid)
     if provider == 'youtube' and not settings[0]:
         raise ValueError('YouTube está desativado para este canal.')
     if provider == 'spotify' and not settings[1]:
@@ -372,23 +442,63 @@ def add_from_chat(bid, query, user):
                 (int(bid), item_id),
             )
         conn.commit()
+        _notify_queue_changed(bid)
         return {'id': item_id, 'title': title[:200], 'artist': artist[:160], 'provider': provider}, position
     finally:
         conn.close()
 
 
 def current_and_queue(bid):
+    """Retorna estado leve da fila, com cache curto para o painel."""
+    bid = int(bid)
+    now = time.monotonic()
+    with _QUEUE_CACHE_LOCK:
+        cached = _QUEUE_CACHE.get(bid)
+        if cached and now - cached[0] < _QUEUE_CACHE_TTL:
+            current, queue = cached[1], cached[2]
+            return current, [dict(item) for item in queue]
+
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute('SELECT s.current_queue_id,q.id,q.title,q.artist,q.provider,q.source_url FROM music_player_state s LEFT JOIN music_queue q ON q.id=s.current_queue_id AND q.status=\'queued\' WHERE s.broadcaster_user_id=%s', (int(bid),))
+            cur.execute(
+                """SELECT s.current_queue_id,q.id,q.title,q.artist,q.provider,q.source_url,q.added_by
+                   FROM music_player_state s
+                   LEFT JOIN music_queue q
+                     ON q.id=s.current_queue_id AND q.status='queued'
+                  WHERE s.broadcaster_user_id=%s""",
+                (bid,),
+            )
             row = cur.fetchone()
-            current = {'id': row[1], 'title': row[2], 'artist': row[3], 'provider': row[4], 'source_url': row[5] or ''} if row and row[1] else None
-            cur.execute("SELECT id,title,artist,provider FROM music_queue WHERE broadcaster_user_id=%s AND status='queued' AND id<>COALESCE(%s,0) ORDER BY position,id LIMIT 20", (int(bid), row[0] if row else None))
-            queue = [{'id': r[0], 'title': r[1], 'artist': r[2], 'provider': r[3]} for r in cur.fetchall()]
-            return current, queue
+            current = (
+                {
+                    'id': row[1], 'title': row[2], 'artist': row[3] or '',
+                    'provider': row[4], 'source_url': row[5] or '', 'added_by': row[6] or ''
+                }
+                if row and row[1] else None
+            )
+            current_id = row[0] if row else None
+            cur.execute(
+                """SELECT id,title,artist,provider,added_by,position
+                     FROM music_queue
+                    WHERE broadcaster_user_id=%s AND status='queued'
+                      AND id<>COALESCE(%s,0)
+                    ORDER BY position,id LIMIT 100""",
+                (bid, current_id),
+            )
+            queue = [
+                {
+                    'id': r[0], 'title': r[1], 'artist': r[2] or '',
+                    'provider': r[3], 'added_by': r[4] or '', 'position': r[5]
+                }
+                for r in cur.fetchall()
+            ]
     finally:
         conn.close()
+
+    with _QUEUE_CACHE_LOCK:
+        _QUEUE_CACHE[bid] = (time.monotonic(), current, queue)
+    return current, [dict(item) for item in queue]
 
 
 def set_playing(bid, playing):
@@ -415,6 +525,7 @@ def skip_current(bid):
             next_id = nxt[0] if nxt else None
             cur.execute('UPDATE music_player_state SET current_queue_id=%s,is_playing=%s,updated_at=NOW() WHERE broadcaster_user_id=%s', (next_id, bool(next_id), int(bid)))
         conn.commit()
+        _notify_queue_changed(bid)
         return {'id': nxt[0], 'title': nxt[1], 'artist': nxt[2], 'provider': nxt[3]} if nxt else None
     finally:
         conn.close()
@@ -427,6 +538,7 @@ def clear_queue(bid):
             cur.execute("DELETE FROM music_queue WHERE broadcaster_user_id=%s AND status='queued'", (int(bid),))
             cur.execute('UPDATE music_player_state SET current_queue_id=NULL,is_playing=FALSE,updated_at=NOW() WHERE broadcaster_user_id=%s', (int(bid),))
         conn.commit()
+        _notify_queue_changed(bid)
     finally:
         conn.close()
 

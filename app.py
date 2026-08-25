@@ -94,6 +94,11 @@ def database_bootstrap():
         return None
     if os.environ.get("DATABASE_URL"):
         init_db()
+        try:
+            from core.minigames import mark_minigame_schema_ready
+            mark_minigame_schema_ready()
+        except Exception:
+            pass
 
 
 def _dashboard_context():
