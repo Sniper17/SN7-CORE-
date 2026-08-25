@@ -1,5 +1,6 @@
 import random
 import time
+from copy import deepcopy
 from datetime import datetime, timezone
 from threading import RLock
 
@@ -38,6 +39,9 @@ _MINIGAME_RUNTIME_READY = False
 _MINIGAME_SCHEMA_LOCK = RLock()
 _SETTINGS_CACHE = {}
 _SETTINGS_CACHE_TTL = 10.0
+_RUNTIME_CACHE = {}
+_RUNTIME_CACHE_TTL = 0.75
+_RUNTIME_CACHE_LOCK = RLock()
 
 # Slots favor the house. We choose the outcome category first so matching
 # symbols remain rare and the channel economy stays sustainable.
@@ -215,7 +219,7 @@ def get_settings(bid, platform="kick"):
     now = time.monotonic()
     cached = _SETTINGS_CACHE.get(cache_key)
     if cached and now - cached[0] < _SETTINGS_CACHE_TTL:
-        return dict(cached[1])
+        return deepcopy(cached[1])
 
     conn = get_conn()
     try:
@@ -435,20 +439,37 @@ def _game_table():
             conn.close()
 
 
+def _runtime_key(bid, platform, game):
+    return (int(bid), _platform(platform), str(game or "").strip().lower())
+
 def _runtime_get(bid,platform,game,default=None):
-    _game_table(); conn=get_conn()
+    _game_table()
+    key = _runtime_key(bid, platform, game)
+    now = time.monotonic()
+    with _RUNTIME_CACHE_LOCK:
+        cached = _RUNTIME_CACHE.get(key)
+        if cached and cached[0] > now:
+            # Retorna uma cópia para não alterar o cache antes de persistir.
+            return deepcopy(cached[1])
+    conn=get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT state FROM minigame_runtime WHERE broadcaster_user_id=%s AND platform=%s AND game=%s",(int(bid),platform,game)); row=cur.fetchone()
-            return (row[0] if row and row[0] is not None else default) or {}
+            cur.execute("SELECT state FROM minigame_runtime WHERE broadcaster_user_id=%s AND platform=%s AND game=%s",(key[0],key[1],key[2])); row=cur.fetchone()
+            value = (row[0] if row and row[0] is not None else default) or {}
     finally: conn.close()
+    with _RUNTIME_CACHE_LOCK:
+        _RUNTIME_CACHE[key] = (time.monotonic() + _RUNTIME_CACHE_TTL, deepcopy(value))
+    return dict(value)
 
 def _runtime_set(bid,platform,game,state):
-    _game_table(); conn=get_conn()
+    _game_table(); key = _runtime_key(bid, platform, game)
+    conn=get_conn()
     try:
-        with conn.cursor() as cur: cur.execute("INSERT INTO minigame_runtime(broadcaster_user_id,platform,game,state) VALUES(%s,%s,%s,%s) ON CONFLICT(broadcaster_user_id,platform,game) DO UPDATE SET state=EXCLUDED.state,updated_at=NOW()",(int(bid),platform,game,state))
+        with conn.cursor() as cur: cur.execute("INSERT INTO minigame_runtime(broadcaster_user_id,platform,game,state) VALUES(%s,%s,%s,%s) ON CONFLICT(broadcaster_user_id,platform,game) DO UPDATE SET state=EXCLUDED.state,updated_at=NOW()",(key[0],key[1],key[2],state))
         conn.commit()
     finally: conn.close()
+    with _RUNTIME_CACHE_LOCK:
+        _RUNTIME_CACHE[key] = (time.monotonic() + _RUNTIME_CACHE_TTL, deepcopy(state or {}))
 
 def start_poll(bid,username,question,options,platform="kick"):
     if not _game_allowed(bid,platform,"polls"): return {"ok":False,"error":"📊 Enquetes estão desativadas nesta plataforma."}

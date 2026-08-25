@@ -16,6 +16,19 @@ from routes.kick import _process_chat
 youtube_bp = Blueprint("youtube", __name__)
 _worker_started = False
 _reward_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="sn7-youtube-reward")
+_chat_executors = {}
+_chat_executors_lock = threading.RLock()
+
+def _chat_executor(bid):
+    bid = int(bid)
+    with _chat_executors_lock:
+        executor = _chat_executors.get(bid)
+        if executor is None:
+            # Uma fila por canal preserva a ordem das mensagens sem bloquear
+            # o worker de polling enquanto o comando/minigame é processado.
+            executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"sn7-youtube-chat-{bid}")
+            _chat_executors[bid] = executor
+        return executor
 # Estado em memória do chat ativo de cada canal. O liveChatId muda a cada nova
 # transmissão, enquanto o pageToken antigo fica salvo no banco. Mantemos o ID
 # atual para detectar troca de live sem consultar broadcasts a cada poll.
@@ -494,7 +507,23 @@ def _poll_once(bid, conn):
             "sn7_profile_id": bid,
             "platform": "youtube",
         }
-        _process_chat(norm, lambda _bid, msg: _send(conn, msg))
+        # O polling do YouTube não fica bloqueado pelo processamento do comando.
+        # Uma fila dedicada por canal mantém a ordem das mensagens e evita
+        # concorrência entre dois comandos/minigames do mesmo chat.
+        try:
+            # Captura somente os dados necessários para o envio.
+            # Não compartilha o dicionário mutável do polling com o worker.
+            send_ctx = {
+                "access_token": conn["access_token"],
+                "_chat_id": conn["_chat_id"],
+            }
+            _chat_executor(bid).submit(
+                _process_chat,
+                norm,
+                lambda _bid, msg, _send_ctx=send_ctx: _send(_send_ctx, msg),
+            )
+        except Exception as exc:
+            print(f"[YOUTUBE-CHAT] fila de comando falhou: {exc}", flush=True)
 
     token = data.get("nextPageToken")
     if token:

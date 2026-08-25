@@ -19,9 +19,28 @@ from core.command_system import find_command, list_commands
 from core.auth import get_session_broadcaster_id, stable_channel_id
 from core.cache import forget_rankings
 from threading import RLock
+from concurrent.futures import ThreadPoolExecutor
 
 
 kick_bp = Blueprint("kick", __name__)
+
+# Processamento serial por broadcaster: preserva a ordem das mensagens
+# de cada canal sem bloquear canais diferentes.
+_chat_executors = {}
+_chat_executors_lock = RLock()
+
+
+def _chat_executor(bid):
+    bid = int(bid)
+    with _chat_executors_lock:
+        executor = _chat_executors.get(bid)
+        if executor is None:
+            executor = ThreadPoolExecutor(
+                max_workers=1,
+                thread_name_prefix=f"sn7-kick-chat-{bid}",
+            )
+            _chat_executors[bid] = executor
+        return executor
 
 KICK_API = "https://api.kick.com/public/v1"
 KICK_ID = "https://id.kick.com"
@@ -2439,13 +2458,22 @@ def webhook():
         payload = request.get_json(silent=True) or {}
         # Responde rápido para a Kick; o processamento da economia/comando ocorre
         # em background e não prende o webhook durante cold start do banco.
-        import threading
-        threading.Thread(
-            target=_process_webhook,
-            args=(payload, event_type),
-            daemon=True,
-            name="kick-event",
-        ).start()
+        # Executor reutilizável: evita criar uma nova thread para cada mensagem
+        # e mantém o webhook livre para receber o próximo evento imediatamente.
+        # Uma fila dedicada por canal preserva a ordem das mensagens e
+        # evita corrida entre comandos/minigames do mesmo broadcaster.
+        bid = (
+            payload.get("broadcaster", {}).get("user_id")
+            or payload.get("broadcaster_user_id")
+            or payload.get("channel_id")
+            or payload.get("user", {}).get("id")
+        )
+        if bid is None:
+            # Mantém o comportamento anterior como fallback para eventos
+            # sem identificador de canal.
+            _chat_executor(0).submit(_process_webhook, payload, event_type)
+        else:
+            _chat_executor(bid).submit(_process_webhook, payload, event_type)
         return jsonify({"ok": True})
     except Exception as exc:
         print(f"[KICK-WEBHOOK] erro aceitando evento: {exc}", flush=True)
