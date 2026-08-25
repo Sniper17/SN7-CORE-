@@ -30,6 +30,8 @@ body:before{content:"";position:fixed;inset:-35%;pointer-events:none;background:
 .links{display:flex;justify-content:space-between;gap:10px;margin-top:12px}.links a{color:#cfd6e2;font-size:10px;text-decoration:none}.links a:hover{text-decoration:underline}
 @media(max-width:600px){body{padding:10px}.card{padding:14px;border-radius:19px}.title{font-size:21px}.player-main{gap:13px;padding:15px 1px}.art{width:88px;height:88px;flex-basis:88px}.disc{width:59px;height:59px}.disc-center{width:20px;height:20px;font-size:10px}.eq{left:13px;right:13px;bottom:10px;height:22px}.eq i{width:2.5px}.info h2{font-size:15px}.controls{gap:7px;flex-wrap:wrap}.btn{min-width:44px;min-height:42px;padding:8px 10px}.btn.primary{width:52px;height:52px}.volume{order:5;width:100%;margin:2px 0 0;padding:9px 0 0;border-left:0;border-top:1px solid rgba(255,255,255,.05);justify-content:flex-end}.volume-range{width:min(45vw,190px)}.queue{max-height:none}.links{flex-direction:column}.actions{flex-wrap:wrap;justify-content:flex-end}}
 @media(prefers-reduced-motion:reduce){body:before,.card:before,.disc,.eq i{animation:none!important}.bar{transition:none}}
+
+.queue-head{width:100%;border:0;background:transparent;color:inherit;cursor:pointer;text-align:left;padding:0;display:flex;justify-content:space-between;align-items:center}.queue-head:after{content:"⌄";font-size:14px;color:#69758a;transition:transform .18s ease}.queue.is-open .queue-head:after{transform:rotate(180deg)}.queue #queuePanel{margin-top:8px}.queue #queuePanel[hidden]{display:none}.disc{overflow:hidden}.eq{left:14%;right:14%;bottom:12%;height:34%;z-index:4}.eq i{height:12%;max-height:28px}
 </style>
 </head>
 <body>
@@ -42,9 +44,11 @@ body:before{content:"";position:fixed;inset:-35%;pointer-events:none;background:
 
   <section class="player-main">
     <div class="art" aria-hidden="true">
-      <div class="disc"><span class="disc-ring"></span><span class="disc-center">♫</span></div>
-      <div class="eq" aria-hidden="true">
-        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      <div class="disc">
+        <span class="disc-ring"></span><span class="disc-center">♫</span>
+        <div class="eq" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
       </div>
     </div>
     <div class="info">
@@ -83,8 +87,12 @@ body:before{content:"";position:fixed;inset:-35%;pointer-events:none;background:
   </div>
 
   <section class="queue">
-    <div class="queue-head"><strong>FILA DO SN7 CORE</strong><span id="queueCount" class="queue-count">0 músicas</span></div>
-    <div id="queueList" class="queue-list"><div class="empty">A fila está vazia.</div></div>
+    <button id="queueToggle" class="queue-head" type="button" aria-expanded="false">
+      <strong>FILA DO SN7 CORE</strong><span id="queueCount" class="queue-count">0 músicas</span>
+    </button>
+    <div id="queuePanel" hidden>
+      <div id="queueList" class="queue-list"><div class="empty">A fila está vazia.</div></div>
+    </div>
   </section>
 
   <div class="links"><a href="/?profile=1">← Voltar ao painel</a><a href="/">Abrir SN7 Core</a></div>
@@ -95,35 +103,268 @@ body:before{content:"";position:fixed;inset:-35%;pointer-events:none;background:
 <script>
 const BID={{ broadcaster_id|tojson }};
 const $=id=>document.getElementById(id);
-const state={player:null,device:null,token:null,connected:false,volume:80,currentId:null,lastPosition:0,lastDuration:0,autoAdvanceLock:false,syncBusy:false};
-let sdkReady=false;
-let sdkWaiters=[];
+const state={player:null,device:null,connected:false,volume:80,currentId:null,autoAdvanceLock:false,syncBusy:false};
+let sdkReady=!!window.Spotify?.Player, sdkWaiters=[], spotifyStartLock=false;
 
-window.onSpotifyWebPlaybackSDKReady=()=>{sdkReady=true;sdkWaiters.splice(0).forEach(resolve=>resolve())};
-function waitForSdk(timeout=12000){if(sdkReady||window.Spotify?.Player)return Promise.resolve();return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{sdkWaiters=sdkWaiters.filter(x=>x!==done);reject(Error("Spotify Web Playback SDK não carregou."))},timeout);function done(){clearTimeout(timer);resolve()}sdkWaiters.push(done)})}
+window.onSpotifyWebPlaybackSDKReady=()=>{
+  sdkReady=true;
+  sdkWaiters.splice(0).forEach(fn=>fn());
+};
+function waitForSdk(timeout=12000){
+  if(sdkReady||window.Spotify?.Player)return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{
+      sdkWaiters=sdkWaiters.filter(x=>x!==done);
+      reject(Error("Spotify Web Playback SDK não carregou."));
+    },timeout);
+    function done(){clearTimeout(timer);resolve()}
+    sdkWaiters.push(done);
+  });
+}
 function status(text,kind=""){const el=$("status");el.className="status"+(kind?" "+kind:"");el.textContent=text}
 function source(text,error=false){const el=$("source");el.textContent=text;el.classList.toggle("error",!!error)}
 function fmt(v){v=Math.max(0,Math.floor(Number(v)||0));return `${Math.floor(v/60)}:${String(v%60).padStart(2,"0")}`}
-function renderPlaying(playing){const card=$("playerCard"),play=$("play");card.classList.toggle("playing",!!playing);if(play){play.innerHTML=playing?'<span class="pause-icon"><i></i><i></i></span>':'<span class="play-icon"></span>';play.title=playing?"Pausar":"Reproduzir";play.setAttribute("aria-label",playing?"Pausar":"Reproduzir")}}
-function renderVolume(value){const v=Math.max(0,Math.min(100,Math.round(Number(value)||0)));state.volume=v;$("volumeRange").value=String(v);$("volumeValue").textContent=String(v);const icon=$("volumeIcon");icon.classList.toggle("is-muted",v===0);icon.classList.toggle("is-medium",v>30&&v<=70);icon.classList.toggle("is-high",v>70)}
-function renderProgress(position,duration){const p=duration?Math.max(0,Math.min(100,position/duration*100)):0;$("bar").style.width=p+"%";$("progress").style.setProperty("--progress",p+"%");$("progress").setAttribute("aria-valuenow",String(Math.round(p)));$("elapsed").textContent=fmt(position/1000);$("duration").textContent=duration?fmt(duration/1000):"—";state.lastPosition=position;state.lastDuration=duration}
-function renderQueue(queue){const list=$("queueList"),items=Array.isArray(queue)?queue:[];$("queueCount").textContent=`${items.length} ${items.length===1?"música":"músicas"}`;if(!items.length){list.innerHTML='<div class="empty">A fila está vazia.</div>';return}list.innerHTML=items.slice(0,25).map((item,i)=>`<div class="queue-row"><b>${i+1}</b><span>${escapeHtml(item.title||"Sem título")} · ${escapeHtml(item.artist||item.provider||"—")}</span></div>`).join("")}
+function renderPlaying(playing){
+  $("playerCard").classList.toggle("playing",!!playing);
+  const play=$("play");
+  play.innerHTML=playing?'<span class="pause-icon"><i></i><i></i></span>':'<span class="play-icon"></span>';
+  play.title=playing?"Pausar":"Reproduzir";
+  play.setAttribute("aria-label",playing?"Pausar":"Reproduzir");
+}
+function renderVolume(value){
+  const v=Math.max(0,Math.min(100,Math.round(Number(value)||0)));
+  state.volume=v;$("volumeRange").value=String(v);$("volumeValue").textContent=String(v);
+  const icon=$("volumeIcon");
+  icon.classList.toggle("is-muted",v===0);
+  icon.classList.toggle("is-medium",v>30&&v<=70);
+  icon.classList.toggle("is-high",v>70);
+}
+function renderProgress(position,duration){
+  const p=duration?Math.max(0,Math.min(100,position/duration*100)):0;
+  $("bar").style.width=p+"%";$("progress").style.setProperty("--progress",p+"%");
+  $("progress").setAttribute("aria-valuenow",String(Math.round(p)));
+  $("elapsed").textContent=fmt(position/1000);$("duration").textContent=duration?fmt(duration/1000):"—";
+}
 function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function snapshot(){const r=await fetch(`/api/music/${encodeURIComponent(BID)}`,{cache:"no-store",credentials:"same-origin"});const d=await r.json().catch(()=>({}));if(!r.ok||d.ok===false)throw Error(d.error||"Falha ao consultar o player.");const c=d.current;$("title").textContent=c?.title||"Nenhuma música atual";$("artist").textContent=c?.artist||c?.provider||"—";renderQueue(d.queue);renderVolume(d.state?.volume??state.volume);if(!c)source("Player pronto");else source(`${String(c.provider||"Fonte").toUpperCase()} · ${c.title||"faixa atual"}`);return d}
-async function token(){const r=await fetch(`/api/music/${encodeURIComponent(BID)}/spotify/player-token`,{cache:"no-store",credentials:"same-origin"});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||"Spotify não está conectado ao SN7 Core.");return d.token}
-async function initPlayer(){if(state.connected&&state.player)return state.player;await waitForSdk();state.token=await token();const player=new Spotify.Player({name:"SN7 Core TESTE",getOAuthToken:cb=>token().then(t=>{state.token=t;cb(t)}).catch(()=>cb(state.token)),volume:state.volume/100});state.player=player;player.addListener("ready",({device_id})=>{state.device=device_id;state.connected=true;$("play").disabled=false;$("pause").disabled=false;status("Spotify conectado ao navegador.","ok");source("Dispositivo pronto · Spotify Web Playback SDK")});player.addListener("not_ready",()=>{state.connected=false;state.device=null;renderPlaying(false);status("Dispositivo Spotify ficou indisponível.","error")});player.addListener("initialization_error",e=>status("Spotify: "+e.message,"error"));player.addListener("authentication_error",e=>status("Spotify: "+e.message,"error"));player.addListener("account_error",e=>status("Spotify: "+e.message,"error"));player.addListener("autoplay_failed",()=>status("O navegador bloqueou o autoplay. Toque em Reproduzir.","error"));player.addListener("playback_error",e=>status("Spotify: "+e.message,"error"));player.addListener("player_state_changed",ps=>{if(!ps)return;const t=ps.track_window?.current_track,p=Number(ps.position||0),d=Number(t?.duration_ms||ps.duration||0);renderProgress(p,d);renderPlaying(!ps.paused);if(t)$("title").textContent=t.name||$("title").textContent;if(t)$("artist").textContent=(t.artists||[]).map(a=>a.name).join(", ")||"—";if(ps.paused&&d>0&&p>=d-1500)autoAdvance();if(!ps.paused)status("Spotify reproduzindo.","ok");else status("Spotify pausado.","ok")});if(!await player.connect()){state.player=null;throw Error("Não foi possível conectar o player Spotify.")}return player}
-function spotifyTrackId(current){const raw=String(current?.source_url||"");const m=raw.match(/^spotify:track:([^?]+)/i);return m?m[1]:null}
-async function playCurrent(){const d=await snapshot(),c=d.current;if(!c)throw Error("Não existe uma música atual na fila.");if(String(c.provider||"").toLowerCase()!=="spotify")throw Error("A música atual não é uma faixa Spotify.");const id=spotifyTrackId(c);if(!id)throw Error("A faixa Spotify atual não possui ID válido.");await initPlayer();const r=await fetch("https://api.spotify.com/v1/me/player/play?device_id="+encodeURIComponent(state.device),{method:"PUT",headers:{Authorization:"Bearer "+state.token,"Content-Type":"application/json"},body:JSON.stringify({uris:[`spotify:track:${id}`]})});if(!r.ok){const text=await r.text().catch(()=>"");throw Error(text||"Spotify não iniciou. Verifique a conta Premium e o dispositivo.")}state.currentId=c.id;status("Spotify reproduzindo.","ok")}
-async function pause(){if(!state.player)await initPlayer();await state.player.pause();renderPlaying(false);status("Spotify pausado.","ok")}
-async function skip(){if(state.autoAdvanceLock)return;state.autoAdvanceLock=true;try{if(state.player)await state.player.pause().catch(()=>{});const r=await fetch(`/api/music/${encodeURIComponent(BID)}/skip`,{method:"POST",credentials:"same-origin"});const d=await r.json().catch(()=>({}));if(!r.ok||d.ok===false)throw Error(d.error||"Não foi possível avançar a fila.");state.currentId=null;await snapshot();if(d.current&&String(d.current.provider||"").toLowerCase()==="spotify")await playCurrent();else{renderPlaying(false);source(d.current?"Próxima faixa selecionada.":"Fila finalizada.");status(d.current?"Próxima faixa pronta.":"Fila finalizada.","ok")}}finally{setTimeout(()=>state.autoAdvanceLock=false,1200)}}
-async function previous(){if(state.autoAdvanceLock)return;state.autoAdvanceLock=true;try{if(state.player)await state.player.pause().catch(()=>{});const r=await fetch(`/api/music/${encodeURIComponent(BID)}/previous`,{method:"POST",credentials:"same-origin"});const d=await r.json().catch(()=>({}));if(!r.ok||d.ok===false)throw Error(d.error||"Não existe uma música anterior disponível.");state.currentId=null;await snapshot();if(d.current&&String(d.current.provider||"").toLowerCase()==="spotify")await playCurrent();else source(d.current?"Faixa anterior selecionada.":"Nenhuma anterior.") }finally{setTimeout(()=>state.autoAdvanceLock=false,1200)}}
-async function autoAdvance(){if(state.autoAdvanceLock)return;state.autoAdvanceLock=true;try{const d=await fetch(`/api/music/${encodeURIComponent(BID)}/skip`,{method:"POST",credentials:"same-origin"}).then(r=>r.json());if(d.ok===false)throw Error(d.error||"Falha ao avançar a fila.");state.currentId=null;await snapshot();if(d.current&&String(d.current.provider||"").toLowerCase()==="spotify")await playCurrent();else{renderPlaying(false);source(d.current?"Próxima faixa pronta.":"Fila finalizada.")}}catch(e){source(e.message||"Falha no avanço automático.",true)}finally{setTimeout(()=>state.autoAdvanceLock=false,1500)}}
-async function seek(event){const rect=$("progress").getBoundingClientRect();const ratio=Math.max(0,Math.min(1,(event.clientX-rect.left)/Math.max(1,rect.width)));try{if(!state.player)await initPlayer();const ps=await state.player.getCurrentState();if(!ps||!ps.duration)return;await state.player.seek(Math.round(ps.duration*ratio));renderProgress(ps.duration*ratio,ps.duration)}catch(e){source(e.message||"Não foi possível mover a música.",true)}}
-async function setVolume(v){const value=Math.max(0,Math.min(100,Math.round(Number(v)||0)));renderVolume(value);try{if(state.player)await state.player.setVolume(value/100);await fetch(`/api/music/${encodeURIComponent(BID)}/state`,{method:"PATCH",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({volume:value})})}catch(e){}}
-$("connect").onclick=()=>initPlayer().catch(e=>status(e.message,"error"));$("play").onclick=()=>{const playing=$("playerCard").classList.contains("playing");(playing?pause():playCurrent()).catch(e=>status(e.message,"error"));};$("pause").onclick=()=>pause().catch(e=>status(e.message,"error"));$("next").onclick=()=>skip().catch(e=>source(e.message,true));$("previous").onclick=()=>previous().catch(e=>source(e.message,true));$("refresh").onclick=()=>snapshot().catch(e=>status(e.message,"error"));$("volumeRange").oninput=e=>setVolume(e.target.value);$("progress").onclick=e=>seek(e);$("progress").onkeydown=e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();if(!state.player)return;state.player.getCurrentState().then(ps=>{if(!ps)return;const step=e.key==="ArrowRight"?10000:-10000;state.player.seek(Math.max(0,Math.min(ps.duration,ps.position+step))).catch(()=>{})})};
-snapshot().then(d=>{renderPlaying(Boolean(d.state?.is_playing));if(d.state?.is_playing&&d.current?.provider==="spotify")playCurrent().catch(()=>{})}).catch(e=>status(e.message,"error"));
-setInterval(async()=>{if(state.syncBusy)return;state.syncBusy=true;try{const d=await snapshot();const id=d.current?.id??null;if(state.currentId&&id&&id!==state.currentId&&d.state?.is_playing&&String(d.current?.provider||"").toLowerCase()==="spotify")await playCurrent();if(!state.currentId&&d.current?.id)state.currentId=d.current.id}catch(e){}finally{state.syncBusy=false}},2500);
-setInterval(()=>{if(!state.player||!state.connected||!state.currentId)return;state.player.getCurrentState().then(ps=>{if(!ps)return;const d=Number(ps.duration||0),p=Number(ps.position||0);if(!ps.paused&&d>0&&p>=d-900)autoAdvance()}).catch(()=>{})},500);
+function renderQueue(queue){
+  const items=Array.isArray(queue)?queue:[];
+  $("queueCount").textContent=`${items.length} ${items.length===1?"música":"músicas"}`;
+  if(!items.length){$("queueList").innerHTML='<div class="empty">A fila está vazia.</div>';return}
+  $("queueList").innerHTML=items.slice(0,50).map((item,i)=>`<div class="queue-row"><b>${i+1}</b><span>${escapeHtml(item.title||"Sem título")} · ${escapeHtml(item.artist||item.provider||"—")}</span></div>`).join("");
+}
+async function snapshot(){
+  const r=await fetch(`/api/music/${encodeURIComponent(BID)}`,{cache:"no-store",credentials:"same-origin"});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||d.ok===false)throw Error(d.error||"Falha ao consultar o player.");
+  const c=d.current;
+  $("title").textContent=c?.title||"Nenhuma música atual";
+  $("artist").textContent=c?.artist||c?.provider||"—";
+  renderQueue(d.queue);
+  renderVolume(d.state?.volume??state.volume);
+  if(!c)source("Player pronto");
+  else source(`${String(c.provider||"Fonte").toUpperCase()} · ${c.title||"faixa atual"}`);
+  return d;
+}
+async function token(){
+  const r=await fetch(`/api/music/${encodeURIComponent(BID)}/spotify/player-token`,{cache:"no-store",credentials:"same-origin"});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok)throw Error(d.error||"Spotify não está conectado ao SN7 Core.");
+  return d.token;
+}
+async function spotifyFetch(path,options={}){
+  const t=await token();
+  return fetch(`https://api.spotify.com/v1${path}`,{...options,headers:{...(options.headers||{}),Authorization:`Bearer ${t}`}});
+}
+async function waitForDevice(deviceId,timeout=8000){
+  const started=Date.now();
+  while(Date.now()-started<timeout){
+    try{
+      const r=await spotifyFetch("/me/player/devices");
+      if(r.ok){
+        const d=await r.json();
+        const found=(d.devices||[]).find(x=>x.id===deviceId);
+        if(found)return found;
+      }
+    }catch(_){}
+    await new Promise(r=>setTimeout(r,350));
+  }
+  throw Error("O dispositivo Spotify não ficou disponível. Toque em Conectar novamente.");
+}
+async function initPlayer(){
+  if(state.player&&state.device){
+    try{await waitForDevice(state.device,1800);return state.player}catch(_){
+      try{state.player.disconnect()}catch(_){}
+      state.player=null;state.device=null;state.connected=false;
+    }
+  }
+  await waitForSdk();
+  const initial=await token();
+  const player=new Spotify.Player({
+    name:"SN7 Core TESTE",
+    getOAuthToken:cb=>token().then(cb).catch(()=>cb(initial)),
+    volume:state.volume/100
+  });
+  player.addListener("ready",({device_id})=>{
+    state.device=device_id;state.connected=true;
+    $("play").disabled=false;$("pause").disabled=false;
+    status("Spotify conectado ao navegador.","ok");
+    source("Dispositivo pronto · Spotify Web Playback SDK");
+  });
+  player.addListener("not_ready",({device_id})=>{
+    if(!device_id||device_id===state.device){state.device=null;state.connected=false;renderPlaying(false)}
+  });
+  player.addListener("initialization_error",e=>status("Spotify: "+e.message,"error"));
+  player.addListener("authentication_error",e=>status("Spotify: "+e.message,"error"));
+  player.addListener("account_error",e=>status("Spotify: "+(e.message||"Premium é necessário."),"error"));
+  player.addListener("autoplay_failed",()=>status("O navegador bloqueou o autoplay. Toque em Reproduzir.","error"));
+  player.addListener("playback_error",e=>status("Spotify: "+e.message,"error"));
+  player.addListener("player_state_changed",ps=>{
+    if(!ps)return;
+    const t=ps.track_window?.current_track,d=Number(t?.duration_ms||ps.duration||0),p=Number(ps.position||0);
+    renderProgress(p,d);renderPlaying(!ps.paused);
+    if(t){$("title").textContent=t.name||$("title").textContent;$("artist").textContent=(t.artists||[]).map(a=>a.name).join(", ")||"—"}
+    status(ps.paused?"Spotify pausado.":"Spotify reproduzindo.","ok");
+    if(!ps.paused&&d>0&&p>=d-900)autoAdvance();
+  });
+  const ready=new Promise((resolve,reject)=>{
+    let done=false;
+    const timer=setTimeout(()=>{if(done)return;done=true;reject(Error("O dispositivo do Spotify não ficou pronto. Verifique sua conta Premium."))},12000);
+    const onReady=({device_id})=>{if(done)return;done=true;clearTimeout(timer);state.device=device_id;state.connected=true;resolve()};
+    player.addListener("ready",onReady);
+    player.connect().then(ok=>{if(!ok&&!done){done=true;clearTimeout(timer);reject(Error("Não foi possível conectar o player Spotify."))}}).catch(()=>{if(!done){done=true;clearTimeout(timer);reject(Error("Não foi possível conectar o player Spotify."))}});
+  });
+  try{await ready;await waitForDevice(state.device)}catch(e){try{player.disconnect()}catch(_){}throw e}
+  state.player=player;
+  return player;
+}
+async function transfer(deviceId){
+  const r=await spotifyFetch("/me/player",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({device_ids:[deviceId],play:false})});
+  if(!r.ok&&r.status!==204){let d="";try{d=(await r.json())?.error?.message||""}catch(_){}throw Error(d||`Não foi possível ativar o dispositivo (HTTP ${r.status}).`)}
+  await new Promise(r=>setTimeout(r,250));
+}
+async function playUri(uri,deviceId){
+  const t=await token();
+  const r=await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,{method:"PUT",headers:{"Authorization":`Bearer ${t}`,"Content-Type":"application/json"},body:JSON.stringify({uris:[uri]})});
+  if(r.ok||r.status===204)return;
+  let d="";try{d=(await r.json())?.error?.message||""}catch(_){}
+  const e=Error(d||`Spotify recusou a reprodução (HTTP ${r.status}).`);e.status=r.status;throw e;
+}
+function spotifyTrackUri(current){
+  const raw=String(current?.source_url||"").trim();
+  if(/^spotify:track:[A-Za-z0-9]+$/i.test(raw))return raw;
+  const m=raw.match(/open\.spotify\.com\/track\/([A-Za-z0-9]+)/i);
+  return m?`spotify:track:${m[1]}`:null;
+}
+async function playCurrent(){
+  if(spotifyStartLock)return;
+  spotifyStartLock=true;
+  try{
+    const d=await snapshot(),c=d.current,uri=spotifyTrackUri(c);
+    if(!c)throw Error("Não existe uma música atual na fila.");
+    if(String(c.provider||"").toLowerCase()!=="spotify")throw Error("A música atual não é uma faixa Spotify.");
+    if(!uri)throw Error("A faixa Spotify atual não possui ID válido.");
+    let player=await initPlayer();
+    if(typeof player.activateElement==="function"){try{await player.activateElement()}catch(_){}}
+    let device=state.device;
+    await waitForDevice(device);
+    try{
+      await transfer(device);await playUri(uri,device);
+    }catch(e){
+      if(e.status!==404&&!/device not found/i.test(e.message||""))throw e;
+      try{player.disconnect()}catch(_){}
+      state.player=null;state.device=null;state.connected=false;
+      player=await initPlayer();device=state.device;
+      await waitForDevice(device);await transfer(device);await playUri(uri,device);
+    }
+    await player.resume().catch(()=>{});
+    state.currentId=c.id;status("Spotify reproduzindo.","ok");source(`SPOTIFY · ${c.title||"faixa atual"}`);
+  }finally{spotifyStartLock=false}
+}
+async function pause(){
+  if(!state.player)await initPlayer();
+  await state.player.pause();renderPlaying(false);status("Spotify pausado.","ok");
+}
+async function skip(){
+  if(state.autoAdvanceLock)return;state.autoAdvanceLock=true;
+  try{
+    if(state.player)await state.player.pause().catch(()=>{});
+    const r=await fetch(`/api/music/${encodeURIComponent(BID)}/skip`,{method:"POST",credentials:"same-origin"});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.ok===false)throw Error(d.error||"Não foi possível avançar a fila.");
+    state.currentId=null;await snapshot();
+    if(d.current?.provider==="spotify")await playCurrent();else{renderPlaying(false);source(d.current?"Próxima faixa pronta.":"Fila finalizada.")}
+  }finally{setTimeout(()=>state.autoAdvanceLock=false,1200)}
+}
+async function previous(){
+  if(state.autoAdvanceLock)return;state.autoAdvanceLock=true;
+  try{
+    if(state.player)await state.player.pause().catch(()=>{});
+    const r=await fetch(`/api/music/${encodeURIComponent(BID)}/previous`,{method:"POST",credentials:"same-origin"});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.ok===false)throw Error(d.error||"Não existe uma música anterior disponível.");
+    state.currentId=null;await snapshot();
+    if(d.current?.provider==="spotify")await playCurrent();else source(d.current?"Faixa anterior pronta.":"Nenhuma anterior.")
+  }finally{setTimeout(()=>state.autoAdvanceLock=false,1200)}
+}
+async function autoAdvance(){
+  if(state.autoAdvanceLock)return;state.autoAdvanceLock=true;
+  try{
+    const r=await fetch(`/api/music/${encodeURIComponent(BID)}/skip`,{method:"POST",credentials:"same-origin"});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.ok===false)throw Error(d.error||"Falha ao avançar a fila.");
+    state.currentId=null;await snapshot();
+    if(d.current?.provider==="spotify")await playCurrent();else{renderPlaying(false);source(d.current?"Próxima faixa pronta.":"Fila finalizada.")}
+  }catch(e){source(e.message||"Falha no avanço automático.",true)}
+  finally{setTimeout(()=>state.autoAdvanceLock=false,1500)}
+}
+async function seek(event){
+  const rect=$("progress").getBoundingClientRect(),ratio=Math.max(0,Math.min(1,(event.clientX-rect.left)/Math.max(1,rect.width)));
+  try{if(!state.player)await initPlayer();const ps=await state.player.getCurrentState();if(!ps?.duration)return;await state.player.seek(Math.round(ps.duration*ratio));renderProgress(ps.duration*ratio,ps.duration)}
+  catch(e){source(e.message||"Não foi possível mover a música.",true)}
+}
+async function setVolume(v){
+  const value=Math.max(0,Math.min(100,Math.round(Number(v)||0)));renderVolume(value);
+  try{
+    if(state.player)await state.player.setVolume(value/100);
+    await fetch(`/api/music/${encodeURIComponent(BID)}/state`,{method:"PATCH",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({volume:value})});
+  }catch(_){}
+}
+$("connect").onclick=()=>initPlayer().catch(e=>status(e.message,"error"));
+$("play").onclick=()=>{const playing=$("playerCard").classList.contains("playing");(playing?pause():playCurrent()).catch(e=>status(e.message,"error"))};
+$("pause").onclick=()=>pause().catch(e=>status(e.message,"error"));
+$("next").onclick=()=>skip().catch(e=>source(e.message,true));
+$("previous").onclick=()=>previous().catch(e=>source(e.message,true));
+$("refresh").onclick=()=>snapshot().catch(e=>status(e.message,"error"));
+$("volumeRange").oninput=e=>setVolume(e.target.value);
+$("progress").onclick=e=>seek(e);
+$("progress").onkeydown=e=>{
+  if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;
+  e.preventDefault();if(!state.player)return;
+  state.player.getCurrentState().then(ps=>{if(!ps)return;const step=e.key==="ArrowRight"?10000:-10000;state.player.seek(Math.max(0,Math.min(ps.duration,ps.position+step))).catch(()=>{})});
+};
+$("queueToggle").onclick=()=>{
+  const panel=$("queuePanel"),queue=$("queueToggle").closest(".queue"),open=panel.hasAttribute("hidden");
+  if(open){panel.removeAttribute("hidden");queue.classList.add("is-open")}else{panel.setAttribute("hidden","");queue.classList.remove("is-open")}
+};
+snapshot().then(d=>{
+  renderPlaying(Boolean(d.state?.is_playing&&state.player));
+  if(d.state?.is_playing)source("Player pronto · toque em Reproduzir para continuar");
+}).catch(e=>status(e.message,"error"));
+setInterval(async()=>{
+  if(state.syncBusy)return;state.syncBusy=true;
+  try{
+    const d=await snapshot(),id=d.current?.id??null;
+    if(state.currentId&&id&&id!==state.currentId&&d.state?.is_playing&&String(d.current?.provider||"").toLowerCase()==="spotify")await playCurrent();
+    if(!state.currentId&&d.current?.id)state.currentId=d.current.id;
+  }catch(_){}finally{state.syncBusy=false}
+},3000);
+setInterval(()=>{
+  if(!state.player||!state.connected||!state.currentId)return;
+  state.player.getCurrentState().then(ps=>{
+    if(!ps)return;const d=Number(ps.duration||0),p=Number(ps.position||0);
+    if(!ps.paused&&d>0&&p>=d-900)autoAdvance();
+  }).catch(()=>{});
+},500);
 </script>
 </body>
 </html>

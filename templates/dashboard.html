@@ -249,9 +249,12 @@ body.sn7-modal-open{overflow:hidden}
 
           <div class="sn7-music-main">
             <div class="sn7-music-art" id="sn7MusicArt" aria-hidden="true">
-              <div class="sn7-music-disc"><span class="sn7-music-disc-ring"></span><span class="sn7-music-disc-center">♫</span></div>
-              <div class="sn7-music-eq" aria-hidden="true">
-                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <div class="sn7-music-disc">
+                <span class="sn7-music-disc-ring"></span>
+                <span class="sn7-music-disc-center">♫</span>
+                <div class="sn7-music-eq" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
               </div>
             </div>
             <div class="sn7-music-info">
@@ -281,32 +284,26 @@ body.sn7-modal-open{overflow:hidden}
           </div>
 
           <div class="sn7-music-bottom">
-            <span class="sn7-music-bottom-hint">SN7 CORE MUSIC</span>
-            <button type="button" class="sn7-music-queue-toggle" id="sn7MusicQueueToggle" onclick="openMusicQueue()" aria-label="Abrir fila de músicas">
+            <span class="sn7-music-bottom-hint">WEB PLAYBACK SDK · AUTO-ADVANCE</span>
+            <button type="button" class="sn7-music-queue-toggle" id="sn7MusicQueueToggle" onclick="openMusicQueue()" aria-expanded="false" aria-controls="sn7MusicInlineQueue">
               ☷ <span>FILA</span><b id="sn7MusicQueueCount">0</b>
             </button>
           </div>
-        </div>
-      </div>
 
-      <div id="sn7MusicQueueModal" class="sn7-config-modal" hidden onclick="closeMusicQueue(event)">
-        <div class="sn7-config-modal-card sn7-music-queue-card" onclick="event.stopPropagation()">
-          <button type="button" class="sn7-config-close" aria-label="Fechar fila" onclick="closeMusicQueue()">×</button>
-          <div class="sn7-music-queue-modal-head">
-            <div>
-              <span class="sn7-music-kicker">FILA DE MÚSICAS</span>
-              <h3>Próximas músicas</h3>
+          <section id="sn7MusicInlineQueue" class="sn7-music-inline-queue" hidden>
+            <div class="sn7-music-inline-head">
+              <strong>FILA DO SN7 CORE</strong>
+              <button type="button" class="sn7-subtle sn7-queue-clear" onclick="clearMusicQueue()">Limpar fila</button>
             </div>
-            <button type="button" class="sn7-subtle sn7-queue-clear" onclick="clearMusicQueue()">Limpar fila</button>
-          </div>
-          <div id="sn7MusicQueue" class="sn7-music-queue">
-            <div class="sn7-music-empty">Nenhuma música adicionada ainda.</div>
-          </div>
-          <div id="sn7MusicQueueLoading" class="sn7-music-queue-loading" aria-hidden="true">
-            <span class="sn7-loader-spinner" aria-hidden="true"></span>
-            <strong>Limpando fila...</strong>
-          </div>
-          <div id="sn7MusicQueueMessage" class="sn7-music-queue-message" hidden></div>
+            <div id="sn7MusicQueue" class="sn7-music-queue">
+              <div class="sn7-music-empty">Nenhuma música adicionada ainda.</div>
+            </div>
+            <div id="sn7MusicQueueMessage" class="sn7-music-queue-message" hidden></div>
+            <div id="sn7MusicQueueLoading" class="sn7-music-queue-loading" aria-hidden="true">
+              <span class="sn7-loader-spinner" aria-hidden="true"></span>
+              <strong>Limpando fila...</strong>
+            </div>
+          </section>
         </div>
       </div>
 

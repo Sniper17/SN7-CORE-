@@ -1666,6 +1666,7 @@ let sn7MusicAudio = null;
 let sn7MusicVolumeSaveTimer = null;
 let sn7MusicConnectionsData = null;
 let sn7MusicConnectionsPromise = null;
+let sn7MusicUserGesture = false;
 
 function musicHasChannel() {
   return typeof BROADCASTER_ID !== "undefined" && BROADCASTER_ID !== null && BROADCASTER_ID !== "";
@@ -1686,6 +1687,15 @@ let sn7SpotifyPlayer = null;
 let sn7SpotifyDeviceId = null;
 let sn7SpotifyReadyPromise = null;
 let sn7SpotifyCurrentUri = "";
+let sn7SpotifyDeviceReadyPromise = null;
+let sn7SpotifyStarting = false;
+
+function spotifySetStatus(text, error = false) {
+  const source = $("sn7MusicSourceStatus");
+  if (!source) return;
+  source.textContent = text;
+  source.classList.toggle("is-error", !!error);
+}
 
 function ensureSpotifySDK() {
   if (window.Spotify && window.Spotify.Player) return Promise.resolve();
@@ -1708,104 +1718,201 @@ function ensureSpotifySDK() {
   return sn7SpotifyReadyPromise;
 }
 
-async function ensureSpotifyPlayer() {
-  if (sn7SpotifyPlayer && sn7SpotifyDeviceId) return sn7SpotifyPlayer;
-  await ensureSpotifySDK();
-  if (sn7SpotifyPlayer && sn7SpotifyDeviceId) return sn7SpotifyPlayer;
-
+async function spotifyToken() {
   const data = await musicApi("/spotify/player-token");
   if (!data?.token) throw new Error("Spotify não retornou um token de reprodução.");
+  return data.token;
+}
 
-  sn7SpotifyPlayer = new Spotify.Player({
+async function spotifyFetch(path, options = {}) {
+  const token = await spotifyToken();
+  const headers = {...(options.headers || {}), Authorization: `Bearer ${token}`};
+  const response = await fetch(`https://api.spotify.com/v1${path}`, {...options, headers});
+  return response;
+}
+
+async function waitForSpotifyDevice(deviceId, timeout = 8000) {
+  const started = Date.now();
+  while (Date.now() - started < timeout) {
+    try {
+      const response = await spotifyFetch("/me/player/devices");
+      if (response.ok) {
+        const data = await response.json();
+        const device = (data.devices || []).find(d => d.id === deviceId);
+        if (device) return device;
+      }
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, 350));
+  }
+  throw new Error("O dispositivo Spotify não ficou disponível. Toque em Conectar novamente.");
+}
+
+async function createSpotifyPlayer() {
+  await ensureSpotifySDK();
+  const initialToken = await spotifyToken();
+
+  const player = new Spotify.Player({
     name: "SN7 Core Music Player",
     getOAuthToken: async (cb) => {
-      try {
-        const fresh = await musicApi("/spotify/player-token");
-        cb(fresh.token);
-      } catch (_) {
-        cb(data.token);
-      }
+      try { cb(await spotifyToken()); }
+      catch (_) { cb(initialToken); }
     },
     volume: Number(sn7MusicData?.state?.volume ?? 80) / 100
   });
 
-  sn7SpotifyPlayer.addListener("ready", ({device_id}) => {
-    sn7SpotifyDeviceId = device_id;
+  player.addListener("initialization_error", ({message}) => spotifySetStatus(`⚠ Spotify: ${message}`, true));
+  player.addListener("authentication_error", ({message}) => spotifySetStatus(`⚠ Spotify: ${message}`, true));
+  player.addListener("account_error", ({message}) => spotifySetStatus(`⚠ ${message || "Conta Spotify não elegível. Premium é necessário."}`, true));
+  player.addListener("autoplay_failed", () => spotifySetStatus("O navegador bloqueou o autoplay. Toque em Reproduzir.", true));
+  player.addListener("playback_error", ({message}) => spotifySetStatus(`⚠ Spotify: ${message}`, true));
+  player.addListener("not_ready", ({device_id}) => {
+    if (!device_id || device_id === sn7SpotifyDeviceId) {
+      sn7SpotifyDeviceId = null;
+      sn7SpotifyDeviceReadyPromise = null;
+      if (sn7SpotifyPlayer === player) sn7SpotifyPlayer = null;
+    }
   });
-  sn7SpotifyPlayer.addListener("not_ready", ({device_id}) => {
-    if (device_id === sn7SpotifyDeviceId) sn7SpotifyDeviceId = null;
-  });
-  sn7SpotifyPlayer.addListener("initialization_error", ({message}) => {
-    const source = $("sn7MusicSourceStatus");
-    if (source) source.textContent = `⚠ Spotify: ${message}`;
-  });
-  sn7SpotifyPlayer.addListener("authentication_error", ({message}) => {
-    const source = $("sn7MusicSourceStatus");
-    if (source) source.textContent = `⚠ Spotify: ${message}`;
-  });
-  sn7SpotifyPlayer.addListener("account_error", ({message}) => {
-    const source = $("sn7MusicSourceStatus");
-    if (source) source.textContent = `⚠ Spotify: ${message || "Conta não elegível"} (Premium necessário)`;
-  });
-  sn7SpotifyPlayer.addListener("autoplay_failed", () => {
-    const source = $("sn7MusicSourceStatus");
-    if (source) source.textContent = "⚠ O navegador bloqueou a reprodução. Toque em Reproduzir novamente.";
-  });
-  sn7SpotifyPlayer.addListener("playback_error", ({message}) => {
-    const source = $("sn7MusicSourceStatus");
-    if (source) source.textContent = `⚠ Spotify: ${message}`;
-  });
-  sn7SpotifyPlayer.addListener("player_state_changed", (state) => {
-    if (!state) return;
-    const playing = !state.paused;
+  player.addListener("player_state_changed", (playbackState) => {
+    if (!playbackState) return;
+    const playing = !playbackState.paused;
     if (sn7MusicData?.state) sn7MusicData.state.is_playing = playing;
     musicRenderPlaying(playing);
+    if (typeof window.musicRenderProgress === "function") {
+      const track = playbackState.track_window?.current_track;
+      window.musicRenderProgress(
+        Number(playbackState.position || 0),
+        Number(track?.duration_ms || playbackState.duration || 0)
+      );
+    }
   });
 
-  const connected = await new Promise((resolve, reject) => {
-    let done = false;
-    const finish = (ok) => {
-      if (done) return;
-      done = true;
-      ok ? resolve(true) : reject(new Error("O dispositivo do Spotify não ficou pronto."));
-    };
-    const onReady = ({device_id}) => {
+  sn7SpotifyDeviceReadyPromise = new Promise((resolve, reject) => {
+    let finished = false;
+    const timer = setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      reject(new Error("O dispositivo do Spotify não ficou pronto. Verifique se o Spotify Premium está disponível."));
+    }, 12000);
+
+    const ready = ({device_id}) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
       sn7SpotifyDeviceId = device_id;
-      finish(true);
+      resolve(device_id);
     };
-    sn7SpotifyPlayer.addListener("ready", onReady);
-    sn7SpotifyPlayer.connect().then(ok => {
-      if (!ok) finish(false);
-    }).catch(() => finish(false));
-    setTimeout(() => finish(false), 10000);
+    player.addListener("ready", ready);
+    player.connect().then(ok => {
+      if (!ok && !finished) {
+        finished = true;
+        clearTimeout(timer);
+        reject(new Error("Não foi possível conectar o player Spotify."));
+      }
+    }).catch(() => {
+      if (!finished) {
+        finished = true;
+        clearTimeout(timer);
+        reject(new Error("Não foi possível conectar o player Spotify."));
+      }
+    });
   });
 
-  return connected ? sn7SpotifyPlayer : sn7SpotifyPlayer;
+  try {
+    await sn7SpotifyDeviceReadyPromise;
+  } catch (error) {
+    try { player.disconnect(); } catch (_) {}
+    sn7SpotifyDeviceReadyPromise = null;
+    throw error;
+  }
+
+  sn7SpotifyPlayer = player;
+  return player;
 }
 
-async function musicPlaySpotify(current) {
-  const uri = String(current?.source_url || "").trim();
-  if (!/^spotify:track:[A-Za-z0-9]+$/.test(uri)) {
-    throw new Error("Faixa do Spotify inválida.");
+async function ensureSpotifyPlayer() {
+  if (sn7SpotifyPlayer && sn7SpotifyDeviceId) {
+    try {
+      await waitForSpotifyDevice(sn7SpotifyDeviceId, 1800);
+      return sn7SpotifyPlayer;
+    } catch (_) {
+      try { sn7SpotifyPlayer.disconnect(); } catch (_) {}
+      sn7SpotifyPlayer = null;
+      sn7SpotifyDeviceId = null;
+      sn7SpotifyDeviceReadyPromise = null;
+    }
   }
-  const player = await ensureSpotifyPlayer();
-  if (typeof player.activateElement === "function") {
-    try { await player.activateElement(); } catch (_) {}
-  }
-  if (!sn7SpotifyDeviceId) throw new Error("Spotify ainda está preparando o dispositivo. Tente novamente.");
-  const tokenData = await musicApi("/spotify/player-token");
-  const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(sn7SpotifyDeviceId)}`, {
+  return createSpotifyPlayer();
+}
+
+async function transferSpotifyToWebPlayer(deviceId) {
+  const response = await spotifyFetch("/me/player", {
     method: "PUT",
-    headers: {"Authorization": `Bearer ${tokenData.token}`, "Content-Type": "application/json"},
-    body: JSON.stringify({uris: [uri]})
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({device_ids: [deviceId], play: false})
   });
   if (!response.ok && response.status !== 204) {
     let detail = "";
     try { detail = (await response.json())?.error?.message || ""; } catch (_) {}
-    throw new Error(detail || `Spotify recusou a reprodução (HTTP ${response.status}).`);
+    throw new Error(detail || `Não foi possível ativar o dispositivo Spotify (HTTP ${response.status}).`);
   }
-  sn7SpotifyCurrentUri = uri;
-  await player.resume();
+  await new Promise(r => setTimeout(r, 250));
+}
+
+async function sendSpotifyPlay(uri, deviceId) {
+  const token = await spotifyToken();
+  const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
+    method: "PUT",
+    headers: {"Authorization": `Bearer ${token}`, "Content-Type": "application/json"},
+    body: JSON.stringify({uris: [uri]})
+  });
+  if (response.ok || response.status === 204) return;
+  let detail = "";
+  try { detail = (await response.json())?.error?.message || ""; } catch (_) {}
+  const error = new Error(detail || `Spotify recusou a reprodução (HTTP ${response.status}).`);
+  error.status = response.status;
+  throw error;
+}
+
+async function musicPlaySpotify(current) {
+  const uri = String(current?.source_url || "").trim();
+  if (!/^spotify:track:[A-Za-z0-9]+$/.test(uri)) throw new Error("Faixa do Spotify inválida.");
+  if (sn7SpotifyStarting) return;
+  sn7SpotifyStarting = true;
+
+  try {
+    let player = await ensureSpotifyPlayer();
+    if (typeof player.activateElement === "function") {
+      try { await player.activateElement(); } catch (_) {}
+    }
+    let deviceId = sn7SpotifyDeviceId;
+    if (!deviceId) throw new Error("Spotify ainda está preparando o dispositivo.");
+
+    await waitForSpotifyDevice(deviceId);
+    try {
+      await transferSpotifyToWebPlayer(deviceId);
+      await sendSpotifyPlay(uri, deviceId);
+    } catch (error) {
+      // 404 "Device not found" normalmente significa que o dispositivo Web
+      // Playback desapareceu entre o ready e a chamada da Web API. Recriaremos
+      // o dispositivo uma única vez antes de mostrar erro ao usuário.
+      if (error?.status !== 404 && !/device not found/i.test(error?.message || "")) throw error;
+      try { player.disconnect(); } catch (_) {}
+      sn7SpotifyPlayer = null;
+      sn7SpotifyDeviceId = null;
+      sn7SpotifyDeviceReadyPromise = null;
+      const freshPlayer = await createSpotifyPlayer();
+      player = freshPlayer;
+      deviceId = sn7SpotifyDeviceId;
+      await waitForSpotifyDevice(deviceId);
+      await transferSpotifyToWebPlayer(deviceId);
+      await sendSpotifyPlay(uri, deviceId);
+      if (freshPlayer?.resume) await freshPlayer.resume().catch(() => {});
+    }
+    sn7SpotifyCurrentUri = uri;
+    if (player?.resume) await player.resume().catch(() => {});
+  } finally {
+    sn7SpotifyStarting = false;
+  }
 }
 
 function ensureMusicAudio() {
@@ -2082,22 +2189,24 @@ function musicRender(data) {
 }
 
 function renderMusicQueue(queue) {
-  const box = $("sn7MusicQueue");
-  if (!box) return;
-  if (!queue.length) {
-    box.innerHTML = `<div class="sn7-music-empty">Nenhuma música adicionada ainda.</div>`;
-    return;
-  }
-  box.innerHTML = queue.map((item, index) => `
-    <div class="sn7-music-row">
-      <span class="sn7-music-number">${index + 1}</span>
-      <div class="sn7-music-row-info">
-        <strong>${esc(item.title)}</strong>
-        <small>${esc(item.artist || "Artista não informado")} · ${esc(item.added_by || "chat")}</small>
-      </div>
-      <span class="sn7-music-provider">${esc(item.provider || "link")}</span>
-      <button type="button" class="sn7-music-remove" onclick="removeMusicItem(${Number(item.id)})" aria-label="Remover ${esc(item.title)}">×</button>
-    </div>`).join("");
+  const boxes = document.querySelectorAll("#sn7MusicQueue");
+  const items = Array.isArray(queue) ? queue : [];
+  boxes.forEach((box) => {
+    if (!items.length) {
+      box.innerHTML = `<div class="sn7-music-empty">A fila está vazia.</div>`;
+      return;
+    }
+    box.innerHTML = items.slice(0, 100).map((item, index) => `
+      <div class="sn7-music-row" data-queue-id="${Number(item.id) || 0}">
+        <span class="sn7-music-number">${index + 1}</span>
+        <div class="sn7-music-row-info">
+          <strong>${esc(item.title || "Sem título")}</strong>
+          <small>${esc(item.artist || "Artista não informado")} · ${esc(item.added_by || "chat")}</small>
+        </div>
+        <span class="sn7-music-provider">${esc(item.provider || "link")}</span>
+        <button type="button" class="sn7-music-remove" onclick="removeMusicItem(${Number(item.id)})" aria-label="Remover ${esc(item.title || "música")}">×</button>
+      </div>`).join("");
+  });
 }
 
 let sn7MusicQueuePollTimer = null;
@@ -2188,6 +2297,7 @@ async function loadMusic() {
 }
 
 async function musicTogglePlay() {
+  sn7MusicUserGesture = true;
   const current = sn7MusicData?.current;
   if (!current) return;
 
@@ -2392,29 +2502,28 @@ async function clearMusicQueue() {
 }
 
 function openMusicQueue() {
-  const modal = $("sn7MusicQueueModal");
-  if (!modal) return;
-  if (modal.parentElement !== document.body) document.body.appendChild(modal);
-  modal.removeAttribute("hidden");
-  document.body.classList.add("sn7-modal-open");
-  loadMusic().catch(() => {});
-  startMusicQueuePolling();
+  const panel = $("sn7MusicInlineQueue");
+  const toggle = $("sn7MusicQueueToggle");
+  if (!panel) return;
+  const opening = panel.hasAttribute("hidden");
+  if (opening) {
+    panel.removeAttribute("hidden");
+    if (toggle) toggle.setAttribute("aria-expanded", "true");
+    loadMusic().catch(() => {});
+    startMusicQueuePolling();
+  } else {
+    panel.setAttribute("hidden", "");
+    if (toggle) toggle.setAttribute("aria-expanded", "false");
+  }
 }
 
 function closeMusicQueue(event) {
   if (event && event.target !== event.currentTarget) return;
-  const modal = $("sn7MusicQueueModal");
-  if (!modal) return;
-  modal.setAttribute("hidden", "");
-  document.body.classList.remove("sn7-modal-open");
-  // A fila aberta é só uma das formas de visualizar a Música. Se a aba
-  // Música continuar ativa, o painel principal também precisa permanecer
-  // sincronizado depois de fechar o modal.
-  const musicTab = document.querySelector('nav button[data-tab="music"]');
-  if (musicTab && musicTab.classList.contains("active")) startMusicQueuePolling();
-  else stopMusicQueuePolling();
+  const panel = $("sn7MusicInlineQueue");
+  const toggle = $("sn7MusicQueueToggle");
+  if (panel) panel.setAttribute("hidden", "");
+  if (toggle) toggle.setAttribute("aria-expanded", "false");
 }
-
 function openMusicConfig() {
   const modal = $("sn7MusicConfig");
   if (!modal) return;
@@ -2662,7 +2771,12 @@ async function saveMusicConfig() {
       if (sn7SpotifyPlayer) sn7SpotifyPlayer.setVolume(volume / 100).catch(() => {});
       if (changed) {
         sn7SpotifyCurrentUri = "";
-        if (shouldPlay) startCurrentIfNeeded(current, true);
+        // Após recarregar a página, o Spotify não deve ser iniciado
+        // automaticamente: o navegador exige uma interação do usuário.
+        // Depois de um skip/previous, o dispositivo já está conectado e
+        // podemos continuar automaticamente.
+        if (shouldPlay && sn7SpotifyPlayer && sn7SpotifyDeviceId) startCurrentIfNeeded(current, true);
+        else if (shouldPlay) musicSetStatus("Player pronto · toque em Reproduzir para continuar.");
       } else if (!shouldPlay && sn7SpotifyPlayer) {
         sn7SpotifyPlayer.pause().catch(() => {});
       }
@@ -2675,7 +2789,7 @@ async function saveMusicConfig() {
         audio.volume = volume / 100;
       }
       if (changed) {
-        if (shouldPlay) startCurrentIfNeeded(current, true);
+        if (shouldPlay && sn7MusicUserGesture) startCurrentIfNeeded(current, true);
         else audio.pause();
       } else if (shouldPlay && audio.paused) {
         startCurrentIfNeeded(current, true);
@@ -2755,6 +2869,7 @@ async function saveMusicConfig() {
   };
 
   window.musicPrevious = async function() {
+    sn7MusicUserGesture = true;
     try {
       const data = await musicApi("/previous", {method:"POST"});
       boundCurrentId = null;
@@ -2766,6 +2881,7 @@ async function saveMusicConfig() {
   };
 
   window.musicSkip = async function() {
+    sn7MusicUserGesture = true;
     const current = sn7MusicData?.current;
     if (!current) return;
     try {
