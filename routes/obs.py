@@ -42,8 +42,8 @@ def _get_connection(broadcaster_id):
         'broadcaster_user_id': int(row[0]),
         'access_token': row[1],
         'label': row[2] or 'SN7 Core',
-        'created_at': row[3].isoformat() if row[3] else None,
-        'updated_at': row[4].isoformat() if row[4] else None,
+        'created_at': row[11].isoformat() if row[3] else None,
+        'updated_at': row[12].isoformat() if row[4] else None,
     }
 
 
@@ -111,12 +111,13 @@ def _snapshot_for_obs(broadcaster_id):
         with conn.cursor() as cur:
             cur.execute(
                 """SELECT s.current_queue_id, s.is_playing, s.volume,
-                           q.id, q.provider, q.title, q.artist, q.source_url, q.added_by, q.status
-                    FROM music_player_state s
-                    LEFT JOIN music_queue q
-                      ON q.id=s.current_queue_id
-                     AND q.broadcaster_user_id=s.broadcaster_user_id
-                    WHERE s.broadcaster_user_id=%s""",
+                          s.position_ms, s.duration_ms, s.seek_position_ms, s.seek_revision,
+                          q.id, q.provider, q.title, q.artist, q.source_url, q.added_by, q.status
+                   FROM music_player_state s
+                   LEFT JOIN music_queue q
+                     ON q.id=s.current_queue_id
+                    AND q.broadcaster_user_id=s.broadcaster_user_id
+                   WHERE s.broadcaster_user_id=%s""",
                 (int(broadcaster_id),),
             )
             row = cur.fetchone()
@@ -124,17 +125,21 @@ def _snapshot_for_obs(broadcaster_id):
                 'current_queue_id': row[0] if row else None,
                 'is_playing': bool(row[1]) if row else False,
                 'volume': int(row[2]) if row else 80,
+                'position_ms': max(0, int(row[3] or 0)) if row else 0,
+                'duration_ms': max(0, int(row[4] or 0)) if row else 0,
+                'seek_position_ms': max(0, int(row[5] or 0)) if row else 0,
+                'seek_revision': int(row[6] or 0) if row else 0,
             }
             current = None
-            if row and row[3]:
+            if row and row[7]:
                 current = {
-                    'id': row[3],
-                    'provider': row[4] or 'unknown',
-                    'title': row[5] or '',
-                    'artist': row[6] or '',
-                    'source_url': row[7] or '',
-                    'added_by': row[8] or '',
-                    'status': row[9] or 'queued',
+                    'id': row[7],
+                    'provider': row[8] or 'unknown',
+                    'title': row[9] or '',
+                    'artist': row[10] or '',
+                    'source_url': row[11] or '',
+                    'added_by': row[12] or '',
+                    'status': row[13] or 'queued',
                 }
             cur.execute(
                 """SELECT id, provider, title, artist, source_url, added_by, status, position
@@ -154,7 +159,6 @@ def _snapshot_for_obs(broadcaster_id):
             return state, current, queue
     finally:
         conn.close()
-
 
 def _set_playing(broadcaster_id, playing):
     conn = get_conn()
@@ -404,6 +408,69 @@ def overlay_spotify_token(token):
     response.headers['Cache-Control'] = 'no-store, max-age=0'
     return response
 
+
+
+def _set_progress(broadcaster_id, position_ms, duration_ms):
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO music_player_state
+                   (broadcaster_user_id,position_ms,duration_ms)
+                   VALUES (%s,%s,%s)
+                   ON CONFLICT (broadcaster_user_id) DO UPDATE SET
+                     position_ms=EXCLUDED.position_ms,
+                     duration_ms=EXCLUDED.duration_ms,
+                     updated_at=NOW()""",
+                (int(broadcaster_id), max(0, int(position_ms or 0)), max(0, int(duration_ms or 0))),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@obs_bp.post('/control/<token>/progress')
+def overlay_progress(token):
+    if not _allow_overlay_request(token):
+        return jsonify({'ok': False, 'error': 'Muitas solicitações. Aguarde alguns segundos.'}), 429
+    conn = _find_by_token(token)
+    if not conn:
+        return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
+    data = request.get_json(silent=True) or {}
+    _set_progress(
+        conn['broadcaster_user_id'],
+        data.get('position_ms', 0),
+        data.get('duration_ms', 0),
+    )
+    return jsonify({'ok': True})
+
+
+@obs_bp.post('/control/<token>/seek')
+def overlay_seek(token):
+    if not _allow_overlay_request(token):
+        return jsonify({'ok': False, 'error': 'Muitas solicitações. Aguarde alguns segundos.'}), 429
+    conn = _find_by_token(token)
+    if not conn:
+        return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
+    data = request.get_json(silent=True) or {}
+    position_ms = max(0, int(data.get('position_ms', 0) or 0))
+    db = get_conn()
+    try:
+        with db.cursor() as cur:
+            cur.execute(
+                """INSERT INTO music_player_state
+                   (broadcaster_user_id,seek_position_ms,seek_revision)
+                   VALUES (%s,%s,1)
+                   ON CONFLICT (broadcaster_user_id) DO UPDATE SET
+                     seek_position_ms=EXCLUDED.seek_position_ms,
+                     seek_revision=music_player_state.seek_revision+1,
+                     updated_at=NOW()""",
+                (int(conn['broadcaster_user_id']), position_ms),
+            )
+        db.commit()
+    finally:
+        db.close()
+    return jsonify({'ok': True, 'position_ms': position_ms})
 
 @obs_bp.post('/control/<token>/playing')
 def overlay_playing(token):

@@ -70,7 +70,8 @@ def snapshot(bid):
             }
 
             cur.execute(
-                "SELECT current_queue_id, is_playing, volume FROM music_player_state WHERE broadcaster_user_id=%s",
+                "SELECT current_queue_id, is_playing, volume, position_ms, duration_ms, seek_position_ms, seek_revision "
+                "FROM music_player_state WHERE broadcaster_user_id=%s",
                 (bid,),
             )
             state_row = cur.fetchone()
@@ -79,7 +80,7 @@ def snapshot(bid):
                     "INSERT INTO music_player_state (broadcaster_user_id) VALUES (%s) ON CONFLICT (broadcaster_user_id) DO NOTHING",
                     (bid,),
                 )
-                state_row = (None, False, 80)
+                state_row = (None, False, 80, 0, 0, 0, 0)
 
             current_id = state_row[0]
             if current_id:
@@ -106,6 +107,10 @@ def snapshot(bid):
                 'current_queue_id': current_id,
                 'is_playing': bool(state_row[1]),
                 'volume': int(state_row[2]),
+                'position_ms': max(0, int(state_row[3] or 0)),
+                'duration_ms': max(0, int(state_row[4] or 0)),
+                'seek_position_ms': max(0, int(state_row[5] or 0)),
+                'seek_revision': int(state_row[6] or 0),
             }
 
             current = None
@@ -214,6 +219,13 @@ def update_music_state(broadcaster_id):
     if 'volume' in data:
         volume = max(0, min(100, int(data['volume'])))
         sets.append('volume=%s'); vals.append(volume)
+    if 'position_ms' in data:
+        sets.append('position_ms=%s'); vals.append(max(0, int(data['position_ms'] or 0)))
+    if 'duration_ms' in data:
+        sets.append('duration_ms=%s'); vals.append(max(0, int(data['duration_ms'] or 0)))
+    if 'seek_position_ms' in data:
+        sets.append('seek_position_ms=%s'); vals.append(max(0, int(data['seek_position_ms'] or 0)))
+        sets.append('seek_revision=seek_revision+1')
     if not sets:
         return jsonify({'ok': False, 'error': 'Estado inválido.'}), 400
     conn = get_conn()

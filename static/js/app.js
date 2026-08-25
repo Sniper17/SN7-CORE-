@@ -2526,356 +2526,230 @@ async function saveMusicConfig() {
 })();
 
 
-/* SN7 MUSIC V7 - CONTROLE REMOTO SPOTIFY (SEM ÁUDIO NO NAVEGADOR) */
+/* SN7 MUSIC V8 - CONTROLE DO CORE -> OBS (SEM ÁUDIO NO NAVEGADOR) */
 (() => {
-  let boundCurrentId = null;
-  let volumeCommitTimer = null;
   let remoteBusy = false;
   let playbackPollBusy = false;
+  let volumeCommitTimer = null;
+  let boundCurrentId = null;
 
-  function musicSetStatus(text, error = false) {
-    const el = document.getElementById("sn7MusicSourceStatus");
-    if (!el) return;
-    el.textContent = text;
-    el.classList.toggle("is-error", !!error);
+  function musicSetStatus(text, error=false) {
+    const el=document.getElementById("sn7MusicSourceStatus");
+    if(!el)return;
+    el.textContent=text;
+    el.classList.toggle("is-error",!!error);
   }
 
-  function spotifyUri(current) {
-    const raw = String(current?.source_url || "").trim();
-    if (/^spotify:track:[A-Za-z0-9]+$/i.test(raw)) return raw;
-    const m = raw.match(/open\.spotify\.com\/track\/([A-Za-z0-9]+)/i);
-    return m ? `spotify:track:${m[1]}` : null;
-  }
-
-  async function spotifyRemote(path, options = {}) {
-    const token = await spotifyToken();
-    const headers = {...(options.headers || {}), Authorization: `Bearer ${token}`};
-    const response = await fetch(`https://api.spotify.com/v1${path}`, {...options, headers});
-    if (response.ok || response.status === 204) return response;
-    let detail = "";
-    try {
-      const data = await response.json();
-      detail = data?.error?.message || data?.error?.reason || "";
-    } catch (_) {}
-    const error = new Error(detail || `Spotify recusou o comando (HTTP ${response.status}).`);
-    error.status = response.status;
-    throw error;
-  }
-
-  async function spotifyRemotePlay(current) {
-    const uri = spotifyUri(current);
-    if (!uri) throw new Error("A faixa atual não possui um link Spotify válido.");
-    await spotifyRemote("/me/player/play", {
-      method: "PUT",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({uris:[uri]})
-    });
-  }
-
-  async function spotifyRemoteResume() {
-    await spotifyRemote("/me/player/play", {method:"PUT"});
-  }
-
-  async function spotifyRemotePause() {
-    await spotifyRemote("/me/player/pause", {method:"PUT"});
-  }
-
-  async function spotifyRemoteVolume(value) {
-    const volume = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
-    await spotifyRemote(`/me/player/volume?volume_percent=${encodeURIComponent(volume)}`, {method:"PUT"});
-  }
-
-  async function spotifyRemoteSeek(positionMs) {
-    await spotifyRemote(`/me/player/seek?position_ms=${encodeURIComponent(Math.max(0, Math.round(positionMs)))}`, {method:"PUT"});
-  }
-
-  async function spotifyRemoteState() {
-    const response = await spotifyRemote("/me/player", {method:"GET"});
-    if (response.status === 204) return null;
-    return await response.json().catch(() => null);
-  }
-
-  function remoteProgress(position, duration) {
-    const p = duration ? Math.max(0, Math.min(100, Number(position || 0) / Number(duration) * 100)) : 0;
-    const bar = document.getElementById("sn7MusicProgressBar");
-    const track = document.getElementById("sn7MusicProgress");
-    if (bar) bar.style.width = `${p}%`;
-    if (track) {
-      track.style.setProperty("--sn7-progress", `${p}%`);
-      track.setAttribute("aria-valuenow", String(Math.round(p)));
+  function remoteProgress(position=0,duration=0) {
+    const p=duration?Math.max(0,Math.min(100,Number(position||0)/Number(duration)*100)):0;
+    const bar=document.getElementById("sn7MusicProgressBar");
+    const track=document.getElementById("sn7MusicProgress");
+    if(bar)bar.style.width=`${p}%`;
+    if(track){
+      track.style.setProperty("--sn7-progress",`${p}%`);
+      track.setAttribute("aria-valuenow",String(Math.round(p)));
     }
-    const elapsed = document.getElementById("sn7MusicElapsed");
-    const total = document.getElementById("sn7MusicDuration");
-    if (elapsed) elapsed.textContent = musicFormatTime(Number(position || 0) / 1000);
-    if (total) total.textContent = duration ? musicFormatTime(Number(duration) / 1000) : "—";
+    const elapsed=document.getElementById("sn7MusicElapsed");
+    const total=document.getElementById("sn7MusicDuration");
+    if(elapsed)elapsed.textContent=musicFormatTime(Number(position||0)/1000);
+    if(total)total.textContent=duration?musicFormatTime(Number(duration)/1000):"—";
   }
 
-  window.musicRenderPlaying = function(playing) {
-    const player = document.getElementById("sn7MusicPlayer");
-    const btn = document.getElementById("sn7MusicPlay");
-    if (player) player.classList.toggle("is-playing", !!playing);
-    if (btn) {
-      btn.classList.toggle("is-playing", !!playing);
-      btn.innerHTML = playing
+  window.musicRenderPlaying=function(playing){
+    const player=document.getElementById("sn7MusicPlayer");
+    const btn=document.getElementById("sn7MusicPlay");
+    if(player)player.classList.toggle("is-playing",!!playing);
+    if(btn){
+      btn.classList.toggle("is-playing",!!playing);
+      btn.innerHTML=playing
         ? '<span class="sn7-pause-icon" aria-hidden="true"><i></i><i></i></span>'
         : '<span class="sn7-play-icon" aria-hidden="true"></span>';
-      btn.setAttribute("aria-label", playing ? "Pausar" : "Reproduzir");
-      btn.title = playing ? "Pausar" : "Reproduzir";
+      btn.setAttribute("aria-label",playing?"Pausar":"Reproduzir");
+      btn.title=playing?"Pausar":"Reproduzir";
     }
-    if (sn7MusicData?.state) sn7MusicData.state.is_playing = !!playing;
+    if(sn7MusicData?.state)sn7MusicData.state.is_playing=!!playing;
   };
 
-  window.musicRenderProgress = function(position=0, duration=0) {
-    if (typeof position === "number" && typeof duration === "number") {
-      remoteProgress(position, duration);
+  window.musicRenderProgress=function(position=0,duration=0){
+    remoteProgress(position,duration);
+  };
+
+  window.musicRenderVolume=function(value){
+    const volume=Math.max(0,Math.min(100,Math.round(Number(value)||0)));
+    const valueEl=document.getElementById("sn7MusicVolumeValue");
+    const range=document.getElementById("sn7MusicVolumeRange");
+    const icon=document.getElementById("sn7MusicVolumeIcon");
+    if(valueEl)valueEl.textContent=String(volume);
+    if(range)range.value=String(volume);
+    if(icon){
+      icon.classList.toggle("is-muted",volume===0);
+      icon.classList.toggle("is-low",volume>0&&volume<=30);
+      icon.classList.toggle("is-medium",volume>30&&volume<=70);
+      icon.classList.toggle("is-high",volume>70);
+    }
+  };
+
+  window.musicRemoteTogglePlay=async function(){
+    if(remoteBusy)return;
+    const current=sn7MusicData?.current;
+    if(!current){
+      musicSetStatus("Não há música selecionada.",true);
       return;
     }
-    remoteProgress(0, 0);
+    remoteBusy=true;
+    try{
+      const playing=!Boolean(sn7MusicData?.state?.is_playing);
+      const data=await musicApi("/state",{
+        method:"PATCH",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({is_playing:playing})
+      });
+      musicRender(data);
+      musicSetStatus(
+        playing
+          ?"Reprodução iniciada. O áudio sai pelo OBS conectado."
+          :"Música pausada no Core."
+      );
+    }catch(error){
+      musicSetStatus(`⚠ ${error.message||"Não foi possível alterar a reprodução."}`,true);
+    }finally{remoteBusy=false;}
   };
 
-  window.musicRenderVolume = function(value) {
-    const volume = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
-    const valueEl = document.getElementById("sn7MusicVolumeValue");
-    const range = document.getElementById("sn7MusicVolumeRange");
-    const icon = document.getElementById("sn7MusicVolumeIcon");
-    if (valueEl) valueEl.textContent = String(volume);
-    if (range) range.value = String(volume);
-    if (icon) {
-      icon.classList.toggle("is-muted", volume === 0);
-      icon.classList.toggle("is-low", volume > 0 && volume <= 30);
-      icon.classList.toggle("is-medium", volume > 30 && volume <= 70);
-      icon.classList.toggle("is-high", volume > 70);
-    }
-  };
-
-  window.musicRemoteTogglePlay = async function() {
-    if (remoteBusy) return;
-    const current = sn7MusicData?.current;
-    if (!current) {
-      musicSetStatus("Não há música selecionada.", true);
-      return;
-    }
-    const provider = String(current.provider || "").toLowerCase();
-    if (provider !== "spotify" || !spotifyUri(current)) {
-      musicSetStatus("O controle remoto do painel está disponível para Spotify.", true);
-      return;
-    }
-
-    remoteBusy = true;
-    try {
-      const playing = Boolean(sn7MusicData?.state?.is_playing);
-      if (playing) {
-        await spotifyRemotePause();
-        const data = await musicApi("/state", {
-          method:"PATCH",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({is_playing:false})
-        });
-        musicRender(data);
-        musicSetStatus("Spotify pausado no dispositivo ativo.");
-      } else {
-        // Reproduz a faixa atual no dispositivo Spotify ativo do streamer.
-        // Isto NÃO cria um dispositivo Web Playback nem produz áudio no navegador.
-        await spotifyRemotePlay(current);
-        const data = await musicApi("/state", {
-          method:"PATCH",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({is_playing:true})
-        });
-        musicRender(data);
-        musicSetStatus("Spotify reproduzindo no dispositivo ativo.");
-      }
-    } catch (error) {
-      const msg = /no active device|device not found/i.test(error?.message || "")
-        ? "Nenhum dispositivo Spotify ativo. Abra o Spotify no dispositivo onde a música deve tocar."
-        : (error?.message || "Não foi possível controlar o Spotify.");
-      musicSetStatus(`⚠ ${msg}`, true);
-    } finally {
-      remoteBusy = false;
-    }
-  };
-
-  window.musicRemoteChangeVolume = async function(delta) {
-    const current = Number(sn7MusicData?.state?.volume ?? 80);
-    const volume = Math.max(0, Math.min(100, Math.round((current + Number(delta || 0)) / 10) * 10));
+  window.musicRemoteChangeVolume=async function(delta){
+    const current=Number(sn7MusicData?.state?.volume??80);
+    const volume=Math.max(0,Math.min(100,Math.round((current+Number(delta||0))/10)*10));
     return window.musicSetVolume(volume);
   };
 
-  window.musicSetVolume = async function(value) {
-    const volume = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
-    if (sn7MusicData?.state) sn7MusicData.state.volume = volume;
+  window.musicSetVolume=async function(value){
+    const volume=Math.max(0,Math.min(100,Math.round(Number(value)||0)));
+    if(sn7MusicData?.state)sn7MusicData.state.volume=volume;
     musicRenderVolume(volume);
-
     clearTimeout(volumeCommitTimer);
-    volumeCommitTimer = setTimeout(async () => {
-      try {
-        await musicApi("/state", {
+    volumeCommitTimer=setTimeout(async()=>{
+      try{
+        const data=await musicApi("/state",{
           method:"PATCH",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({volume})
         });
-      } catch (_) {}
-    }, 180);
-
-    const current = sn7MusicData?.current;
-    if (String(current?.provider || "").toLowerCase() !== "spotify") return;
-    try {
-      await spotifyRemoteVolume(volume);
-    } catch (error) {
-      musicSetStatus(`⚠ ${error.message || "Não foi possível alterar o volume do Spotify."}`, true);
-    }
+        musicRender(data);
+      }catch(error){
+        musicSetStatus(`⚠ ${error.message||"Não foi possível alterar o volume."}`,true);
+      }
+    },180);
   };
 
-  async function remoteSelectQueue(direction) {
-    if (remoteBusy) return;
-    const current = sn7MusicData?.current;
-    if (!current) return;
-
-    remoteBusy = true;
-    try {
-      const endpoint = direction === "previous" ? "/previous" : "/skip";
-      const data = await musicApi(endpoint, {method:"POST"});
-      boundCurrentId = null;
-
-      const next = data?.current || null;
-      if (!next) {
-        try { await spotifyRemotePause(); } catch (_) {}
-        musicRender(data);
-        musicSetStatus(direction === "previous" ? "Nenhuma música anterior." : "Fila finalizada.");
-        return;
+  async function remoteSelectQueue(direction){
+    if(remoteBusy)return;
+    if(!sn7MusicData?.current)return;
+    remoteBusy=true;
+    try{
+      const endpoint=direction==="previous"?"/previous":"/skip";
+      const data=await musicApi(endpoint,{method:"POST"});
+      boundCurrentId=data?.current?.id??null;
+      musicRender(data);
+      if(data?.current){
+        musicSetStatus(
+          direction==="previous"
+            ?`Anterior: ${data.current.title}`
+            :`Próxima: ${data.current.title}`
+        );
+      }else{
+        musicSetStatus(direction==="previous"?"Nenhuma música anterior.":"Fila finalizada.");
       }
-
-      // Primeiro muda a fila do SN7; depois aponta o Spotify ativo para a faixa escolhida.
-      if (String(next.provider || "").toLowerCase() === "spotify" && spotifyUri(next)) {
-        await spotifyRemotePlay(next);
-        const playing = Boolean(sn7MusicData?.state?.is_playing);
-        if (!playing) {
-          // O comando de troca deve respeitar o estado pausado do Core.
-          try { await spotifyRemotePause(); } catch (_) {}
-        }
-        const fresh = await musicApi("/state", {
-          method:"PATCH",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({is_playing:playing})
-        }).catch(() => data);
-        musicRender(fresh);
-        musicSetStatus(direction === "previous" ? `Anterior: ${next.title}` : `Próxima: ${next.title}`);
-      } else {
-        // Não tentamos tocar YouTube/link/SC pelo navegador.
-        const fresh = await musicApi("/state", {
-          method:"PATCH",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({is_playing:false})
-        }).catch(() => data);
-        musicRender(fresh);
-        musicSetStatus(`${direction === "previous" ? "Anterior" : "Próxima"}: ${next.title}. Fonte não é Spotify; reprodução externa não foi iniciada.`, false);
-      }
-    } catch (error) {
-      musicSetStatus(`⚠ ${error.message || "Não foi possível mudar a música."}`, true);
-    } finally {
-      remoteBusy = false;
+    }catch(error){
+      musicSetStatus(`⚠ ${error.message||"Não foi possível mudar a música."}`,true);
+    }finally{
+      setTimeout(()=>{remoteBusy=false;},250);
     }
   }
 
-  window.musicSeek = async function(event) {
-    if (event?.target?.closest?.("button") && event.target.closest("button") !== document.getElementById("sn7MusicProgress")) return;
-    const track = document.getElementById("sn7MusicProgress");
-    if (!track) return;
-    const rect = track.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (Number(event.clientX) - rect.left) / Math.max(1, rect.width)));
-    const current = sn7MusicData?.current;
-    if (String(current?.provider || "").toLowerCase() !== "spotify") {
-      musicSetStatus("Seek remoto está disponível para Spotify.", true);
+  window.musicSeek=async function(event){
+    const track=document.getElementById("sn7MusicProgress");
+    if(!track)return;
+    const rect=track.getBoundingClientRect();
+    const ratio=Math.max(0,Math.min(1,(Number(event.clientX)-rect.left)/Math.max(1,rect.width)));
+    const duration=Number(sn7MusicData?.state?.duration_ms||0);
+    if(!duration){
+      musicSetStatus("A posição fica disponível quando o OBS estiver reproduzindo a faixa.",true);
       return;
     }
-    try {
-      const state = await spotifyRemoteState();
-      if (!state?.item?.duration_ms) return;
-      await spotifyRemoteSeek(Number(state.item.duration_ms) * ratio);
-      remoteProgress(Number(state.item.duration_ms) * ratio, Number(state.item.duration_ms));
-    } catch (error) {
-      musicSetStatus(`⚠ ${error.message || "Não foi possível mover a música."}`, true);
+    const position=Math.round(duration*ratio);
+    try{
+      const data=await musicApi("/state",{
+        method:"PATCH",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({seek_position_ms:position,position_ms:position,duration_ms:duration})
+      });
+      musicRender(data);
+      musicSetStatus("Posição enviada para o OBS.");
+    }catch(error){
+      musicSetStatus(`⚠ ${error.message||"Não foi possível mover a música."}`,true);
     }
   };
 
-  window.musicSeekKey = async function(event) {
-    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+  window.musicSeekKey=async function(event){
+    if(event.key!=="ArrowLeft"&&event.key!=="ArrowRight")return;
     event.preventDefault();
-    const current = sn7MusicData?.current;
-    if (String(current?.provider || "").toLowerCase() !== "spotify") return;
-    try {
-      const state = await spotifyRemoteState();
-      if (!state?.item?.duration_ms) return;
-      const step = event.key === "ArrowRight" ? 10000 : -10000;
-      const position = Math.max(0, Math.min(Number(state.item.duration_ms), Number(state.progress_ms || 0) + step));
-      await spotifyRemoteSeek(position);
-      remoteProgress(position, Number(state.item.duration_ms));
-    } catch (error) {
-      musicSetStatus(`⚠ ${error.message || "Não foi possível mover a música."}`, true);
+    const current=Number(sn7MusicData?.state?.position_ms||0);
+    const duration=Number(sn7MusicData?.state?.duration_ms||0);
+    if(!duration)return;
+    const step=event.key==="ArrowRight"?10000:-10000;
+    const position=Math.max(0,Math.min(duration,current+step));
+    try{
+      const data=await musicApi("/state",{
+        method:"PATCH",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({seek_position_ms:position,position_ms:position,duration_ms:duration})
+      });
+      musicRender(data);
+    }catch(error){
+      musicSetStatus(`⚠ ${error.message||"Não foi possível mover a música."}`,true);
     }
   };
 
-  window.musicPrevious = () => remoteSelectQueue("previous");
-  window.musicSkip = () => remoteSelectQueue("next");
+  window.musicPrevious=()=>remoteSelectQueue("previous");
+  window.musicSkip=()=>remoteSelectQueue("next");
 
-  window.musicRender = function(data) {
-    sn7MusicData = data || {settings:{}, state:{}, current:null, queue:[]};
-    const current = sn7MusicData.current;
-    const queue = Array.isArray(sn7MusicData.queue) ? sn7MusicData.queue : [];
-    const title = document.getElementById("sn7MusicTitle");
-    const artist = document.getElementById("sn7MusicArtist");
-    const art = document.getElementById("sn7MusicArt");
-    const source = document.getElementById("sn7MusicSourceStatus");
-    const volume = Number(sn7MusicData.state?.volume ?? 80);
+  window.musicRender=function(data){
+    sn7MusicData=data||{settings:{},state:{},current:null,queue:[]};
+    const current=sn7MusicData.current;
+    const queue=Array.isArray(sn7MusicData.queue)?sn7MusicData.queue:[];
+    const title=document.getElementById("sn7MusicTitle");
+    const artist=document.getElementById("sn7MusicArtist");
+    const art=document.getElementById("sn7MusicArt");
+    const source=document.getElementById("sn7MusicSourceStatus");
+    const volume=Number(sn7MusicData.state?.volume??80);
+    const position=Number(sn7MusicData.state?.position_ms??0);
+    const duration=Number(sn7MusicData.state?.duration_ms??0);
 
-    if (title) title.textContent = current?.title || "Nenhuma música";
-    if (artist) artist.textContent = current?.artist || (queue.length ? "Pronta para a próxima reprodução." : "A fila está pronta para receber músicas.");
-    if (art) art.classList.toggle("has-track", !!current);
-    if (source && !current) source.textContent = "Player pronto";
-    const count = document.getElementById("sn7MusicQueueCount");
-    if (count) count.textContent = String(queue.length);
+    if(title)title.textContent=current?.title||"Nenhuma música";
+    if(artist)artist.textContent=current?.artist||(queue.length?"Pronta para a próxima reprodução.":"A fila está pronta para receber músicas.");
+    if(art)art.classList.toggle("has-track",!!current);
+    if(source)source.textContent=current?"CONTROLE REMOTO · OBS":"Player pronto";
+    const count=document.getElementById("sn7MusicQueueCount");
+    if(count)count.textContent=String(queue.length);
 
     musicRenderVolume(volume);
     musicRenderPlaying(Boolean(sn7MusicData.state?.is_playing));
+    remoteProgress(position,duration);
     renderMusicQueue(queue);
-
-    // Painel é somente controle remoto: nunca cria/carrega/reproduz áudio local.
-    boundCurrentId = current?.id ?? null;
-    remoteProgress(0, 0);
+    boundCurrentId=current?.id??null;
   };
 
-  async function pollRemotePlayback() {
-    if (playbackPollBusy || !musicHasChannel()) return;
-    const current = sn7MusicData?.current;
-    if (!current || String(current.provider || "").toLowerCase() !== "spotify") return;
-    playbackPollBusy = true;
-    try {
-      const state = await spotifyRemoteState();
-      if (!state) {
-        remoteProgress(0, 0);
-        return;
-      }
-      const playing = state.is_playing === true;
-      if (sn7MusicData?.state) sn7MusicData.state.is_playing = playing;
-      musicRenderPlaying(playing);
-      remoteProgress(Number(state.progress_ms || 0), Number(state.item?.duration_ms || 0));
-
-      const itemUri = String(state.item?.uri || "");
-      const currentUri = spotifyUri(current) || "";
-      if (itemUri && currentUri && itemUri !== currentUri) {
-        musicSetStatus("Spotify está tocando outra faixa fora da fila do SN7.");
-      }
-    } catch (_) {
-      // Não poluir a UI a cada falha temporária de consulta.
-    } finally {
-      playbackPollBusy = false;
-    }
+  async function pollRemotePlayback(){
+    if(playbackPollBusy||!musicHasChannel())return;
+    playbackPollBusy=true;
+    try{
+      const data=await musicApi("");
+      musicRender(data);
+    }catch(_){}
+    finally{playbackPollBusy=false;}
   }
 
-  setInterval(() => {
-    pollRemotePlayback().catch(() => {});
-  }, 1500);
-  pollRemotePlayback().catch(() => {});
+  setInterval(()=>pollRemotePlayback().catch(()=>{}),1000);
+  pollRemotePlayback().catch(()=>{});
 })();
 
 /* SN7 MUSIC V7 - remote playback polling is handled above. */

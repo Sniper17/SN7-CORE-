@@ -101,6 +101,26 @@ body:before{content:"";position:fixed;inset:-35%;pointer-events:none;background:
 @keyframes sn7TestBarsFixed{0%{height:15% !important;filter:brightness(.82)}100%{height:100% !important;filter:brightness(1.35)}}
 @media(max-width:600px){.art .eq{left:13% !important;right:13% !important;bottom:7% !important;height:34% !important;gap:2.5px !important}.art .eq i{width:2.5px !important;flex-basis:2.5px !important}}
 @media(prefers-reduced-motion:reduce){.art .eq i{animation-play-state:running !important}}
+
+/* SN7 TEST FINAL PLAYER — equalizador e toque */
+.art{overflow:hidden!important}
+.art .eq{
+  left:14%!important;right:14%!important;bottom:7%!important;height:34%!important;
+  overflow:hidden!important;border-radius:0 0 50% 50%!important;
+  opacity:0!important;z-index:6!important;pointer-events:none!important;
+}
+.art .eq i{
+  width:3px!important;flex:0 0 3px!important;min-height:3px!important;max-height:28px!important;
+  border-radius:999px 999px 2px 2px!important;transform-origin:bottom center!important;
+  animation:sn7TestEq 1.05s ease-in-out infinite alternate!important;
+  animation-play-state:paused!important;
+}
+.playerCard.playing .art .eq{opacity:1!important}
+.playerCard.playing .art .eq i{animation-play-state:running!important}
+@keyframes sn7TestEq{0%{height:18%!important;filter:brightness(.82)}100%{height:100%!important;filter:brightness(1.35)}}
+.btn,.action,.queue-head{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.btn:active,.action:active,.queue-head:active{transform:scale(.97)!important}
+
 </style>
 
 </head>
@@ -378,7 +398,6 @@ async function initPlayer(){
   });
   try{
     await ready;
-    await waitForDevice(state.device);
   }catch(e){
     try{player.disconnect()}catch(_){}
     throw e;
@@ -430,27 +449,36 @@ async function playCurrent(){
     const uri=spotifyTrackUri(c);
     if(!c)throw Error("Não existe uma música atual na fila.");
     if(String(c.provider||"").toLowerCase()!=="spotify")throw Error("A música atual não é uma faixa Spotify.");
-    if(!uri)throw Error("A faixa Spotify atual não possui ID válido.");
+    if(!uri)throw Error("A faixa Spotify atual não possui um link válido.");
+
     let player=await initPlayer();
     if(typeof player.activateElement==="function"){
       try{await player.activateElement()}catch(_){}
     }
+
     let device=state.device;
-    await waitForDevice(device);
-    try{
+    const startPlayback=async()=>{
       await transfer(device);
+      await new Promise(r=>setTimeout(r,400));
       await playUri(uri,device);
+      await player.resume().catch(()=>{});
+    };
+
+    try{
+      await startPlayback();
     }catch(e){
-      if(e.status!==404&&!/device not found/i.test(e.message||""))throw e;
+      if(e.status!==404&&!/device not found|device.*not.*found/i.test(e.message||""))throw e;
       try{player.disconnect()}catch(_){}
       state.player=null;state.device=null;state.connected=false;
+
       player=await initPlayer();
       device=state.device;
-      await waitForDevice(device);
-      await transfer(device);
-      await playUri(uri,device);
+      if(typeof player.activateElement==="function"){
+        try{await player.activateElement()}catch(_){}
+      }
+      await startPlayback();
     }
-    await player.resume().catch(()=>{});
+
     state.currentId=c.id;
     status("Spotify reproduzindo.","ok");
     source(`SPOTIFY · ${c.title||"faixa atual"}`);
@@ -594,7 +622,6 @@ setInterval(()=>{
     if(!ps.paused&&d>0&&p>=d-900)autoAdvance();
   }).catch(()=>{});
 },500);
-</script>
 </script>
 </body>
 </html>

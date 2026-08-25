@@ -193,8 +193,16 @@ CREATE TABLE IF NOT EXISTS music_player_state (
     current_queue_id BIGINT,
     is_playing BOOLEAN NOT NULL DEFAULT FALSE,
     volume INTEGER NOT NULL DEFAULT 80 CHECK (volume BETWEEN 0 AND 100),
+    position_ms BIGINT NOT NULL DEFAULT 0,
+    duration_ms BIGINT NOT NULL DEFAULT 0,
+    seek_position_ms BIGINT NOT NULL DEFAULT 0,
+    seek_revision BIGINT NOT NULL DEFAULT 0,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE music_player_state ADD COLUMN IF NOT EXISTS position_ms BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE music_player_state ADD COLUMN IF NOT EXISTS duration_ms BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE music_player_state ADD COLUMN IF NOT EXISTS seek_position_ms BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE music_player_state ADD COLUMN IF NOT EXISTS seek_revision BIGINT NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS music_play_history (
     id BIGSERIAL PRIMARY KEY,
