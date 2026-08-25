@@ -2007,9 +2007,6 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
   .sn7-music-volume{order:5;width:100%;margin:2px 0 0;padding:9px 0 0;border-left:0;border-top:1px solid rgba(255,255,255,.05);justify-content:flex-end}
   .sn7-volume-range{width:min(45vw,190px)}
 }
-@media(prefers-reduced-motion:reduce){
-  .sn7-music-player:before,.sn7-music-disc,.sn7-music-eq i{animation:none!important}
-}
 
 /* SN7 MUSIC EQ FIX — aligned to the outer circular disc, clipped and animated */
 .sn7-music-art{
@@ -2021,34 +2018,8 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
   position:relative !important;
   z-index:2 !important;
 }
-.sn7-music-art .sn7-music-eq{
-  position:absolute !important;
-  left:14% !important;
-  right:14% !important;
-  bottom:7% !important;
-  height:34% !important;
-  display:flex !important;
-  align-items:flex-end !important;
-  justify-content:center !important;
-  gap:3px !important;
-  z-index:4 !important;
-  opacity:0 !important;
-  pointer-events:none !important;
-  overflow:hidden !important;
-  border-radius:0 0 50% 50% !important;
-}
-.sn7-music-art .sn7-music-eq i{
-  width:3px !important;
-  height:18% !important;
-  max-height:25px !important;
-  min-height:4px !important;
-  flex:0 0 3px !important;
-  border-radius:999px 999px 2px 2px !important;
-  background:linear-gradient(180deg,#67e8f9,#a78bfa 58%,#f472b6) !important;
-  box-shadow:0 0 7px rgba(103,232,249,.25) !important;
-  transform-origin:bottom center !important;
-  animation:sn7MusicBarsFixed 1.05s ease-in-out infinite alternate !important;
-}
+.sn7-music-art .sn7-music-eq{position:absolute !important;left:14% !important;right:14% !important;bottom:5% !important;height:25% !important;display:flex !important;align-items:flex-end !important;justify-content:center !important;gap:3px !important;z-index:4 !important;opacity:0 !important;pointer-events:none !important;overflow:hidden !important;border-radius:0 0 50% 50% !important}
+.sn7-music-art .sn7-music-eq i{width:3px !important;height:45% !important;max-height:18px !important;min-height:3px !important;flex:0 0 3px !important;border-radius:999px 999px 2px 2px !important;background:linear-gradient(180deg,#67e8f9,#a78bfa 58%,#f472b6) !important;box-shadow:0 0 7px rgba(103,232,249,.25) !important;transform-origin:bottom center !important;animation:sn7MusicBarsFixed 1.05s ease-in-out infinite alternate !important}
 .sn7-music-art .sn7-music-eq i:nth-child(2){animation-delay:-.18s !important}
 .sn7-music-art .sn7-music-eq i:nth-child(3){animation-delay:-.42s !important}
 .sn7-music-art .sn7-music-eq i:nth-child(4){animation-delay:-.66s !important}
@@ -2063,10 +2034,24 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
 .sn7-music-player.is-playing .sn7-music-art .sn7-music-eq{opacity:1 !important}
 .sn7-music-player.is-playing .sn7-music-art .sn7-music-eq i{animation-play-state:running !important}
 @keyframes sn7MusicBarsFixed{0%{height:15% !important;filter:brightness(.82)}100%{height:100% !important;filter:brightness(1.35)}}
-@media(max-width:600px){
-  .sn7-music-art .sn7-music-eq{left:13% !important;right:13% !important;bottom:7% !important;height:34% !important;gap:2.5px !important}
-  .sn7-music-art .sn7-music-eq i{width:2.5px !important;flex-basis:2.5px !important}
-}
+@media(max-width:600px){.sn7-music-art .sn7-music-eq{left:13%!important;right:13%!important;bottom:5%!important;height:25%!important;gap:2.5px!important}.sn7-music-art .sn7-music-eq i{width:2.5px!important;flex-basis:2.5px!important;max-height:13px!important}}
 @media(prefers-reduced-motion:reduce){
   .sn7-music-art .sn7-music-eq i{animation-play-state:running !important}
+}
+
+/* SN7 MUSIC TOUCH FEEDBACK — unified with dashboard controls */
+.sn7-music-btn,
+.sn7-music-config,
+.sn7-music-queue-toggle,
+.sn7-volume-btn,
+.sn7-subtle {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.sn7-music-btn:active,
+.sn7-music-config:active,
+.sn7-music-queue-toggle:active,
+.sn7-volume-btn:active,
+.sn7-subtle:active {
+  transform: scale(.965) !important;
 }
