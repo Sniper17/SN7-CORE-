@@ -2,8 +2,8 @@ from flask import Blueprint, jsonify, request, redirect, session
 from core.database import get_conn
 from core.auth import require_session_broadcaster
 from core.music import (
-    set_public_commands_cache, _spotify_access_token, clear_queue, skip_current, previous_current, select_current, _queue_duplicate_exists,
-    current_and_queue, invalidate_queue_cache, invalidate_music_settings_cache,
+    set_public_commands_cache, _spotify_access_token, clear_queue, previous_current, select_current, _queue_duplicate_exists,
+    current_and_queue, skip_current_fast, invalidate_queue_cache, invalidate_music_settings_cache,
 )
 import os
 import time
@@ -401,9 +401,9 @@ def skip_music(broadcaster_id):
     except PermissionError as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 401
     try:
-        skip_current(broadcaster_id)
+        data = skip_current_fast(broadcaster_id)
         invalidate_queue_cache(broadcaster_id)
-        return jsonify(snapshot(broadcaster_id))
+        return jsonify(data)
     except Exception as exc:
         print(f'[MUSIC] skip erro: {exc}', flush=True)
         return jsonify({'ok': False, 'error': str(exc)}), 500

@@ -2187,6 +2187,21 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
 }
 
 
+/* SN7 MUSIC OUTPUT — teste rápido no navegador ou reprodução da live */
+.sn7-music-output{display:flex;align-items:center;gap:9px;margin:2px 0 2px;padding:8px 0;border-top:1px solid rgba(255,255,255,.055);border-bottom:1px solid rgba(255,255,255,.055)}
+.sn7-music-output>span{font-size:9px;letter-spacing:.12em;color:#69758a;font-weight:800}
+.sn7-music-output-switch{display:inline-flex;gap:3px;padding:3px;border:1px solid rgba(255,255,255,.09);border-radius:9px;background:rgba(8,11,17,.58)}
+.sn7-music-output-switch button{border:0;background:transparent;color:#7f899a;border-radius:7px;padding:6px 10px;font-size:9px;font-weight:800;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .14s,color .14s,transform .12s}
+.sn7-music-output-switch button:hover{color:#dfe5ee;background:rgba(255,255,255,.045)}
+.sn7-music-output-switch button.is-active{background:#202738;color:#f4f7fb;box-shadow:inset 0 0 0 1px rgba(167,139,250,.22)}
+.sn7-music-output-switch button:active{transform:scale(.96)}
+.sn7-music-output-switch button:disabled{opacity:.55;cursor:wait}
+.sn7-music-player.is-browser-output .sn7-music-output-switch button#sn7MusicOutputBrowser{color:#d9d2ff}
+.sn7-music-player.is-spotify-output .sn7-music-output-switch button#sn7MusicOutputSpotify{color:#b8f7df}
+.sn7-music-output-hint{font-size:9px;color:#7f899a}
+#musicConfigSaveButton{min-width:132px;transition:transform .12s ease,opacity .12s ease}
+#musicConfigSaveButton.is-saved{border-color:rgba(52,211,153,.38)!important;color:#b8f7df!important}
+
 /* SN7 OBS CONNECTION STATUS */
 .sn7-obs-connect{
   display:inline-flex;align-items:center;justify-content:center;gap:7px;

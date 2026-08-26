@@ -1689,6 +1689,66 @@ let sn7SpotifyReadyPromise = null;
 let sn7SpotifyCurrentUri = "";
 let sn7SpotifyDeviceReadyPromise = null;
 let sn7SpotifyStarting = false;
+let sn7MusicOutputMode = (() => {
+  try { return localStorage.getItem("sn7MusicOutputMode") === "browser" ? "browser" : "spotify"; }
+  catch (_) { return "spotify"; }
+})();
+let sn7BrowserAutoAdvanceLock = false;
+
+function musicRenderOutputMode() {
+  const player = $("sn7MusicPlayer");
+  const browser = $("sn7MusicOutputBrowser");
+  const spotify = $("sn7MusicOutputSpotify");
+  const hint = $("sn7MusicOutputHint");
+  if (player) {
+    player.classList.toggle("is-browser-output", sn7MusicOutputMode === "browser");
+    player.classList.toggle("is-spotify-output", sn7MusicOutputMode === "spotify");
+  }
+  if (browser) {
+    browser.classList.toggle("is-active", sn7MusicOutputMode === "browser");
+    browser.setAttribute("aria-pressed", sn7MusicOutputMode === "browser" ? "true" : "false");
+  }
+  if (spotify) {
+    spotify.classList.toggle("is-active", sn7MusicOutputMode === "spotify");
+    spotify.setAttribute("aria-pressed", sn7MusicOutputMode === "spotify" ? "true" : "false");
+  }
+  if (hint) {
+    hint.textContent = sn7MusicOutputMode === "browser"
+      ? "NAVEGADOR · TESTE RÁPIDO · AUTO-ADVANCE"
+      : "SPOTIFY · CONTROLE DA LIVE · AUTO-ADVANCE";
+  }
+}
+
+async function musicSetOutputMode(mode) {
+  mode = mode === "browser" ? "browser" : "spotify";
+  if (mode === sn7MusicOutputMode) {
+    musicRenderOutputMode();
+    return;
+  }
+  try {
+    if (sn7MusicAudio) {
+      sn7MusicAudio.pause();
+      if (mode === "spotify") {
+        sn7MusicAudio.removeAttribute("src");
+        sn7MusicAudio.load();
+      }
+    }
+    if (sn7SpotifyPlayer && mode === "spotify") {
+      try { await sn7SpotifyPlayer.pause(); } catch (_) {}
+    }
+  } finally {
+    sn7MusicOutputMode = mode;
+    try { localStorage.setItem("sn7MusicOutputMode", mode); } catch (_) {}
+    musicRenderOutputMode();
+    musicRenderPlaying(false);
+    if (mode === "browser") {
+      spotifySetStatus("Modo navegador ativo · toque em Reproduzir para testar.");
+    } else {
+      spotifySetStatus("Modo Spotify ativo · controle da reprodução da live.");
+    }
+  }
+}
+window.musicSetOutputMode = musicSetOutputMode;
 
 function spotifySetStatus(text, error = false) {
   const source = $("sn7MusicSourceStatus");
@@ -1777,12 +1837,18 @@ async function createSpotifyPlayer() {
     const playing = !playbackState.paused;
     if (sn7MusicData?.state) sn7MusicData.state.is_playing = playing;
     musicRenderPlaying(playing);
+    const track = playbackState.track_window?.current_track;
     if (typeof window.musicRenderProgress === "function") {
-      const track = playbackState.track_window?.current_track;
       window.musicRenderProgress(
         Number(playbackState.position || 0),
         Number(track?.duration_ms || playbackState.duration || 0)
       );
+    }
+    const duration = Number(track?.duration_ms || playbackState.duration || 0);
+    const position = Number(playbackState.position || 0);
+    if (sn7MusicOutputMode === "browser" && !playing && duration > 0 && position >= duration - 1200 && !sn7BrowserAutoAdvanceLock) {
+      sn7BrowserAutoAdvanceLock = true;
+      Promise.resolve(musicSkip(true)).finally(() => { sn7BrowserAutoAdvanceLock = false; });
     }
   });
 
@@ -2116,6 +2182,7 @@ async function musicDisconnect(provider) {
 }
 
 function musicRender(data) {
+  musicRenderOutputMode();
   sn7MusicData = data || {settings:{}, state:{}, current:null, queue:[]};
   const current = sn7MusicData.current;
   const queue = Array.isArray(sn7MusicData.queue) ? sn7MusicData.queue : [];
@@ -2283,23 +2350,19 @@ async function musicSkip(fromAudio = false) {
   }
   sn7SpotifyCurrentUri = "";
 
-  const queue = Array.isArray(sn7MusicData.queue) ? sn7MusicData.queue : [];
-  if (!queue.length) {
-    try {
-      musicRender(await musicApi("/state", {
-        method:"PATCH",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({is_playing:false})
-      }));
-    } catch (_) {}
-    return;
-  }
-
+  // O backend é a fonte de verdade. Não bloqueie o avanço só porque a
+  // fila visual ainda não recebeu o último polling.
   try {
     const data = await musicApi("/skip", {method:"POST"});
     musicRender(data);
     const source = $("sn7MusicSourceStatus");
-    if (source && data.current) source.textContent = `Próxima: ${data.current.title}`;
+    if (data?.current && sn7MusicOutputMode === "browser") {
+      await window.musicBrowserPlayCurrent(data.current);
+    } else if (source && data.current) {
+      source.textContent = `Próxima: ${data.current.title}`;
+    } else if (source) {
+      source.textContent = "Fila finalizada.";
+    }
   } catch (_) {
     const source = $("sn7MusicSourceStatus");
     if (source) source.textContent = "⚠ Não foi possível avançar a fila";
@@ -2496,7 +2559,18 @@ document.addEventListener("change", (event) => {
 
 async function saveMusicConfig() {
   const msg = $("musicConfigMsg");
-  if (msg) { msg.textContent = "Salvando..."; msg.className = "sn7-save-message"; }
+  const button = $("musicConfigSaveButton");
+  const originalText = button?.dataset.originalText || button?.textContent || "Salvar alterações";
+  if (button) {
+    button.dataset.originalText = originalText;
+    button.disabled = true;
+    button.innerHTML = '<span class="sn7-spinner" aria-hidden="true"></span>Salvando…';
+  }
+  if (msg) {
+    msg.textContent = "Salvando configuração…";
+    msg.className = "sn7-save-message";
+    msg.setAttribute("aria-live", "polite");
+  }
   try {
     const data = await musicApi("/settings", {
       method:"PATCH",
@@ -2519,10 +2593,25 @@ async function saveMusicConfig() {
       if ($("musicPublicCommands")) $("musicPublicCommands").checked = data.settings.public_commands === true;
       musicRenderToggleFeedback();
     }
-    if (msg) { msg.textContent = "✓ Configuração salva."; msg.className = "sn7-save-message success"; }
-    setTimeout(closeMusicConfig, 350);
+    if (msg) { msg.textContent = "✓ Configuração salva com sucesso."; msg.className = "sn7-save-message success"; }
+    if (button) {
+      button.innerHTML = "✓ Salvo";
+      button.classList.add("is-saved");
+    }
+    setTimeout(() => {
+      closeMusicConfig();
+      if (button) {
+        button.disabled = false;
+        button.classList.remove("is-saved");
+        button.textContent = originalText;
+      }
+    }, 900);
   } catch (error) {
-    if (msg) { msg.textContent = `⚠ ${error.message}`; msg.className = "sn7-save-message error"; }
+    if (msg) { msg.textContent = `⚠ ${error.message || "Não foi possível salvar a configuração."}`; msg.className = "sn7-save-message error"; }
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
   }
 }
 
@@ -2563,7 +2652,9 @@ async function saveMusicConfig() {
 })();
 
 
-/* SN7 MUSIC V8 - CONTROLE DO CORE -> OBS (SEM ÁUDIO NO NAVEGADOR) */
+musicRenderOutputMode();
+
+/* SN7 MUSIC V8 - CONTROLE DO CORE -> OBS / NAVEGADOR */
 (() => {
   let remoteBusy = false;
   let playbackPollBusy = false;
@@ -2677,6 +2768,51 @@ async function saveMusicConfig() {
     }
   };
 
+  async function musicBrowserPlayCurrent(current) {
+    if (!current) {
+      musicSetStatus("Não há música selecionada.", true);
+      return;
+    }
+    const provider=String(current.provider||"").toLowerCase();
+    if (provider === "spotify") {
+      const uri = String(current.source_url||"").trim().match(/^spotify:track:[A-Za-z0-9]+$/i)?.[0]
+        || String(current.source_url||"").trim().match(/open\.spotify\.com\/track\/([A-Za-z0-9]+)/i)?.[1];
+      const normalizedUri = uri && uri.startsWith("spotify:track:") ? uri : (uri ? `spotify:track:${uri}` : "");
+      if (!normalizedUri) throw new Error("A faixa Spotify atual não possui um link válido.");
+      const player=await ensureSpotifyPlayer();
+      let liveState=null;
+      try { liveState=await player.getCurrentState(); } catch (_) {}
+      const loadedId=liveState?.track_window?.current_track?.id || null;
+      const trackId=normalizedUri.split(":").pop();
+      if (loadedId===trackId) {
+        await player.resume();
+      } else {
+        await sendSpotifyPlay(normalizedUri,sn7SpotifyDeviceId);
+      }
+      sn7SpotifyCurrentUri=normalizedUri;
+      if (sn7MusicData?.state) sn7MusicData.state.is_playing=true;
+      musicRenderPlaying(true);
+      musicSetStatus(`Navegador · Spotify · ${current.title||"faixa atual"}`);
+      musicApi("/state",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({is_playing:true})}).catch(()=>{});
+      return;
+    }
+    if (provider === "link") {
+      const audio=ensureMusicAudio();
+      const url=String(current.source_url||"").trim();
+      if (!url) throw new Error("A faixa não possui um link de áudio válido.");
+      if (audio.src !== url) {
+        audio.src=url;
+        audio.currentTime=0;
+      }
+      await audio.play();
+      musicSetStatus(`Navegador · ${current.title||"faixa atual"}`);
+      musicApi("/state",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({is_playing:true})}).catch(()=>{});
+      return;
+    }
+    throw new Error("O modo Navegador testa Spotify e links diretos de áudio. Para YouTube, use o modo Spotify/OBS.");
+  }
+
+  window.musicBrowserPlayCurrent = musicBrowserPlayCurrent;
   window.musicRemoteTogglePlay=async function(){
     if(remoteBusy)return;
     const current=sn7MusicData?.current;
@@ -2685,28 +2821,37 @@ async function saveMusicConfig() {
       return;
     }
     remoteBusy=true;
-    const playing=!Boolean(sn7MusicData?.state?.is_playing);
-    // Feedback imediato: o estado visual muda no mesmo toque.
     const previous=Boolean(sn7MusicData?.state?.is_playing);
-    if(sn7MusicData?.state)sn7MusicData.state.is_playing=playing;
-    musicRenderPlaying(playing);
-    musicSetStatus(playing?"Reprodução iniciada.":"Música pausada.");
     try{
+      if(sn7MusicOutputMode==="browser"){
+        if(previous){
+          if(sn7SpotifyPlayer)await sn7SpotifyPlayer.pause().catch(()=>{});
+          if(sn7MusicAudio)sn7MusicAudio.pause();
+          if(sn7MusicData?.state)sn7MusicData.state.is_playing=false;
+          musicRenderPlaying(false);
+          let ps=null;
+          try{ps=sn7SpotifyPlayer?await sn7SpotifyPlayer.getCurrentState():null;}catch(_){}
+          const position=ps?Number(ps.position||0):sn7MusicAudio?Math.round(Number(sn7MusicAudio.currentTime||0)*1000):Number(sn7MusicData?.state?.position_ms||0);
+          const duration=ps?Number(ps.duration||ps.track_window?.current_track?.duration_ms||0):sn7MusicAudio?Math.round(Number(sn7MusicAudio.duration||0)*1000):Number(sn7MusicData?.state?.duration_ms||0);
+          await musicApi("/state",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({is_playing:false,position_ms:position,duration_ms:duration})}).catch(()=>{});
+          musicSetStatus("Navegador · música pausada.");
+        }else{
+          await musicBrowserPlayCurrent(current);
+        }
+        return;
+      }
+
+      const playing=true;
+      if(sn7MusicData?.state)sn7MusicData.state.is_playing=playing;
+      musicRenderPlaying(playing);
+      musicSetStatus("Reprodução iniciada.");
       const data=await musicApi("/state",{
         method:"PATCH",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({is_playing:playing})
       });
-      // Não desfazemos o feedback otimista se o estado retornado ainda estiver
-      // alguns milissegundos atrasado; o próximo poll do OBS sincroniza o áudio.
-      if(data?.state) {
-        sn7MusicData.state={...(sn7MusicData.state||{}),...data.state,is_playing:playing};
-      }
-      musicSetStatus(
-        playing
-          ?"Reprodução iniciada · áudio pelo OBS."
-          :"Música pausada."
-      );
+      if(data?.state)sn7MusicData.state={...(sn7MusicData.state||{}),...data.state,is_playing:playing};
+      musicSetStatus("Reprodução iniciada · áudio pelo OBS.");
     }catch(error){
       if(sn7MusicData?.state)sn7MusicData.state.is_playing=previous;
       musicRenderPlaying(previous);
@@ -2743,12 +2888,16 @@ async function saveMusicConfig() {
     if(remoteBusy)return;
     if(!sn7MusicData?.current)return;
     remoteBusy=true;
+    const previousTitle=sn7MusicData.current?.title||"música atual";
+    musicSetStatus(direction==="previous"?"Voltando para a anterior…":"Avançando para a próxima…");
     try{
       const endpoint=direction==="previous"?"/previous":"/skip";
       const data=await musicApi(endpoint,{method:"POST"});
       boundCurrentId=data?.current?.id??null;
       musicRender(data);
-      if(data?.current){
+      if(data?.current && sn7MusicOutputMode==="browser"){
+        await musicBrowserPlayCurrent(data.current);
+      }else if(data?.current){
         musicSetStatus(
           direction==="previous"
             ?`Anterior: ${data.current.title}`
@@ -2758,9 +2907,9 @@ async function saveMusicConfig() {
         musicSetStatus(direction==="previous"?"Nenhuma música anterior.":"Fila finalizada.");
       }
     }catch(error){
-      musicSetStatus(`⚠ ${error.message||"Não foi possível mudar a música."}`,true);
+      musicSetStatus(`⚠ ${error.message||`Não foi possível mudar ${previousTitle}.`}`,true);
     }finally{
-      setTimeout(()=>{remoteBusy=false;},250);
+      remoteBusy=false;
     }
   }
 
@@ -2771,18 +2920,27 @@ async function saveMusicConfig() {
     const ratio=Math.max(0,Math.min(1,(Number(event.clientX)-rect.left)/Math.max(1,rect.width)));
     const duration=Number(sn7MusicData?.state?.duration_ms||0);
     if(!duration){
-      musicSetStatus("A posição fica disponível quando o OBS estiver reproduzindo a faixa.",true);
+      musicSetStatus("A posição fica disponível quando a música estiver carregada.",true);
       return;
     }
     const position=Math.round(duration*ratio);
     try{
+      if(sn7MusicOutputMode==="browser"){
+        if(sn7SpotifyPlayer){
+          const ps=await sn7SpotifyPlayer.getCurrentState();
+          if(ps?.duration)await sn7SpotifyPlayer.seek(Math.min(Number(ps.duration),position));
+        }else if(sn7MusicAudio){
+          sn7MusicAudio.currentTime=position/1000;
+        }
+        musicRenderProgress(position,duration);
+      }
       const data=await musicApi("/state",{
         method:"PATCH",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({seek_position_ms:position,position_ms:position,duration_ms:duration})
       });
-      musicRender(data);
-      musicSetStatus("Posição enviada para o OBS.");
+      if(sn7MusicOutputMode!=="browser")musicRender(data);
+      musicSetStatus(sn7MusicOutputMode==="browser"?"Posição ajustada no navegador.":"Posição enviada para o OBS.");
     }catch(error){
       musicSetStatus(`⚠ ${error.message||"Não foi possível mover a música."}`,true);
     }

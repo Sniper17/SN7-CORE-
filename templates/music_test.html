@@ -19,7 +19,7 @@ body:before{content:"";position:fixed;inset:-35%;pointer-events:none;background:
 @keyframes glow{to{transform:rotate(360deg)}}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 2px 8px}.brand{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#9aa5b8}.version{font-size:10px;color:#667185}
 .title{font-size:24px;font-weight:800;margin:2px 0 4px}.subtitle{font-size:12px;color:var(--muted);line-height:1.5;margin:0}
-.status{display:flex;align-items:center;gap:8px;min-width:0;margin:15px 0 4px;padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:rgba(7,10,16,.48);color:#aab4c4;font-size:11px}.status:before{content:"";width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#6b7280;box-shadow:0 0 8px rgba(107,114,128,.4)}.status.ok{color:#b8f7df}.status.ok:before{background:#34d399;box-shadow:0 0 10px rgba(52,211,153,.65)}.status.error{color:#ffadb8}.status.error:before{background:#fb7185;box-shadow:0 0 10px rgba(251,113,133,.65)}
+.status{display:flex;align-items:center;gap:8px;min-width:0;margin:15px 0 4px;padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:rgba(7,10,16,.48);color:#aab4c4;font-size:11px}.status:before{content:"";width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:#6b7280;box-shadow:0 0 8px rgba(107,114,128,.4)}.status.connecting:before{width:9px;height:9px;border:2px solid rgba(167,139,250,.25);border-top-color:#a78bfa;background:transparent;animation:sn7StatusSpin .7s linear infinite}.status.ok{color:#b8f7df}.status.ok:before{background:#34d399;box-shadow:0 0 10px rgba(52,211,153,.65)}.status.error{color:#ffadb8}.status.error:before{background:#fb7185;box-shadow:0 0 10px rgba(251,113,133,.65)}@keyframes sn7StatusSpin{to{transform:rotate(360deg)}}.connect-spinner{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sn7StatusSpin .65s linear infinite}
 .player-main{display:flex;align-items:center;gap:18px;padding:20px 2px 15px}.art{position:relative;width:128px;height:128px;flex:0 0 128px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,#242b3d 0 35%,#111521 36% 63%,#080b11 64%);box-shadow:0 0 0 1px rgba(255,255,255,.06),0 0 34px rgba(139,92,246,.18);overflow:hidden}.art:before{content:"";position:absolute;inset:4px;border-radius:50%;border:1px solid rgba(174,139,255,.38);box-shadow:0 0 20px rgba(139,92,246,.18),inset 0 0 18px rgba(0,211,255,.08)}.disc{width:82px;height:82px;border-radius:50%;position:relative;display:grid;place-items:center;background:repeating-radial-gradient(circle at center,#171b29 0 4px,#22283a 5px 6px,#121624 7px 10px);box-shadow:inset 0 0 0 7px #10131d,0 0 16px rgba(140,93,255,.22)}.disc-ring{position:absolute;inset:8px;border-radius:50%;border:1px solid rgba(0,219,255,.5);box-shadow:0 0 10px rgba(0,219,255,.28)}.disc-center{width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(145deg,#c084fc,#67e8f9);color:#0b0e16;font-size:12px;font-weight:1000;box-shadow:0 0 14px rgba(192,132,252,.5)}.playing .disc{animation:spin 5.5s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 .eq{position:absolute;left:17px;right:17px;bottom:14px;height:30px;display:flex;align-items:flex-end;justify-content:center;gap:3px;z-index:3;opacity:.3;transition:opacity .2s}.eq i{width:3px;height:5px;border-radius:999px;background:linear-gradient(180deg,#67e8f9,#a78bfa 58%,#f472b6);box-shadow:0 0 7px rgba(103,232,249,.25);transform-origin:bottom;animation:bars 1.05s ease-in-out infinite alternate paused}.eq i:nth-child(2){animation-delay:-.18s}.eq i:nth-child(3){animation-delay:-.42s}.eq i:nth-child(4){animation-delay:-.66s}.eq i:nth-child(5){animation-delay:-.31s}.eq i:nth-child(6){animation-delay:-.55s}.eq i:nth-child(7){animation-delay:-.12s}.eq i:nth-child(8){animation-delay:-.78s}.eq i:nth-child(9){animation-delay:-.37s}.eq i:nth-child(10){animation-delay:-.62s}.eq i:nth-child(11){animation-delay:-.26s}.eq i:nth-child(12){animation-delay:-.49s}.playing .eq{opacity:1}.playing .eq i{animation-play-state:running}@keyframes bars{0%{height:4px;filter:brightness(.8)}100%{height:28px;filter:brightness(1.35)}}
 .info{min-width:0;flex:1}.label{display:block;font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:#8f9bb0;margin-bottom:5px}.info h2{font-size:20px;line-height:1.22;margin:0 0 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.info p{font-size:12px;color:#9ba6b7;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.source{display:block;margin-top:8px;font-size:10px;color:#788397;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.source.error{color:#ff9ca6}
@@ -312,7 +312,7 @@ function setConnectUi(mode){
   btn.classList.remove("connecting","connected");
 
   if(mode === "connecting"){
-    btn.textContent = "…";
+    btn.innerHTML = '<span class="connect-spinner" aria-hidden="true"></span>';
     btn.title = "Conectando ao Spotify…";
     btn.disabled = true;
     btn.classList.add("connecting");
@@ -492,12 +492,13 @@ async function waitForDevice(deviceId,timeout=8000){
 async function initPlayer(){
   if(state.player&&state.device&&state.connected)return state.player;
   setConnectUi("connecting");
-  status("Preparando conexão com Spotify…");
+  status("Conectando ao Spotify…", "connecting");
   if(state.player){
     try{state.player.disconnect()}catch(_){}
     state.player=null;state.device=null;state.connected=false;
   }
   await loadSpotifySdk();
+  status("Spotify SDK carregado · autenticando…", "connecting");
   const initial=await token();
   const player=new Spotify.Player({
     name:"SN7 Core TESTE",
@@ -541,6 +542,7 @@ async function initPlayer(){
       clearTimeout(timer);
       state.device=device_id;
       state.connected=true;
+      status("Dispositivo Spotify pronto.", "connecting");
       $("play").disabled=false;
       $("pause").disabled=false;
       resolve();
@@ -551,6 +553,7 @@ async function initPlayer(){
         if(typeof player.activateElement==="function"){
           await player.activateElement();
         }
+        status("Spotify autorizado · preparando dispositivo…", "connecting");
         const ok=await player.connect();
         if(!ok&&!done){
           done=true;clearTimeout(timer);
@@ -636,11 +639,11 @@ async function syncCorePosition(ps){
     });
   }catch(_){}
 }
-async function playCurrent(){
+async function playCurrent(currentOverride=null){
   if(spotifyStartLock)return;
   spotifyStartLock=true;
   try{
-    let c=window.__sn7TestCurrent||null;
+    let c=currentOverride||window.__sn7TestCurrent||null;
     if(!c && state.currentId && state.current?.id===state.currentId) c=state.current;
     if(!c || !c.id){
       const d=await snapshot();
@@ -669,10 +672,24 @@ async function playCurrent(){
         await playUri(uri,state.device);
       }catch(e){
         if(e.status!==404&&!/device not found|device.*not.*found/i.test(e.message||""))throw e;
-        try{player.disconnect()}catch(_){}
-        state.player=null;state.device=null;state.connected=false;
-        const fresh=await initPlayer();
-        await playUri(uri,state.device);
+        // O device Web Playback pode levar alguns instantes para reaparecer
+        // quando uma faixa termina. Tente reutilizar o mesmo player antes de
+        // destruir/reconectar o SDK.
+        let recovered=false;
+        try{
+          await new Promise(r=>setTimeout(r,120));
+          await playUri(uri,state.device);
+          recovered=true;
+        }catch(_){}
+        if(!recovered){
+          try{await waitForDevice(state.device,2200);await playUri(uri,state.device);recovered=true}catch(_){}
+        }
+        if(!recovered){
+          try{player.disconnect()}catch(_){}
+          state.player=null;state.device=null;state.connected=false;
+          const fresh=await initPlayer();
+          await playUri(uri,state.device);
+        }
       }
     }
 
@@ -706,47 +723,62 @@ async function skip(){
   if(state.autoAdvanceLock)return;
   state.autoAdvanceLock=true;
   try{
-    if(state.player)await state.player.pause().catch(()=>{});
+    // Não pause/reconecte o Web Playback Player antes do avanço.
+    // O backend troca a faixa primeiro e nós reutilizamos o mesmo device.
     const r=await fetch(`/api/music/${encodeURIComponent(BID)}/skip`,{method:"POST",credentials:"same-origin"});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.ok===false)throw Error(d.error||"Não foi possível avançar a fila.");
-    state.currentId=null;
-    state.current=null;
+
+    state.currentId=d.current?.id??null;
+    state.current=d.current||null;
     state.spotifyState=null;
-    const current=d.current;
-    await snapshot();
+    const current=d.current||null;
+    $("title").textContent=current?.title||"Nenhuma música atual";
+    $("artist").textContent=current?.artist||"—";
+    renderQueue(d.queue);
+    renderVolume(d.state?.volume??state.volume);
+
     if(current?.provider==="spotify"){
       window.__sn7TestCurrent=current;
-      await playCurrent();
+      await playCurrent(current);
       window.__sn7TestCurrent=null;
     }else{
+      if(state.player)await state.player.pause().catch(()=>{});
       renderPlaying(false);
       source(current?"Próxima faixa pronta.":"Fila finalizada.");
     }
   }finally{
-    setTimeout(()=>state.autoAdvanceLock=false,350);
+    setTimeout(()=>state.autoAdvanceLock=false,300);
   }
 }
 async function previous(){
   if(state.autoAdvanceLock)return;
   state.autoAdvanceLock=true;
   try{
-    if(state.player)await state.player.pause().catch(()=>{});
     const r=await fetch(`/api/music/${encodeURIComponent(BID)}/previous`,{method:"POST",credentials:"same-origin"});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.ok===false)throw Error(d.error||"Não existe uma música anterior disponível.");
-    state.currentId=null;
-    state.current=null;
+
+    state.currentId=d.current?.id??null;
+    state.current=d.current||null;
     state.spotifyState=null;
-    const current=d.current;
-    await snapshot();
+    const current=d.current||null;
+    $("title").textContent=current?.title||"Nenhuma música atual";
+    $("artist").textContent=current?.artist||"—";
+    renderQueue(d.queue);
+    renderVolume(d.state?.volume??state.volume);
+
     if(current?.provider==="spotify"){
       window.__sn7TestCurrent=current;
-      await playCurrent();
+      await playCurrent(current);
       window.__sn7TestCurrent=null;
-    }else source(current?"Faixa anterior pronta.":"Nenhuma anterior.");
+    }else{
+      if(state.player)await state.player.pause().catch(()=>{});
+      renderPlaying(false);
+      source(current?"Faixa anterior pronta.":"Nenhuma anterior.");
+    }
   }finally{
-    setTimeout(()=>state.autoAdvanceLock=false,350);
+    setTimeout(()=>state.autoAdvanceLock=false,300);
   }
 }
 async function autoAdvance(){
@@ -756,26 +788,31 @@ async function autoAdvance(){
     const r=await fetch(`/api/music/${encodeURIComponent(BID)}/skip`,{method:"POST",credentials:"same-origin"});
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.ok===false)throw Error(d.error||"Falha no avanço automático.");
-    state.currentId=null;
-    state.current=null;
+
+    state.currentId=d.current?.id??null;
+    state.current=d.current||null;
     state.spotifyState=null;
-    const current=d.current;
-    await snapshot();
+    const current=d.current||null;
+    $("title").textContent=current?.title||"Nenhuma música atual";
+    $("artist").textContent=current?.artist||"—";
+    renderQueue(d.queue);
+    renderVolume(d.state?.volume??state.volume);
+
     if(current?.provider==="spotify"){
       window.__sn7TestCurrent=current;
-      await playCurrent();
+      await playCurrent(current);
       window.__sn7TestCurrent=null;
     }else{
+      if(state.player)await state.player.pause().catch(()=>{});
       renderPlaying(false);
       source(current?"Próxima faixa pronta.":"Fila finalizada.");
     }
   }catch(e){
     source(e.message||"Falha no avanço automático.",true);
   }finally{
-    setTimeout(()=>state.autoAdvanceLock=false,450);
+    setTimeout(()=>state.autoAdvanceLock=false,300);
   }
 }
-
 async function seek(event){
   const rect=$("progress").getBoundingClientRect();
   const ratio=Math.max(0,Math.min(1,(event.clientX-rect.left)/Math.max(1,rect.width)));

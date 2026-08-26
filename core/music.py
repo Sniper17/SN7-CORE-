@@ -559,6 +559,107 @@ def skip_current(bid):
         conn.close()
 
 
+def skip_current_fast(bid):
+    """Avança a fila e devolve o estado necessário para o player em uma única conexão."""
+    bid = int(bid)
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT current_queue_id,is_playing,volume,position_ms,duration_ms,seek_position_ms,seek_revision "
+                "FROM music_player_state WHERE broadcaster_user_id=%s FOR UPDATE",
+                (bid,),
+            )
+            state_row = cur.fetchone()
+            if not state_row:
+                cur.execute(
+                    "INSERT INTO music_player_state(broadcaster_user_id,is_playing) VALUES(%s,FALSE) "
+                    "ON CONFLICT(broadcaster_user_id) DO NOTHING",
+                    (bid,),
+                )
+                cur.execute(
+                    "SELECT current_queue_id,is_playing,volume,position_ms,duration_ms,seek_position_ms,seek_revision "
+                    "FROM music_player_state WHERE broadcaster_user_id=%s FOR UPDATE",
+                    (bid,),
+                )
+                state_row = cur.fetchone()
+
+            current_id = state_row[0] if state_row else None
+            if current_id:
+                cur.execute(
+                    "INSERT INTO music_play_history(broadcaster_user_id,queue_id) VALUES(%s,%s)",
+                    (bid, int(current_id)),
+                )
+                cur.execute(
+                    "UPDATE music_queue SET status='played' WHERE id=%s AND broadcaster_user_id=%s",
+                    (current_id, bid),
+                )
+
+            cur.execute(
+                "SELECT id,title,artist,provider,source_url,added_by FROM music_queue "
+                "WHERE broadcaster_user_id=%s AND status='queued' ORDER BY position,id LIMIT 1",
+                (bid,),
+            )
+            nxt = cur.fetchone()
+            next_id = nxt[0] if nxt else None
+            cur.execute(
+                "UPDATE music_player_state SET current_queue_id=%s,is_playing=%s,position_ms=0,duration_ms=0,seek_position_ms=0,updated_at=NOW() "
+                "WHERE broadcaster_user_id=%s",
+                (next_id, bool(next_id), bid),
+            )
+
+            cur.execute(
+                "SELECT allow_youtube,allow_spotify,allow_soundcloud,allow_links,public_commands "
+                "FROM music_settings WHERE broadcaster_user_id=%s",
+                (bid,),
+            )
+            settings_row = cur.fetchone() or (True, True, False, True, False)
+            settings = {
+                "allow_youtube": bool(settings_row[0]),
+                "allow_spotify": bool(settings_row[1]),
+                "allow_soundcloud": bool(settings_row[2]),
+                "allow_links": bool(settings_row[3]),
+                "public_commands": bool(settings_row[4]),
+            }
+
+            cur.execute(
+                "SELECT id,provider,title,artist,source_url,added_by,status FROM music_queue "
+                "WHERE id=%s AND broadcaster_user_id=%s",
+                (next_id, bid),
+            ) if next_id else None
+            current_row = cur.fetchone() if next_id else None
+            current = ({
+                "id": current_row[0], "provider": current_row[1], "title": current_row[2],
+                "artist": current_row[3] or "", "source_url": current_row[4] or "",
+                "added_by": current_row[5] or "", "status": current_row[6]
+            } if current_row else None)
+
+            cur.execute(
+                "SELECT id,provider,title,artist,source_url,added_by,status,position FROM music_queue "
+                "WHERE broadcaster_user_id=%s AND status='queued' AND id<>COALESCE(%s,0) "
+                "ORDER BY position ASC,id ASC LIMIT 100",
+                (bid, next_id),
+            )
+            queue = [{
+                "id": r[0], "provider": r[1], "title": r[2], "artist": r[3] or "",
+                "source_url": r[4] or "", "added_by": r[5] or "", "status": r[6], "position": r[7]
+            } for r in cur.fetchall()]
+
+            state = {
+                "current_queue_id": next_id,
+                "is_playing": bool(next_id),
+                "volume": int(state_row[2] if state_row else 80),
+                "position_ms": 0,
+                "duration_ms": 0,
+                "seek_position_ms": 0,
+                "seek_revision": int(state_row[6] if state_row else 0),
+            }
+        conn.commit()
+        _notify_queue_changed(bid)
+        return {"ok": True, "settings": settings, "state": state, "current": current, "queue": queue}
+    finally:
+        conn.close()
+
 def previous_current(bid):
     """Volta uma faixa no histórico de reprodução, preservando a fila."""
     bid = int(bid)
