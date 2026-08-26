@@ -2962,7 +2962,9 @@ musicRenderConnectionUi();
     }
     if (elapsed) elapsed.textContent = musicFormatTime(state.position / 1000);
     if (total) total.textContent = state.duration ? musicFormatTime(state.duration / 1000) : "—";
-    // O equalizador é puramente visual e é controlado pelo CSS via .is-playing.\n    // Não deixe uma função visual ausente interromper o relógio do player.\n  }
+    // O equalizador é puramente visual e é controlado pelo CSS via .is-playing.
+    // Não deixe uma função visual ausente interromper o relógio do player.
+  }
 
   function persistState(immediate = false) {
     if (!musicHasChannel()) return;
