@@ -2383,3 +2383,50 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
   .sn7-music-btn.primary { width:52px !important; min-width:52px !important; height:52px !important; min-height:52px !important; }
   .sn7-music-output-connect { margin-left:auto !important; }
 }
+
+/* SN7 MUSIC CONNECT V10 — botão de conexão integrado ao tema */
+.sn7-music-output-connect{
+  width:auto !important;
+  min-width:88px !important;
+  height:40px !important;
+  min-height:40px !important;
+  padding:0 14px !important;
+  margin-left:auto !important;
+  border-radius:10px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:7px !important;
+  border:1px solid rgba(167,139,250,.28) !important;
+  background:linear-gradient(145deg,rgba(28,32,48,.92),rgba(14,17,26,.94)) !important;
+  color:#d9d2ff !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 4px 14px rgba(0,0,0,.16) !important;
+  font-size:10px !important;
+  font-weight:800 !important;
+  letter-spacing:.03em !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+  transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .12s ease !important;
+}
+.sn7-music-output-connect:hover{
+  background:linear-gradient(145deg,rgba(38,43,63,.96),rgba(18,21,32,.96)) !important;
+  border-color:rgba(167,139,250,.52) !important;
+  color:#eeeaff !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 5px 18px rgba(124,104,217,.12) !important;
+}
+.sn7-music-output-connect:active{transform:scale(.96) !important}
+.sn7-music-output-connect.is-connected{
+  border-color:rgba(52,211,153,.34) !important;
+  background:linear-gradient(145deg,rgba(20,43,39,.9),rgba(14,24,26,.94)) !important;
+  color:#a7f3d0 !important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 4px 16px rgba(52,211,153,.08) !important;
+}
+.sn7-music-output-connect.is-connecting{
+  border-color:rgba(167,139,250,.4) !important;
+  background:rgba(19,22,33,.94) !important;
+  color:#d9d2ff !important;
+}
+.sn7-music-output-connect:disabled{opacity:.72 !important}
+@media(max-width:600px){
+  .sn7-music-output-connect{min-width:84px !important;height:40px !important;padding:0 12px !important}
+}

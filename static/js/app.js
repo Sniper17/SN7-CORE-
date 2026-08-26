@@ -1773,14 +1773,14 @@ function musicRenderConnectionUi() {
   if (btn.disabled && btn.dataset.sn7Busy === "1") return;
   const browserConnected = !!(sn7SpotifyPlayer && sn7SpotifyDeviceId);
   if (sn7MusicOutputMode === "browser" && browserConnected) {
-    btn.textContent = "OK";
+    btn.textContent = "Conectado";
     btn.title = "Player do navegador conectado";
     btn.classList.add("is-connected");
   } else if (sn7MusicOutputMode === "spotify") {
-    btn.textContent = "CON";
+    btn.textContent = "Verificar";
     btn.title = "Verificar conexão do OBS";
   } else {
-    btn.textContent = "CON";
+    btn.textContent = "Conectar";
     btn.title = "Conectar player no navegador";
   }
 }
@@ -1839,20 +1839,52 @@ function spotifySetStatus(text, error = false) {
 function ensureSpotifySDK() {
   if (window.Spotify && window.Spotify.Player) return Promise.resolve();
   if (sn7SpotifyReadyPromise) return sn7SpotifyReadyPromise;
+
   sn7SpotifyReadyPromise = new Promise((resolve, reject) => {
+    const started = Date.now();
+    let settled = false;
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      if (error) {
+        sn7SpotifyReadyPromise = null;
+        reject(error);
+      } else {
+        resolve();
+      }
+    };
+
     const previous = window.onSpotifyWebPlaybackSDKReady;
     window.onSpotifyWebPlaybackSDKReady = () => {
       try { if (typeof previous === "function") previous(); } catch (_) {}
-      resolve();
+      finish();
     };
-    const script = document.createElement("script");
-    script.src = "https://sdk.scdn.co/spotify-player.js";
-    script.async = true;
-    script.onerror = () => {
-      sn7SpotifyReadyPromise = null;
-      reject(new Error("Não foi possível carregar o player do Spotify."));
+
+    let script = document.querySelector('script[data-sn7-spotify-sdk]');
+    if (!script) {
+      script = document.createElement("script");
+      script.src = "https://sdk.scdn.co/spotify-player.js";
+      script.async = true;
+      script.dataset.sn7SpotifySdk = "1";
+      script.onerror = () => finish(new Error("Não foi possível carregar o Spotify Web Playback SDK."));
+      document.head.appendChild(script);
+    } else {
+      script.addEventListener("error", () => finish(new Error("Não foi possível carregar o Spotify Web Playback SDK.")), {once:true});
+    }
+
+    const poll = () => {
+      if (settled) return;
+      if (window.Spotify && window.Spotify.Player) {
+        finish();
+        return;
+      }
+      if (Date.now() - started >= 15000) {
+        finish(new Error("Spotify Web Playback SDK não carregou. Toque em Conectar novamente."));
+        return;
+      }
+      setTimeout(poll, 100);
     };
-    document.head.appendChild(script);
+    poll();
   });
   return sn7SpotifyReadyPromise;
 }
@@ -1899,9 +1931,33 @@ async function createSpotifyPlayer() {
     volume: Number(sn7MusicData?.state?.volume ?? 80) / 100
   });
 
-  player.addListener("initialization_error", ({message}) => spotifySetStatus(`⚠ Spotify: ${message}`, true));
-  player.addListener("authentication_error", ({message}) => spotifySetStatus(`⚠ Spotify: ${message}`, true));
-  player.addListener("account_error", ({message}) => spotifySetStatus(`⚠ ${message || "Conta Spotify não elegível. Premium é necessário."}`, true));
+  let readyResolve;
+  let readyReject;
+  let readyFinished = false;
+  const readyPromise = new Promise((resolve, reject) => {
+    readyResolve = resolve;
+    readyReject = reject;
+  });
+
+  const finishReadyError = (message) => {
+    if (readyFinished) return;
+    readyFinished = true;
+    readyReject(new Error(message));
+  };
+
+  player.addListener("initialization_error", ({message}) => {
+    spotifySetStatus(`⚠ Spotify: ${message}`, true);
+    finishReadyError(message || "O Spotify não conseguiu inicializar o player.");
+  });
+  player.addListener("authentication_error", ({message}) => {
+    spotifySetStatus(`⚠ Spotify: ${message}`, true);
+    finishReadyError(message || "Não foi possível autenticar o Spotify.");
+  });
+  player.addListener("account_error", ({message}) => {
+    const detail = message || "Conta Spotify não elegível. O Web Playback exige Spotify Premium.";
+    spotifySetStatus(`⚠ ${detail}`, true);
+    finishReadyError(detail);
+  });
   player.addListener("autoplay_failed", () => spotifySetStatus("O navegador bloqueou o autoplay. Toque em Reproduzir.", true));
   player.addListener("playback_error", ({message}) => spotifySetStatus(`⚠ Spotify: ${message}`, true));
   player.addListener("not_ready", ({device_id}) => {
@@ -1934,43 +1990,52 @@ async function createSpotifyPlayer() {
   });
 
   sn7SpotifyDeviceReadyPromise = new Promise((resolve, reject) => {
-    let finished = false;
     const timer = setTimeout(() => {
-      if (finished) return;
-      finished = true;
-      reject(new Error("O dispositivo do Spotify não ficou pronto. Verifique se o Spotify Premium está disponível."));
+      if (readyFinished) return;
+      readyFinished = true;
+      reject(new Error("O dispositivo do Spotify não ficou pronto. Toque em Conectar novamente."));
     }, 12000);
 
-    const ready = ({device_id}) => {
-      if (finished) return;
-      finished = true;
+    const onReady = ({device_id}) => {
+      if (readyFinished) return;
+      readyFinished = true;
       clearTimeout(timer);
       sn7SpotifyDeviceId = device_id;
-      musicSetConnectionStatus("Dispositivo Spotify pronto.", "connecting");
+      musicSetConnectionStatus("Player do navegador pronto.", "ok");
+      readyResolve(device_id);
       resolve(device_id);
     };
-    player.addListener("ready", ready);
+    player.addListener("ready", onReady);
+
     (async () => {
       try {
-        if (typeof player.activateElement === "function") await player.activateElement();
-      } catch (_) {}
-      return player.connect();
-    })().then(ok => {
-      if (!ok && !finished) {
-        finished = true;
-        clearTimeout(timer);
-        reject(new Error("Não foi possível conectar o player Spotify."));
+        // Esta chamada precisa acontecer no gesto do usuário quando possível.
+        if (typeof player.activateElement === "function") {
+          try { await player.activateElement(); } catch (_) {}
+        }
+        musicSetConnectionStatus("Spotify autorizado · preparando player…", "connecting");
+        const ok = await player.connect();
+        if (!ok && !readyFinished) {
+          readyFinished = true;
+          clearTimeout(timer);
+          const error = new Error("Não foi possível conectar o player Spotify.");
+          readyReject(error);
+          reject(error);
+        }
+      } catch (error) {
+        if (!readyFinished) {
+          readyFinished = true;
+          clearTimeout(timer);
+          const normalized = error instanceof Error ? error : new Error("Não foi possível conectar o player Spotify.");
+          readyReject(normalized);
+          reject(normalized);
+        }
       }
-    }).catch(() => {
-      if (!finished) {
-        finished = true;
-        clearTimeout(timer);
-        reject(new Error("Não foi possível conectar o player Spotify."));
-      }
-    });
+    })();
   });
 
   try {
+    await readyPromise;
     await sn7SpotifyDeviceReadyPromise;
   } catch (error) {
     try { player.disconnect(); } catch (_) {}
