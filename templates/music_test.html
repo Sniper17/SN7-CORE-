@@ -290,7 +290,7 @@ body:before{content:"";position:fixed;inset:-35%;pointer-events:none;background:
 <script>
 const BID={{ broadcaster_id|tojson }};
 const $=id=>document.getElementById(id);
-const state={player:null,device:null,connected:false,volume:80,currentId:null,autoAdvanceLock:false,syncBusy:false};
+const state={player:null,device:null,connected:false,volume:80,currentId:null,current:null,spotifyState:null,autoAdvanceLock:false,syncBusy:false};
 let sdkReady=!!window.Spotify?.Player, sdkPromise=null, spotifyStartLock=false;
 
 function status(text,kind=""){
@@ -410,6 +410,8 @@ async function snapshot(){
   const d=await r.json().catch(()=>({}));
   if(!r.ok||d.ok===false)throw Error(d.error||"Falha ao consultar o player.");
   const c=d.current;
+  state.current=c||null;
+  if(c?.id) state.currentId=c.id;
   $("title").textContent=c?.title||"Nenhuma música atual";
   $("artist").textContent=c?.artist||c?.provider||"—";
   renderQueue(d.queue);
@@ -514,6 +516,7 @@ async function initPlayer(){
   });
   player.addListener("player_state_changed",ps=>{
     if(!ps)return;
+    state.spotifyState=ps;
     const t=ps.track_window?.current_track;
     const d=Number(t?.duration_ms||ps.duration||0);
     const p=Number(ps.position||0);
@@ -619,12 +622,27 @@ async function syncCorePlaying(playing){
     });
   }catch(_){}
 }
+async function syncCorePosition(ps){
+  if(!ps)return;
+  const track=ps.track_window?.current_track;
+  const position=Math.max(0,Math.round(Number(ps.position||0)));
+  const duration=Math.max(0,Math.round(Number(track?.duration_ms||ps.duration||0)));
+  try{
+    await fetch(`/api/music/${encodeURIComponent(BID)}/state`,{
+      method:"PATCH",credentials:"same-origin",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({is_playing:false,position_ms:position,duration_ms:duration}),
+      keepalive:true
+    });
+  }catch(_){}
+}
 async function playCurrent(){
   if(spotifyStartLock)return;
   spotifyStartLock=true;
   try{
     let c=window.__sn7TestCurrent||null;
-    if(!c || !c.id || c.id!==state.currentId){
+    if(!c && state.currentId && state.current?.id===state.currentId) c=state.current;
+    if(!c || !c.id){
       const d=await snapshot();
       c=d.current;
     }
@@ -635,9 +653,13 @@ async function playCurrent(){
 
     const trackId=uri.split(":").pop();
     const player=await initPlayer();
-    if(typeof player.activateElement==="function"){
-      try{await player.activateElement()}catch(_){}
-    }
+
+    // Quando o dispositivo já está conectado, consulte o estado diretamente
+    // no SDK. Isso evita uma nova ida ao backend e permite resume() instantâneo.
+    try{
+      const liveState=await player.getCurrentState();
+      if(liveState) state.spotifyState=liveState;
+    }catch(_){}
 
     const loadedId=state.spotifyState?.track_window?.current_track?.id||null;
     if(loadedId===trackId){
@@ -655,7 +677,7 @@ async function playCurrent(){
     }
 
     state.currentId=c.id;
-    state.spotifyState=null;
+    state.current=c;
     renderPlaying(true);
     status("Spotify reproduzindo.","ok");
     source(`SPOTIFY · ${c.title||"faixa atual"}`);
@@ -670,8 +692,14 @@ async function pause(){
   // Feedback visual imediato, antes da ida à rede.
   renderPlaying(false);
   status("Spotify pausado.","ok");
-  try{await state.player.pause()}catch(e){throw e}
-  syncCorePlaying(false);
+  try{
+    await state.player.pause();
+    try{
+      const ps=await state.player.getCurrentState();
+      state.spotifyState=ps||state.spotifyState;
+      await syncCorePosition(state.spotifyState);
+    }catch(_){}
+  }catch(e){throw e}
 }
 
 async function skip(){
@@ -683,6 +711,8 @@ async function skip(){
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.ok===false)throw Error(d.error||"Não foi possível avançar a fila.");
     state.currentId=null;
+    state.current=null;
+    state.spotifyState=null;
     const current=d.current;
     await snapshot();
     if(current?.provider==="spotify"){
@@ -706,6 +736,8 @@ async function previous(){
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.ok===false)throw Error(d.error||"Não existe uma música anterior disponível.");
     state.currentId=null;
+    state.current=null;
+    state.spotifyState=null;
     const current=d.current;
     await snapshot();
     if(current?.provider==="spotify"){
@@ -725,6 +757,8 @@ async function autoAdvance(){
     const d=await r.json().catch(()=>({}));
     if(!r.ok||d.ok===false)throw Error(d.error||"Falha no avanço automático.");
     state.currentId=null;
+    state.current=null;
+    state.spotifyState=null;
     const current=d.current;
     await snapshot();
     if(current?.provider==="spotify"){

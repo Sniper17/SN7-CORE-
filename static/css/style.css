@@ -2097,6 +2097,22 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
 .sn7-music-row-selecting{opacity:.55;pointer-events:none}
 
 
+/* SN7 MUSIC EQUALIZER LIVE — animação garantida no painel */
+.sn7-music-art .sn7-music-eq i{
+  animation:sn7MusicEqLive 1.05s ease-in-out infinite alternate !important;
+  animation-play-state:paused !important;
+  will-change:height,filter;
+}
+.sn7-music-player.is-playing .sn7-music-art .sn7-music-eq{opacity:1 !important}
+.sn7-music-player.is-playing .sn7-music-art .sn7-music-eq i{animation-play-state:running !important}
+@keyframes sn7MusicEqLive{
+  0%{height:16% !important;filter:brightness(.82)}
+  100%{height:100% !important;filter:brightness(1.35)}
+}
+@media(prefers-reduced-motion:reduce){
+  .sn7-music-player.is-playing .sn7-music-art .sn7-music-eq i{animation-play-state:running !important}
+}
+
 /* SN7 ICON ALIGNMENT FIX — centralização geométrica dos ícones dos controles */
 .sn7-music-btn,
 .sn7-volume-btn,
