@@ -568,16 +568,181 @@ def _start_or_join_runtime(bid,username,platform,game,ttl=45):
     if username.lower() not in [x.lower() for x in state["players"]]: state["players"].append(username)
     _runtime_set(bid,platform,game,state); return state
 
-def race_join(bid,username,platform="kick"):
-    if not _game_allowed(bid,platform,"race"): return {"ok":False,"error":"🏃 Corrida está desativada nesta plataforma."}
-    return {"ok":True,"state":_start_or_join_runtime(bid,username,platform,"race",45)}
+_RACE_TIMER_LOCK = RLock()
+_RACE_TIMERS = {}
 
-def race_finish(bid,platform="kick"):
-    state=_runtime_get(bid,platform,"race",{}); players=state.get("players",[])
-    if not players: return {"ok":False,"error":"🏃 Ninguém entrou na corrida."}
-    random.shuffle(players); prizes=[500,300,150,75,30]; winners=[]
-    for i,u in enumerate(players[:len(prizes)]): winners.append((u,prizes[i])); _adjust_points(bid,u,prizes[i],platform)
-    state["open"]=False; _runtime_set(bid,platform,"race",state); forget_rankings(bid); return {"ok":True,"winners":winners}
+RACE_DURATION_SECONDS = 90
+RACE_MIN_STARTERS = 5
+
+def _race_car_number(value):
+    try:
+        n = int(str(value))
+    except (TypeError, ValueError):
+        return None
+    return n if 1 <= n <= 100 else None
+
+def race_start(bid, username, platform="kick"):
+    """Abre uma corrida narrativa. O início da história acontece com 5 carros."""
+    if not _game_allowed(bid, platform, "race"):
+        return {"ok": False, "error": "🏎️ Corrida está desativada nesta plataforma."}
+    current = _runtime_get(bid, platform, "race", {})
+    if current.get("open"):
+        return {"ok": False, "error": "🏁 Já existe uma corrida aberta! Escolha seu carro com !car1 até !car100."}
+    state = {
+        "open": True,
+        "started": False,
+        "started_at": None,
+        "duration_seconds": RACE_DURATION_SECONDS,
+        "players": [],
+        "cars": {},
+        "events": [],
+    }
+    _runtime_set(bid, platform, "race", state)
+    return {"ok": True, "state": state, "min_starters": RACE_MIN_STARTERS}
+
+def race_join_car(bid, username, car, platform="kick"):
+    if not _game_allowed(bid, platform, "race"):
+        return {"ok": False, "error": "🏎️ Corrida está desativada nesta plataforma."}
+    car = _race_car_number(car)
+    if car is None:
+        return {"ok": False, "error": "🏎️ Escolha um carro de 1 a 100. Ex.: !car7."}
+    state = _runtime_get(bid, platform, "race", {})
+    if not state.get("open"):
+        return {"ok": False, "error": "🏁 Não há corrida aberta. O streamer precisa usar !corrida."}
+    if state.get("started"):
+        return {"ok": False, "error": "🏁 A corrida já começou! Não dá mais para escolher carro."}
+
+    players = state.setdefault("players", [])
+    cars = state.setdefault("cars", {})
+    uname = str(username).strip()
+    existing = next((u for u in players if str(u).lower() == uname.lower()), None)
+    occupied = next((u for u, c in cars.items() if int(c) == car), None)
+    if occupied and str(occupied).lower() != uname.lower():
+        return {"ok": False, "error": f"🏎️ O carro {car} já foi escolhido por {_mention_name(occupied)}."}
+    if existing:
+        old_car = cars.get(existing)
+        cars[existing] = car
+        _runtime_set(bid, platform, "race", state)
+        return {"ok": True, "state": state, "changed": True, "car": car, "message": f"🏎️ {_mention_name(uname)} trocou para o carro {car}!"}
+    players.append(uname)
+    cars[uname] = car
+    state.setdefault("eliminated", {})[uname] = False
+    _runtime_set(bid, platform, "race", state)
+    return {
+        "ok": True, "state": state, "car": car, "changed": False,
+        "ready": len(players) >= RACE_MIN_STARTERS,
+        "message": f"🏎️ {_mention_name(uname)} entrou no carro {car}! {len(players)}/{RACE_MIN_STARTERS} corredores.",
+    }
+
+def race_begin(bid, platform="kick"):
+    state = _runtime_get(bid, platform, "race", {})
+    if not state.get("open"):
+        return {"ok": False, "error": "🏁 Não há corrida aberta."}
+    if state.get("started"):
+        return {"ok": True, "state": state, "already_started": True}
+    players = list(state.get("players") or [])
+    if len(players) < RACE_MIN_STARTERS:
+        return {"ok": False, "error": f"🏁 Faltam corredores. A história começa com {RACE_MIN_STARTERS} participantes. Agora: {len(players)}."}
+    state["started"] = True
+    state["started_at"] = time.time()
+    state["duration_seconds"] = RACE_DURATION_SECONDS
+    state["progress"] = {u: random.randint(0, 8) for u in players}
+    state["eliminated"] = {u: False for u in players}
+    state["events"] = []
+    _runtime_set(bid, platform, "race", state)
+    return {"ok": True, "state": state}
+
+def _race_active_players(state):
+    return [u for u in state.get("players", []) if not state.get("eliminated", {}).get(u, False)]
+
+def race_tick(bid, platform="kick"):
+    """Gera um capítulo curto da corrida. Só corredores vivos podem aparecer."""
+    state = _runtime_get(bid, platform, "race", {})
+    if not state.get("open") or not state.get("started"):
+        return {"ok": False, "done": False}
+    started = float(state.get("started_at") or time.time())
+    elapsed = int(time.time() - started)
+    duration = int(state.get("duration_seconds") or RACE_DURATION_SECONDS)
+    active = _race_active_players(state)
+    if elapsed >= duration or len(active) <= 1:
+        return {"ok": True, "done": True, "state": state, "event": None}
+
+    progress = state.setdefault("progress", {})
+    for u in active:
+        progress[u] = min(100, int(progress.get(u, 0)) + random.randint(3, 9))
+
+    events = []
+    if len(active) >= 2:
+        event_type = random.choices(
+            ["overtake", "close", "mechanical", "crash", "spin", "drift", "straight"],
+            weights=[28, 16, 12, 12, 10, 10, 12],
+            k=1,
+        )[0]
+        if event_type == "overtake":
+            ordered = sorted(active, key=lambda u: progress.get(u, 0), reverse=True)
+            leader, other = ordered[0], ordered[1]
+            progress[leader] += random.randint(2, 6)
+            events.append(f"🔥 {_mention_name(leader)} ultrapassou {_mention_name(other)} e ganhou posições!")
+        elif event_type == "close":
+            a, b = random.sample(active, 2)
+            events.append(f"🏎️💨 {_mention_name(a)} e {_mention_name(b)} estão lado a lado na disputa pela posição!")
+        elif event_type == "mechanical":
+            u = random.choice(active)
+            progress[u] = max(0, progress.get(u, 0) - random.randint(3, 8))
+            events.append(f"🔧 {_mention_name(u)} teve um problema mecânico e perdeu velocidade!")
+        elif event_type == "crash":
+            u = random.choice(active)
+            state.setdefault("eliminated", {})[u] = True
+            events.append(f"💥 {_mention_name(u)} bateu no muro e está FORA da corrida!")
+        elif event_type == "spin":
+            u = random.choice(active)
+            progress[u] = max(0, progress.get(u, 0) - random.randint(5, 12))
+            events.append(f"🌀 {_mention_name(u)} rodou na pista e perdeu muito tempo!")
+        elif event_type == "drift":
+            u = random.choice(active)
+            progress[u] += random.randint(4, 8)
+            events.append(f"⚡ {_mention_name(u)} fez uma curva perfeita e acelerou na saída!")
+        else:
+            u = max(active, key=lambda x: progress.get(x, 0))
+            progress[u] += random.randint(3, 7)
+            events.append(f"🏁 {_mention_name(u)} acelerou forte na reta e abriu vantagem!")
+
+    state.setdefault("events", []).extend(events[-2:])
+    _runtime_set(bid, platform, "race", state)
+    return {"ok": True, "done": False, "event": events[0] if events else None, "state": state, "elapsed": elapsed}
+
+def race_finish(bid, platform="kick"):
+    state = _runtime_get(bid, platform, "race", {})
+    if not state.get("open"):
+        return {"ok": False, "error": "🏁 Não há corrida aberta."}
+    players = list(state.get("players") or [])
+    if not players:
+        state["open"] = False
+        _runtime_set(bid, platform, "race", state)
+        return {"ok": False, "error": "🏁 Ninguém entrou na corrida."}
+
+    # No evento final, quem foi eliminado jamais pode receber prêmio.
+    active = _race_active_players(state)
+    progress = state.setdefault("progress", {})
+    active.sort(key=lambda u: progress.get(u, 0) + random.random() * 8, reverse=True)
+    prizes = [500, 300, 150, 75, 30]
+    winners = []
+    for i, u in enumerate(active[:len(prizes)]):
+        prize = prizes[i]
+        _adjust_points(bid, u, prize, platform)
+        winners.append((u, prize))
+
+    state["open"] = False
+    state["finished_at"] = time.time()
+    state["winners"] = [u for u, _ in winners]
+    state["eliminated"] = state.get("eliminated", {})
+    _runtime_set(bid, platform, "race", state)
+    with _RACE_TIMER_LOCK:
+        timer = _RACE_TIMERS.pop((int(bid), _platform(platform)), None)
+        if timer:
+            timer.cancel()
+    forget_rankings(bid)
+    return {"ok": True, "winners": winners, "players": players, "eliminated": [u for u in players if state["eliminated"].get(u)]}
 
 def target_guess(bid,username,guess,platform="kick"):
     if not _game_allowed(bid,platform,"target"): return {"ok":False,"error":"🎯 Alvo está desativado nesta plataforma."}
@@ -602,7 +767,7 @@ _SURVIVAL_TIMER_LOCK = RLock()
 _SURVIVAL_TIMERS = {}
 
 def survival_start(bid, username, platform="kick"):
-    """Abre uma nova rodada de sobrevivência. Somente o streamer/mod inicia."""
+    """Abre uma nova rodada narrativa de sobrevivência de 90 segundos."""
     if not _game_allowed(bid, platform, "survival"):
         return {"ok": False, "error": "🧟 A Sobrevivência está desativada nesta plataforma."}
 
@@ -611,20 +776,11 @@ def survival_start(bid, username, platform="kick"):
     prize = int(settings.get("survival_prize", 50))
     current = _runtime_get(bid, platform, "survival", {})
     if current.get("open"):
-        current_duration = int(current.get("duration_seconds") or duration)
-        elapsed = time.time() - float(current.get("started_at", time.time()))
-        if elapsed < current_duration:
-            remaining = max(0, current_duration - int(elapsed))
-            return {"ok": False, "error": f"🧟 Já existe uma sobrevivência ativa! Faltam cerca de {remaining}s."}
-        # Se o timer atrasou, encerra a rodada antiga antes de abrir a nova.
-        survival_finish(bid, platform, expected_started_at=current.get("started_at"))
-
+        return {"ok": False, "error": f"🧟 Já existe uma sobrevivência ativa! Faltam cerca de {max(0, int(current.get('duration_seconds', duration) - (time.time()-float(current.get('started_at', time.time())))))}s."}
     state = {
-        "open": True,
-        "started_at": time.time(),
-        "duration_seconds": duration,
-        "prize": prize,
-        "players": [],
+        "open": True, "started": False, "started_at": None,
+        "duration_seconds": duration, "prize": prize,
+        "players": [], "alive": {}, "events": [],
     }
     _runtime_set(bid, platform, "survival", state)
     return {"ok": True, "state": state}
@@ -632,52 +788,98 @@ def survival_start(bid, username, platform="kick"):
 def survival_join(bid, username, platform="kick"):
     if not _game_allowed(bid, platform, "survival"):
         return {"ok": False, "error": "🧟 A Sobrevivência está desativada nesta plataforma."}
-
     state = _runtime_get(bid, platform, "survival", {})
     if not state.get("open"):
-        return {"ok": False, "error": "🧟 Não há uma sobrevivência ativa. O streamer precisa iniciar com !sobrevivênciaOn."}
-
-    duration = int(state.get("duration_seconds") or get_settings(bid, platform).get("survival_duration_seconds", 90))
-    elapsed = time.time() - float(state.get("started_at", 0))
-    if elapsed >= duration:
-        return {"ok": False, "expired": True, "error": "🧟 A rodada já terminou. Aguarde o streamer iniciar outra."}
-
+        return {"ok": False, "error": "🧟 Não há uma sobrevivência ativa. O streamer precisa iniciar com !sobrevivênciaon."}
+    if state.get("started"):
+        return {"ok": False, "error": "🧟 A história já começou! Não dá mais para entrar nesta rodada."}
     players = state.setdefault("players", [])
     if username.lower() in [str(x).lower() for x in players]:
-        remaining = max(0, duration - int(elapsed))
-        return {"ok": False, "already_joined": True, "state": state, "error": f"🧟 {_mention_name(username)} você já está na rodada! Faltam cerca de {remaining}s."}
-
+        return {"ok": False, "already_joined": True, "state": state, "error": f"🧟 {_mention_name(username)} você já está na rodada!"}
     players.append(username)
+    state.setdefault("alive", {})[username] = True
     _runtime_set(bid, platform, "survival", state)
     return {"ok": True, "state": state}
+
+def survival_begin(bid, platform="kick"):
+    state = _runtime_get(bid, platform, "survival", {})
+    if not state.get("open"):
+        return {"ok": False, "error": "🧟 Não há sobrevivência aberta."}
+    if state.get("started"):
+        return {"ok": True, "state": state, "already_started": True}
+    players = list(state.get("players") or [])
+    if not players:
+        return {"ok": False, "error": "🧟 Ninguém entrou na sobrevivência ainda."}
+    state["started"] = True
+    state["started_at"] = time.time()
+    state["alive"] = {u: True for u in players}
+    state["events"] = []
+    _runtime_set(bid, platform, "survival", state)
+    return {"ok": True, "state": state}
+
+def survival_tick(bid, platform="kick"):
+    state = _runtime_get(bid, platform, "survival", {})
+    if not state.get("open") or not state.get("started"):
+        return {"ok": False, "done": False}
+    started = float(state.get("started_at") or time.time())
+    elapsed = int(time.time() - started)
+    duration = int(state.get("duration_seconds") or 90)
+    alive = [u for u in state.get("players", []) if state.get("alive", {}).get(u, False)]
+    if elapsed >= duration or not alive:
+        return {"ok": True, "done": True, "event": None, "state": state}
+    events = []
+    if len(alive) >= 1:
+        kind = random.choices(
+            ["danger", "loot", "escape", "death", "team", "weather", "quiet"],
+            weights=[18, 14, 18, 12, 14, 12, 12], k=1
+        )[0]
+        if kind == "death" and len(alive) > 1:
+            u = random.choice(alive)
+            state.setdefault("alive", {})[u] = False
+            events.append(f"💀 {_mention_name(u)} não conseguiu escapar e MORREU! Está fora da rodada.")
+        elif kind == "loot":
+            u = random.choice(alive)
+            events.append(f"🎒 {_mention_name(u)} encontrou suprimentos e conseguiu se preparar melhor!")
+        elif kind == "escape":
+            u = random.choice(alive)
+            events.append(f"🏃 {_mention_name(u)} escapou por pouco de uma criatura!")
+        elif kind == "team" and len(alive) > 1:
+            a, b = random.sample(alive, 2)
+            events.append(f"🤝 {_mention_name(a)} ajudou {_mention_name(b)} a atravessar uma área perigosa!")
+        elif kind == "weather":
+            events.append(random.choice([
+                "🌧️ Uma tempestade forte começou e a visibilidade caiu!",
+                "🌫️ Uma névoa tomou conta da região. Ninguém sabe o que está escondido nela!",
+                "⚡ Um raio caiu perto do grupo e todos correram para procurar abrigo!",
+            ]))
+        elif kind == "danger":
+            u = random.choice(alive)
+            events.append(f"😱 {_mention_name(u)} encontrou uma criatura, mas conseguiu escapar!")
+        elif kind == "quiet":
+            events.append("🌲 Por alguns instantes, tudo ficou silencioso... silencioso demais.")
+    state.setdefault("events", []).extend(events[-2:])
+    _runtime_set(bid, platform, "survival", state)
+    return {"ok": True, "done": False, "event": events[0] if events else None, "state": state, "elapsed": elapsed}
 
 def survival_finish(bid, platform="kick", expected_started_at=None):
     state = _runtime_get(bid, platform, "survival", {})
     if not state.get("open"):
         return {"ok": False, "error": "🧟 Não há uma sobrevivência ativa."}
-
     if expected_started_at is not None and float(state.get("started_at", 0)) != float(expected_started_at):
         return {"ok": False, "stale": True}
-
     players = list(state.get("players") or [])
-    if not players:
-        state["open"] = False
-        _runtime_set(bid, platform, "survival", state)
-        return {"ok": True, "winners": [], "players": [], "prize": int(state.get("prize", 50))}
-
-    survivors = [u for u in players if random.random() < 0.35] or [random.choice(players)]
+    alive = [u for u in players if state.get("alive", {}).get(u, False)]
     prize = max(0, int(state.get("prize", 50)))
     winners = []
-    for u in survivors:
+    for u in alive:
         _adjust_points(bid, u, prize, platform)
         winners.append((u, prize))
-
     state["open"] = False
     state["finished_at"] = time.time()
     state["winners"] = [u for u, _ in winners]
     _runtime_set(bid, platform, "survival", state)
     forget_rankings(bid)
-    return {"ok": True, "winners": winners, "players": players, "prize": prize}
+    return {"ok": True, "winners": winners, "players": players, "dead": [u for u in players if not state.get("alive", {}).get(u, False)], "prize": prize}
 
 def _mention_name(username):
     return f"@{str(username).lstrip('@')}"
