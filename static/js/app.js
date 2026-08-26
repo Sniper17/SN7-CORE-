@@ -1688,7 +1688,14 @@ let sn7SpotifyDeviceId = null;
 let sn7SpotifyReadyPromise = null;
 let sn7SpotifyCurrentUri = "";
 let sn7SpotifyDeviceReadyPromise = null;
+let sn7SpotifyCreatePromise = null;
 let sn7SpotifyStarting = false;
+
+// O token já é entregue ao navegador pelo Web Playback SDK. Mantê-lo em
+// memória evita uma ida ao SN7/Render a cada Play/Resume.
+let sn7SpotifyAccessToken = "";
+let sn7SpotifyAccessTokenExpiresAt = 0;
+const SN7_SPOTIFY_TOKEN_CACHE_MS = 4 * 60 * 1000;
 let sn7MusicOutputMode = (() => {
   try { return localStorage.getItem("sn7MusicOutputMode") === "browser" ? "browser" : "spotify"; }
   catch (_) { return "spotify"; }
@@ -1889,10 +1896,24 @@ function ensureSpotifySDK() {
   return sn7SpotifyReadyPromise;
 }
 
-async function spotifyToken() {
+async function spotifyToken(force = false) {
+  const now = Date.now();
+  if (!force && sn7SpotifyAccessToken && now < sn7SpotifyAccessTokenExpiresAt) {
+    return sn7SpotifyAccessToken;
+  }
+
   const data = await musicApi("/spotify/player-token");
   if (!data?.token) throw new Error("Spotify não retornou um token de reprodução.");
-  return data.token;
+
+  sn7SpotifyAccessToken = String(data.token);
+  // O backend já mantém o token renovado. O cache do navegador é deliberadamente
+  // curto para nunca depender de um token potencialmente expirado.
+  const serverTtl = Number(data.expires_in || 0);
+  const ttl = serverTtl > 0
+    ? Math.max(30_000, Math.min(serverTtl * 1000 - 60_000, 4 * 60 * 1000))
+    : SN7_SPOTIFY_TOKEN_CACHE_MS;
+  sn7SpotifyAccessTokenExpiresAt = now + Math.max(30_000, ttl);
+  return sn7SpotifyAccessToken;
 }
 
 async function spotifyFetch(path, options = {}) {
@@ -1900,22 +1921,6 @@ async function spotifyFetch(path, options = {}) {
   const headers = {...(options.headers || {}), Authorization: `Bearer ${token}`};
   const response = await fetch(`https://api.spotify.com/v1${path}`, {...options, headers});
   return response;
-}
-
-async function waitForSpotifyDevice(deviceId, timeout = 8000) {
-  const started = Date.now();
-  while (Date.now() - started < timeout) {
-    try {
-      const response = await spotifyFetch("/me/player/devices");
-      if (response.ok) {
-        const data = await response.json();
-        const device = (data.devices || []).find(d => d.id === deviceId);
-        if (device) return device;
-      }
-    } catch (_) {}
-    await new Promise(r => setTimeout(r, 350));
-  }
-  throw new Error("O dispositivo Spotify não ficou disponível. Toque em Conectar novamente.");
 }
 
 async function createSpotifyPlayer() {
@@ -1964,6 +1969,7 @@ async function createSpotifyPlayer() {
     if (!device_id || device_id === sn7SpotifyDeviceId) {
       sn7SpotifyDeviceId = null;
       sn7SpotifyDeviceReadyPromise = null;
+      sn7SpotifyCurrentUri = "";
       if (sn7SpotifyPlayer === player) sn7SpotifyPlayer = null;
       musicRenderConnectionUi();
       if (sn7MusicOutputMode === "browser") musicSetConnectionStatus("Player do navegador desconectado.", "error");
@@ -1975,6 +1981,11 @@ async function createSpotifyPlayer() {
     if (sn7MusicData?.state) sn7MusicData.state.is_playing = playing;
     musicRenderPlaying(playing);
     const track = playbackState.track_window?.current_track;
+    if (track?.uri) {
+      sn7SpotifyCurrentUri = String(track.uri);
+    } else if (track?.id) {
+      sn7SpotifyCurrentUri = `spotify:track:${track.id}`;
+    }
     if (typeof window.musicRenderProgress === "function") {
       window.musicRenderProgress(
         Number(playbackState.position || 0),
@@ -2049,18 +2060,18 @@ async function createSpotifyPlayer() {
 }
 
 async function ensureSpotifyPlayer() {
+  // Depois que o SDK informou "ready", o objeto local é a fonte de verdade.
+  // Não consulte /me/player/devices a cada Play: essa chamada é remota e era
+  // responsável pela espera perceptível no celular.
   if (sn7SpotifyPlayer && sn7SpotifyDeviceId) {
-    try {
-      await waitForSpotifyDevice(sn7SpotifyDeviceId, 1800);
-      return sn7SpotifyPlayer;
-    } catch (_) {
-      try { sn7SpotifyPlayer.disconnect(); } catch (_) {}
-      sn7SpotifyPlayer = null;
-      sn7SpotifyDeviceId = null;
-      sn7SpotifyDeviceReadyPromise = null;
-    }
+    return sn7SpotifyPlayer;
   }
-  return createSpotifyPlayer();
+
+  if (!sn7SpotifyCreatePromise) {
+    sn7SpotifyCreatePromise = createSpotifyPlayer()
+      .finally(() => { sn7SpotifyCreatePromise = null; });
+  }
+  return sn7SpotifyCreatePromise;
 }
 
 async function transferSpotifyToWebPlayer(deviceId) {
@@ -2078,13 +2089,26 @@ async function transferSpotifyToWebPlayer(deviceId) {
 }
 
 async function sendSpotifyPlay(uri, deviceId) {
-  const token = await spotifyToken();
-  const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
-    method: "PUT",
-    headers: {"Authorization": `Bearer ${token}`, "Content-Type": "application/json"},
-    body: JSON.stringify({uris: [uri]})
-  });
+  const doRequest = async (token) => fetch(
+    `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
+    {
+      method: "PUT",
+      headers: {"Authorization": `Bearer ${token}`, "Content-Type": "application/json"},
+      body: JSON.stringify({uris: [uri]})
+    }
+  );
+
+  let token = await spotifyToken();
+  let response = await doRequest(token);
+
+  // Token expirado/invalidado: renova uma única vez.
+  if (response.status === 401) {
+    token = await spotifyToken(true);
+    response = await doRequest(token);
+  }
+
   if (response.ok || response.status === 204) return;
+
   let detail = "";
   try { detail = (await response.json())?.error?.message || ""; } catch (_) {}
   const error = new Error(detail || `Spotify recusou a reprodução (HTTP ${response.status}).`);
@@ -2319,6 +2343,9 @@ async function musicDisconnect(provider) {
       sn7SpotifyDeviceId = null;
       sn7SpotifyCurrentUri = "";
       sn7SpotifyDeviceReadyPromise = null;
+      sn7SpotifyCreatePromise = null;
+      sn7SpotifyAccessToken = "";
+      sn7SpotifyAccessTokenExpiresAt = 0;
     }
     sn7MusicConnectionsData = data;
     sn7MusicConnectionsPromise = Promise.resolve(data);
@@ -2949,31 +2976,27 @@ musicRenderConnectionUi();
       const normalizedUri = uri && uri.startsWith("spotify:track:") ? uri : (uri ? `spotify:track:${uri}` : "");
       if (!normalizedUri) throw new Error("A faixa Spotify atual não possui um link válido.");
       const player=await ensureSpotifyPlayer();
-      // No mobile, activateElement precisa acontecer dentro de uma interação
-      // do usuário sempre que possível. O botão CON já faz isso, mas repetimos
-      // aqui para tornar o Play resiliente a bloqueios de áudio.
-      if (typeof player.activateElement === "function") {
-        try { await player.activateElement(); } catch (_) {}
-      }
-      // O botão CON já transfere o controle para o Web Playback Device.
-      // NÃO faça essa transferência novamente a cada Play: a chamada /me/player
-      // pode aguardar vários segundos no mobile e era a principal causa do
-      // atraso perceptível ao iniciar a faixa. Só garantimos o dispositivo no
-      // momento da conexão.
-      let liveState=null;
-      try { liveState=await player.getCurrentState(); } catch (_) {}
-      const loadedId=liveState?.track_window?.current_track?.id || null;
       const trackId=normalizedUri.split(":").pop();
+
+      // O gesto de "Conectar" já chama activateElement(). Repeti-lo aqui
+      // acrescentava trabalho no mobile sem trazer benefício.
+      //
+      // Se a mesma faixa foi pausada, resume() é uma operação local do SDK.
+      // Só usamos a API Web do Spotify quando precisamos carregar outra faixa.
+      const sameLoadedTrack =
+        sn7SpotifyCurrentUri === normalizedUri ||
+        sn7SpotifyCurrentUri === `spotify:track:${trackId}`;
+
       // Feedback imediato: o botão muda para PAUSE no mesmo toque.
-      // A confirmação real do Spotify chega pelo player_state_changed.
       if (sn7MusicData?.state) sn7MusicData.state.is_playing=true;
       musicRenderPlaying(true);
-      musicSetStatus(`Navegador · iniciando ${current.title||"faixa atual"}…`);
+      musicSetStatus(`Navegador · ${sameLoadedTrack ? "retomando" : "iniciando"} ${current.title||"faixa atual"}…`);
       try {
-        if (loadedId===trackId) {
+        if (sameLoadedTrack) {
           await player.resume();
         } else {
           await sendSpotifyPlay(normalizedUri,sn7SpotifyDeviceId);
+          sn7SpotifyCurrentUri=normalizedUri;
         }
       } catch (error) {
         if (sn7MusicData?.state) sn7MusicData.state.is_playing=false;
@@ -3058,6 +3081,16 @@ musicRenderConnectionUi();
     const volume=Math.max(0,Math.min(100,Math.round(Number(value)||0)));
     if(sn7MusicData?.state)sn7MusicData.state.volume=volume;
     musicRenderVolume(volume);
+
+    // No modo Navegador, o volume também é aplicado localmente. O PATCH ao
+    // backend fica apenas como sincronização e não bloqueia a interface.
+    if (sn7MusicOutputMode === "browser" && sn7SpotifyPlayer) {
+      sn7SpotifyPlayer.setVolume(volume / 100).catch(() => {});
+    }
+    if (sn7MusicAudio) {
+      sn7MusicAudio.volume = volume / 100;
+    }
+
     clearTimeout(volumeCommitTimer);
     volumeCommitTimer=setTimeout(async()=>{
       try{
@@ -3066,7 +3099,10 @@ musicRenderConnectionUi();
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({volume})
         });
-        musicRender(data);
+        if(data?.state) {
+          sn7MusicData = sn7MusicData || {settings:{},state:{},current:null,queue:[]};
+          sn7MusicData.state = {...(sn7MusicData.state||{}), ...data.state};
+        }
       }catch(error){
         musicSetStatus(`⚠ ${error.message||"Não foi possível alterar o volume."}`,true);
       }
@@ -3149,7 +3185,11 @@ musicRenderConnectionUi();
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({seek_position_ms:position,position_ms:position,duration_ms:duration})
       });
-      musicRender(data);
+      if(data?.state) {
+        sn7MusicData = sn7MusicData || {settings:{},state:{},current:null,queue:[]};
+        sn7MusicData.state = {...(sn7MusicData.state||{}), ...data.state};
+      }
+      musicRenderProgress(position,duration);
     }catch(error){
       musicSetStatus(`⚠ ${error.message||"Não foi possível mover a música."}`,true);
     }
@@ -3193,8 +3233,17 @@ musicRenderConnectionUi();
     if(count)count.textContent=String(queue.length);
 
     musicRenderVolume(volume);
-    musicRenderPlaying(Boolean(sn7MusicData.state?.is_playing));
-    remoteProgress(position,duration);
+
+    const browserSdkActive = sn7MusicOutputMode === "browser" && !!sn7SpotifyPlayer;
+    if (!browserSdkActive) {
+      musicRenderPlaying(Boolean(sn7MusicData.state?.is_playing));
+      remoteProgress(position,duration);
+    } else {
+      // O backend é persistência/sincronização. Enquanto o SDK está conectado,
+      // ele é a fonte de verdade do play/pause e do relógio local.
+      musicRenderPlaying(localProgressPlaying);
+    }
+
     renderMusicQueue(queue);
     boundCurrentId=current?.id??null;
   };
@@ -3204,7 +3253,23 @@ musicRenderConnectionUi();
     playbackPollBusy=true;
     try{
       const data=await musicApi("");
-      musicRender(data);
+      const browserSdkActive = sn7MusicOutputMode === "browser" && !!sn7SpotifyPlayer;
+      if (!browserSdkActive) {
+        musicRender(data);
+      } else {
+        // Atualiza fila/metadados sem deixar o snapshot lento do backend
+        // reescrever a posição atual do Spotify.
+        const localState = sn7MusicData?.state || {};
+        musicRender({
+          ...data,
+          state: {
+            ...(data?.state || {}),
+            is_playing: localState.is_playing ?? data?.state?.is_playing,
+            position_ms: localProgressPosition,
+            duration_ms: localProgressDuration || data?.state?.duration_ms
+          }
+        });
+      }
     }catch(_){}
     finally{playbackPollBusy=false;}
   }
@@ -3241,8 +3306,18 @@ musicRenderConnectionUi();
     if(elapsedEl)elapsedEl.textContent=musicFormatTime(position/1000);
   },250);
 
-  // Estado do player pode ser sincronizado automaticamente; a conexão OBS não.
-  setInterval(()=>pollRemotePlayback().catch(()=>{}),1000);
+  // Sincronização remota é apenas uma rede de segurança. O relógio do
+  // navegador vem do Spotify SDK; 1s era desnecessário e sobrecarregava
+  // Render/PostgreSQL.
+  const sn7MusicRemoteTimer = setInterval(()=>{
+    const tab = document.querySelector('nav button[data-tab="music"]');
+    const musicActive = !!tab?.classList.contains("active");
+    const browserConnected = !!(sn7SpotifyPlayer && sn7SpotifyDeviceId);
+    if (musicActive || browserConnected || sn7MusicOutputMode === "spotify") {
+      pollRemotePlayback().catch(()=>{});
+    }
+  },2500);
+  window.__sn7MusicRemoteTimer = sn7MusicRemoteTimer;
   pollRemotePlayback().catch(()=>{});
 })();
 

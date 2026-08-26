@@ -242,8 +242,10 @@ def update_music_state(broadcaster_id):
         require_session_broadcaster(broadcaster_id)
     except PermissionError as exc:
         return jsonify({'ok': False, 'error': str(exc)}), 401
+
     data = request.get_json(silent=True) or {}
     sets, vals = [], []
+
     if 'is_playing' in data:
         sets.append('is_playing=%s'); vals.append(bool(data['is_playing']))
     if 'volume' in data:
@@ -256,19 +258,50 @@ def update_music_state(broadcaster_id):
     if 'seek_position_ms' in data:
         sets.append('seek_position_ms=%s'); vals.append(max(0, int(data['seek_position_ms'] or 0)))
         sets.append('seek_revision=seek_revision+1')
+
     if not sets:
         return jsonify({'ok': False, 'error': 'Estado inválido.'}), 400
+
     conn = get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute('''INSERT INTO music_player_state (broadcaster_user_id) VALUES (%s)
-                           ON CONFLICT (broadcaster_user_id) DO NOTHING''', (int(broadcaster_id),))
-            cur.execute(f'UPDATE music_player_state SET {", ".join(sets)}, updated_at=NOW() WHERE broadcaster_user_id=%s',
-                        [*vals, int(broadcaster_id)])
+            cur.execute(
+                '''INSERT INTO music_player_state (broadcaster_user_id) VALUES (%s)
+                   ON CONFLICT (broadcaster_user_id) DO NOTHING''',
+                (int(broadcaster_id),)
+            )
+            cur.execute(
+                f'''UPDATE music_player_state
+                       SET {", ".join(sets)}, updated_at=NOW()
+                     WHERE broadcaster_user_id=%s''',
+                [*vals, int(broadcaster_id)]
+            )
+            # Retorna somente o estado persistido. O endpoint anterior chamava
+            # snapshot(), que reabria várias consultas para settings, faixa e
+            # fila em cada Play/Pause/seek/volume.
+            cur.execute(
+                '''SELECT current_queue_id,is_playing,volume,position_ms,
+                          duration_ms,seek_position_ms,seek_revision
+                     FROM music_player_state
+                    WHERE broadcaster_user_id=%s''',
+                (int(broadcaster_id),)
+            )
+            row = cur.fetchone()
+
         conn.commit()
     finally:
         conn.close()
-    return jsonify(snapshot(broadcaster_id))
+
+    state = {
+        'current_queue_id': row[0] if row else None,
+        'is_playing': bool(row[1]) if row else False,
+        'volume': int(row[2]) if row else 80,
+        'position_ms': max(0, int(row[3] or 0)) if row else 0,
+        'duration_ms': max(0, int(row[4] or 0)) if row else 0,
+        'seek_position_ms': max(0, int(row[5] or 0)) if row else 0,
+        'seek_revision': int(row[6] or 0) if row else 0,
+    }
+    return jsonify({'ok': True, 'state': state})
 
 
 DIRECT_AUDIO_EXTENSIONS = ('.mp3', '.m4a', '.aac', '.ogg', '.wav', '.opus')
@@ -754,7 +787,10 @@ def get_spotify_player_token(broadcaster_id):
         token = _spotify_access_token(broadcaster_id)
         if not token:
             return jsonify({"ok": False, "error": "Spotify não está conectado neste canal."}), 404
-        return jsonify({"ok": True, "token": token})
+
+        # O navegador usa um cache curto em memória para não pedir o token ao
+        # SN7 a cada Play. O valor é apenas uma dica de TTL.
+        return jsonify({"ok": True, "token": token, "expires_in": 240})
     except Exception as exc:
         print(f"[MUSIC-SPOTIFY] token do player falhou: {exc}", flush=True)
         return jsonify({"ok": False, "error": "Não foi possível preparar o player do Spotify."}), 502
