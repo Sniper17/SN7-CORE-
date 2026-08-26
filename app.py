@@ -25,7 +25,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.45-music-instant"
+SN7_VERSION = "1.9.50-music-v9"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 

@@ -270,21 +270,16 @@ def update_music_state(broadcaster_id):
                    ON CONFLICT (broadcaster_user_id) DO NOTHING''',
                 (int(broadcaster_id),)
             )
+            # UPDATE ... RETURNING elimina uma segunda ida ao PostgreSQL.
+            # Play/Pause/seek/volume são comandos quentes e não precisam
+            # reconstruir o snapshot completo do player.
             cur.execute(
                 f'''UPDATE music_player_state
                        SET {", ".join(sets)}, updated_at=NOW()
-                     WHERE broadcaster_user_id=%s''',
+                     WHERE broadcaster_user_id=%s
+                 RETURNING current_queue_id,is_playing,volume,position_ms,
+                           duration_ms,seek_position_ms,seek_revision''',
                 [*vals, int(broadcaster_id)]
-            )
-            # Retorna somente o estado persistido. O endpoint anterior chamava
-            # snapshot(), que reabria várias consultas para settings, faixa e
-            # fila em cada Play/Pause/seek/volume.
-            cur.execute(
-                '''SELECT current_queue_id,is_playing,volume,position_ms,
-                          duration_ms,seek_position_ms,seek_revision
-                     FROM music_player_state
-                    WHERE broadcaster_user_id=%s''',
-                (int(broadcaster_id),)
             )
             row = cur.fetchone()
 
