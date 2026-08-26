@@ -1715,7 +1715,16 @@ function musicRenderOutputMode() {
   if (hint) {
     hint.textContent = sn7MusicOutputMode === "browser"
       ? "NAVEGADOR · TESTE RÁPIDO · AUTO-ADVANCE"
-      : "SPOTIFY · CONTROLE DA LIVE · AUTO-ADVANCE";
+      : "OBS · CONTROLE DA LIVE · AUTO-ADVANCE";
+  }
+  musicRenderConnectionUi();
+  const connection = $("sn7MusicConnectionStatus");
+  if (connection && connection.textContent === "Preparando o player…") {
+    musicSetConnectionStatus(
+      sn7MusicOutputMode === "browser"
+        ? "Navegador selecionado · clique em CON para conectar."
+        : "OBS selecionado · clique em CON para verificar a conexão."
+    );
   }
 }
 
@@ -1742,13 +1751,76 @@ async function musicSetOutputMode(mode) {
     musicRenderOutputMode();
     musicRenderPlaying(false);
     if (mode === "browser") {
-      spotifySetStatus("Modo navegador ativo · toque em Reproduzir para testar.");
+      musicSetConnectionStatus("Navegador selecionado · clique em CON para conectar.");
     } else {
-      spotifySetStatus("Modo Spotify ativo · controle da reprodução da live.");
+      musicSetConnectionStatus("OBS selecionado · clique em CON para verificar a conexão.");
     }
   }
 }
 window.musicSetOutputMode = musicSetOutputMode;
+
+function musicSetConnectionStatus(text, kind = "") {
+  const el = $("sn7MusicConnectionStatus");
+  if (!el) return;
+  el.className = "sn7-music-connection-status" + (kind ? ` ${kind}` : "");
+  el.textContent = text;
+}
+
+function musicRenderConnectionUi() {
+  const btn = $("sn7MusicConnect");
+  if (!btn) return;
+  btn.classList.remove("is-connecting", "is-connected");
+  if (btn.disabled && btn.dataset.sn7Busy === "1") return;
+  const browserConnected = !!(sn7SpotifyPlayer && sn7SpotifyDeviceId);
+  if (sn7MusicOutputMode === "browser" && browserConnected) {
+    btn.textContent = "OK";
+    btn.title = "Player do navegador conectado";
+    btn.classList.add("is-connected");
+  } else if (sn7MusicOutputMode === "spotify") {
+    btn.textContent = "CON";
+    btn.title = "Verificar conexão do OBS";
+  } else {
+    btn.textContent = "CON";
+    btn.title = "Conectar player no navegador";
+  }
+}
+
+async function musicConnectOutput() {
+  const btn = $("sn7MusicConnect");
+  if (!btn || btn.dataset.sn7Busy === "1") return;
+  btn.dataset.sn7Busy = "1";
+  btn.disabled = true;
+  btn.classList.add("is-connecting");
+  btn.innerHTML = '<span class="connect-spinner" aria-hidden="true"></span>';
+  try {
+    if (sn7MusicOutputMode === "browser") {
+      musicSetConnectionStatus("Conectando ao Spotify…", "connecting");
+      const player = await ensureSpotifyPlayer();
+      if (typeof player.activateElement === "function") {
+        try { await player.activateElement(); } catch (_) {}
+      }
+      musicSetConnectionStatus("Spotify conectado ao navegador.", "ok");
+      musicSetStatus("Navegador conectado · pronto para reproduzir.");
+    } else {
+      musicSetConnectionStatus("Verificando conexão do OBS…", "connecting");
+      const data = await musicApi("/obs-status");
+      if (!data?.connected) {
+        throw new Error("OBS desconectado. Abra a fonte do SN7 Core no OBS e tente novamente.");
+      }
+      musicSetConnectionStatus("OBS conectado e pronto para reproduzir.", "ok");
+      musicSetStatus("Controle remoto · OBS conectado.");
+    }
+  } catch (error) {
+    musicSetConnectionStatus(error.message || "Não foi possível conectar.", "error");
+    musicSetStatus(`⚠ ${error.message || "Não foi possível conectar."}`, true);
+  } finally {
+    btn.dataset.sn7Busy = "0";
+    btn.disabled = false;
+    btn.classList.remove("is-connecting");
+    musicRenderConnectionUi();
+  }
+}
+window.musicConnectOutput = musicConnectOutput;
 
 function spotifySetStatus(text, error = false) {
   const source = $("sn7MusicSourceStatus");
@@ -1830,6 +1902,8 @@ async function createSpotifyPlayer() {
       sn7SpotifyDeviceId = null;
       sn7SpotifyDeviceReadyPromise = null;
       if (sn7SpotifyPlayer === player) sn7SpotifyPlayer = null;
+      musicRenderConnectionUi();
+      if (sn7MusicOutputMode === "browser") musicSetConnectionStatus("Player do navegador desconectado.", "error");
     }
   });
   player.addListener("player_state_changed", (playbackState) => {
@@ -1865,10 +1939,16 @@ async function createSpotifyPlayer() {
       finished = true;
       clearTimeout(timer);
       sn7SpotifyDeviceId = device_id;
+      musicSetConnectionStatus("Dispositivo Spotify pronto.", "connecting");
       resolve(device_id);
     };
     player.addListener("ready", ready);
-    player.connect().then(ok => {
+    (async () => {
+      try {
+        if (typeof player.activateElement === "function") await player.activateElement();
+      } catch (_) {}
+      return player.connect();
+    })().then(ok => {
       if (!ok && !finished) {
         finished = true;
         clearTimeout(timer);
@@ -1892,6 +1972,7 @@ async function createSpotifyPlayer() {
   }
 
   sn7SpotifyPlayer = player;
+  musicRenderConnectionUi();
   return player;
 }
 
@@ -2653,6 +2734,7 @@ async function saveMusicConfig() {
 
 
 musicRenderOutputMode();
+musicRenderConnectionUi();
 
 /* SN7 MUSIC V8 - CONTROLE DO CORE -> OBS / NAVEGADOR */
 (() => {

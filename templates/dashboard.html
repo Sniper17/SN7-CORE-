@@ -246,6 +246,7 @@ body.sn7-modal-open{overflow:hidden}
             <span class="sn7-music-kicker">MUSIC PLAYER</span>
             <button type="button" class="sn7-music-config" onclick="openMusicConfig()" aria-label="Configurar fontes de música">⚙</button>
           </div>
+          <div id="sn7MusicConnectionStatus" class="sn7-music-connection-status">Preparando o player…</div>
 
           <div class="sn7-music-main">
             <div class="sn7-music-art" id="sn7MusicArt" aria-hidden="true">
@@ -272,6 +273,7 @@ body.sn7-modal-open{overflow:hidden}
 
           <div class="sn7-music-controls" aria-label="Controles do player">
             <button type="button" class="sn7-music-btn secondary" onclick="musicPrevious()" aria-label="Anterior" title="Anterior">⏮</button>
+            <button type="button" class="sn7-music-btn sn7-music-connect" id="sn7MusicConnect" onclick="musicConnectOutput()" aria-label="Conectar saída" title="Conectar saída">CON</button>
             <button type="button" class="sn7-music-btn primary" id="sn7MusicPlay" onclick="musicTogglePlay()" aria-label="Reproduzir ou pausar" title="Reproduzir ou pausar"><span class="sn7-play-icon" aria-hidden="true"></span></button>
             <button type="button" class="sn7-music-btn secondary" onclick="musicSkip()" aria-label="Próxima" title="Próxima">⏭</button>
 
@@ -287,7 +289,7 @@ body.sn7-modal-open{overflow:hidden}
             <span>SAÍDA</span>
             <div class="sn7-music-output-switch" role="group" aria-label="Escolher saída">
               <button type="button" id="sn7MusicOutputBrowser" onclick="musicSetOutputMode('browser')" aria-pressed="false" title="Testar a reprodução diretamente no navegador">Navegador</button>
-              <button type="button" class="is-active" id="sn7MusicOutputSpotify" onclick="musicSetOutputMode('spotify')" aria-pressed="true" title="Usar a reprodução da live pelo Spotify/OBS">Spotify</button>
+              <button type="button" class="is-active" id="sn7MusicOutputSpotify" onclick="musicSetOutputMode('spotify')" aria-pressed="true" title="Usar a reprodução da live pelo OBS">OBS</button>
             </div>
           </div>
           <div class="sn7-music-bottom">
