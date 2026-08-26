@@ -2479,9 +2479,29 @@ async function loadMusic() {
   return sn7MusicLoadPromise;
 }
 
-async function musicTogglePlay() {
-  if (typeof window.musicRemoteTogglePlay === "function") {
-    return window.musicRemoteTogglePlay();
+async function musicTogglePlay(event) {
+  // O botão é inline no HTML, então esta função precisa ser resiliente:
+  // nunca falhar silenciosamente caso o módulo remoto ainda não tenha sido
+  // inicializado ou caso o navegador tenha mantido uma versão antiga do JS.
+  try {
+    if (event && typeof event.preventDefault === "function") {
+      event.preventDefault();
+    }
+    if (typeof window.musicRemoteTogglePlay === "function") {
+      return await window.musicRemoteTogglePlay();
+    }
+    const source = document.getElementById("sn7MusicSourceStatus");
+    if (source) {
+      source.textContent = "⚠ O controle do player ainda não foi inicializado. Recarregue a página.";
+      source.classList.add("is-error");
+    }
+  } catch (error) {
+    const source = document.getElementById("sn7MusicSourceStatus");
+    if (source) {
+      source.textContent = `⚠ ${error?.message || "Não foi possível reproduzir a música."}`;
+      source.classList.add("is-error");
+    }
+    console.error("[SN7 MUSIC] Play/Pause:", error);
   }
 }
 
@@ -2808,7 +2828,7 @@ async function saveMusicConfig() {
 musicRenderOutputMode();
 musicRenderConnectionUi();
 
-/* SN7 MUSIC V8 - CONTROLE DO CORE -> OBS / NAVEGADOR */
+/* SN7 MUSIC V8.1 - PLAY/PAUSE FIX + MOBILE SPOTIFY */
 (() => {
   let remoteBusy = false;
   let playbackPollBusy = false;
@@ -2927,6 +2947,17 @@ musicRenderConnectionUi();
       const normalizedUri = uri && uri.startsWith("spotify:track:") ? uri : (uri ? `spotify:track:${uri}` : "");
       if (!normalizedUri) throw new Error("A faixa Spotify atual não possui um link válido.");
       const player=await ensureSpotifyPlayer();
+      // No mobile, activateElement precisa acontecer dentro de uma interação
+      // do usuário sempre que possível. O botão CON já faz isso, mas repetimos
+      // aqui para tornar o Play resiliente a bloqueios de áudio.
+      if (typeof player.activateElement === "function") {
+        try { await player.activateElement(); } catch (_) {}
+      }
+      // Garante que o Web Playback Device esteja ativo antes de enviar o
+      // comando de reprodução pela Web API.
+      if (sn7SpotifyDeviceId) {
+        try { await transferSpotifyToWebPlayer(sn7SpotifyDeviceId); } catch (_) {}
+      }
       let liveState=null;
       try { liveState=await player.getCurrentState(); } catch (_) {}
       const loadedId=liveState?.track_window?.current_track?.id || null;
