@@ -1822,6 +1822,13 @@ async function musicConnectOutput() {
 }
 window.musicConnectOutput = musicConnectOutput;
 
+function musicSetStatus(text, error = false) {
+  const el = document.getElementById("sn7MusicSourceStatus");
+  if (!el) return;
+  el.textContent = text;
+  el.classList.toggle("is-error", !!error);
+}
+
 function spotifySetStatus(text, error = false) {
   const source = $("sn7MusicSourceStatus");
   if (!source) return;
@@ -2686,7 +2693,7 @@ async function saveMusicConfig() {
         button.classList.remove("is-saved");
         button.textContent = originalText;
       }
-    }, 900);
+    }, 1400);
   } catch (error) {
     if (msg) { msg.textContent = `⚠ ${error.message || "Não foi possível salvar a configuração."}`; msg.className = "sn7-save-message error"; }
     if (button) {
@@ -2742,13 +2749,6 @@ musicRenderConnectionUi();
   let playbackPollBusy = false;
   let volumeCommitTimer = null;
   let boundCurrentId = null;
-
-  function musicSetStatus(text, error=false) {
-    const el=document.getElementById("sn7MusicSourceStatus");
-    if(!el)return;
-    el.textContent=text;
-    el.classList.toggle("is-error",!!error);
-  }
 
   let obsStatusBusy=false;
   let obsConnected=false;
@@ -3067,9 +3067,20 @@ musicRenderConnectionUi();
     if(artist)artist.textContent=current?.artist||(queue.length?"Pronta para a próxima reprodução.":"A fila está pronta para receber músicas.");
     if(art)art.classList.toggle("has-track",!!current);
     if(source){
-      if(!current) source.textContent="Player pronto · OBS não verificado";
-      else if(obsConnected) source.textContent="CONTROLE REMOTO · OBS conectado";
-      else source.textContent="CONTROLE REMOTO · OBS não verificado";
+      if(!current){
+        source.textContent = sn7MusicOutputMode === "browser"
+          ? "NAVEGADOR · pronto para testar"
+          : "CONTROLE REMOTO · OBS não verificado";
+      }else if(sn7MusicOutputMode === "browser") {
+        const browserReady = !!(sn7SpotifyPlayer && sn7SpotifyDeviceId);
+        source.textContent = browserReady
+          ? `NAVEGADOR · ${sn7MusicData.state?.is_playing ? "reproduzindo" : "pausado"}`
+          : "NAVEGADOR · não conectado";
+      }else if(obsConnected) {
+        source.textContent="CONTROLE REMOTO · OBS conectado";
+      }else {
+        source.textContent="CONTROLE REMOTO · OBS não verificado";
+      }
     }
     const count=document.getElementById("sn7MusicQueueCount");
     if(count)count.textContent=String(queue.length);

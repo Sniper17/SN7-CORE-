@@ -2293,3 +2293,93 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
 .sn7-source-card .sn7-source-allow:active .sn7-checkbox-box {
   transform:scale(.96) !important;
 }
+
+
+/* SN7 MUSIC CONTROLS V9 — controles quadrados, play permanece circular */
+.sn7-music-btn,
+.sn7-volume-btn,
+.sn7-music-config,
+.sn7-music-queue-toggle,
+.sn7-music-connect,
+.sn7-obs-connect,
+.sn7-music-output-switch button {
+  border-radius: 10px !important;
+}
+.sn7-music-btn {
+  width: 46px !important;
+  min-width: 46px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+}
+.sn7-music-btn.primary {
+  width: 58px !important;
+  min-width: 58px !important;
+  height: 58px !important;
+  min-height: 58px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+}
+.sn7-music-btn.secondary {
+  font-size: 16px !important;
+}
+.sn7-music-connect {
+  width: 48px !important;
+  min-width: 48px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+}
+.sn7-music-output {
+  flex-wrap: wrap;
+}
+.sn7-music-output-connect {
+  margin-left: auto !important;
+}
+.sn7-volume-btn {
+  width: 34px !important;
+  min-width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.sn7-music-config {
+  width: 42px !important;
+  height: 42px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+.sn7-music-queue-toggle {
+  min-height: 38px !important;
+  padding: 0 11px !important;
+}
+.sn7-music-output-switch {
+  border-radius: 10px !important;
+}
+.sn7-music-output-switch button {
+  border-radius: 8px !important;
+}
+.sn7-music-btn .sn7-play-icon,
+.sn7-music-btn .sn7-pause-icon {
+  margin: 0 !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+@media(max-width:600px){
+  .sn7-music-btn { width:44px !important; min-width:44px !important; height:40px !important; min-height:40px !important; }
+  .sn7-music-btn.primary { width:52px !important; min-width:52px !important; height:52px !important; min-height:52px !important; }
+  .sn7-music-output-connect { margin-left:auto !important; }
+}
