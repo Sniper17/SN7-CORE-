@@ -285,6 +285,9 @@ body.sn7-modal-open{overflow:hidden}
 
           <div class="sn7-music-bottom">
             <span class="sn7-music-bottom-hint">CONTROLE REMOTO SPOTIFY · AUTO-ADVANCE</span>
+            <button type="button" class="sn7-obs-connect" id="sn7MusicObsConnect" onclick="musicCheckObs()" aria-label="Verificar conexão do OBS">
+              <span class="sn7-obs-dot" aria-hidden="true"></span><span id="sn7MusicObsLabel">OBS desconectado</span>
+            </button>
             <button type="button" class="sn7-music-queue-toggle" id="sn7MusicQueueToggle" onclick="openMusicQueue()" aria-expanded="false" aria-controls="sn7MusicInlineQueue">
               ☷ <span>FILA</span><b id="sn7MusicQueueCount">0</b>
             </button>

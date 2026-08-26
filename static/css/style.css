@@ -2169,3 +2169,18 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
 .sn7-music-config{
   line-height:1 !important;
 }
+
+
+/* SN7 OBS CONNECTION STATUS */
+.sn7-obs-connect{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  border:1px solid rgba(255,255,255,.10);background:rgba(12,16,24,.72);
+  color:#aeb7c7;border-radius:10px;padding:7px 10px;font-size:10px;font-weight:700;
+  line-height:1;cursor:pointer;white-space:nowrap;transition:transform .12s,border-color .12s,background .12s;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+}
+.sn7-obs-connect:active{transform:scale(.97)}
+.sn7-obs-dot{width:7px;height:7px;border-radius:50%;background:#fb7185;box-shadow:0 0 7px rgba(251,113,133,.35)}
+.sn7-obs-connect.is-connected{border-color:rgba(52,211,153,.35);color:#b8f7df}
+.sn7-obs-connect.is-connected .sn7-obs-dot{background:#34d399;box-shadow:0 0 9px rgba(52,211,153,.6)}
+.sn7-obs-connect.is-checking{opacity:.7}

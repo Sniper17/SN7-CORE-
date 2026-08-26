@@ -24,7 +24,7 @@ body:before{content:"";position:fixed;inset:-35%;pointer-events:none;background:
 .eq{position:absolute;left:17px;right:17px;bottom:14px;height:30px;display:flex;align-items:flex-end;justify-content:center;gap:3px;z-index:3;opacity:.3;transition:opacity .2s}.eq i{width:3px;height:5px;border-radius:999px;background:linear-gradient(180deg,#67e8f9,#a78bfa 58%,#f472b6);box-shadow:0 0 7px rgba(103,232,249,.25);transform-origin:bottom;animation:bars 1.05s ease-in-out infinite alternate paused}.eq i:nth-child(2){animation-delay:-.18s}.eq i:nth-child(3){animation-delay:-.42s}.eq i:nth-child(4){animation-delay:-.66s}.eq i:nth-child(5){animation-delay:-.31s}.eq i:nth-child(6){animation-delay:-.55s}.eq i:nth-child(7){animation-delay:-.12s}.eq i:nth-child(8){animation-delay:-.78s}.eq i:nth-child(9){animation-delay:-.37s}.eq i:nth-child(10){animation-delay:-.62s}.eq i:nth-child(11){animation-delay:-.26s}.eq i:nth-child(12){animation-delay:-.49s}.playing .eq{opacity:1}.playing .eq i{animation-play-state:running}@keyframes bars{0%{height:4px;filter:brightness(.8)}100%{height:28px;filter:brightness(1.35)}}
 .info{min-width:0;flex:1}.label{display:block;font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:#8f9bb0;margin-bottom:5px}.info h2{font-size:20px;line-height:1.22;margin:0 0 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.info p{font-size:12px;color:#9ba6b7;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.source{display:block;margin-top:8px;font-size:10px;color:#788397;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.source.error{color:#ff9ca6}
 .progress-wrap{position:relative}.progress{appearance:none;width:100%;height:12px;border:0;padding:0;margin:3px 0 0;background:transparent;display:block;cursor:pointer;touch-action:none}.progress:before{content:"";position:absolute;left:0;right:0;top:4px;height:4px;border-radius:999px;background:#262c39;box-shadow:inset 0 1px 2px rgba(0,0,0,.45)}.bar{position:absolute;left:0;top:4px;width:0;height:4px;border-radius:999px;background:linear-gradient(90deg,#8b5cf6,#d946ef 55%,#22d3ee);box-shadow:0 0 12px rgba(168,85,247,.42);pointer-events:none}.thumb{position:absolute;top:2px;left:var(--progress,0%);width:8px;height:8px;margin-left:-4px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(168,139,250,.18),0 0 12px rgba(103,232,249,.6);opacity:0;pointer-events:none;transition:opacity .12s}.progress:hover .thumb,.progress:focus-visible .thumb{opacity:1}.progress:focus-visible{outline:2px solid rgba(167,139,250,.5);outline-offset:4px;border-radius:8px}.times{display:flex;justify-content:space-between;margin-top:3px;font-size:9px;color:#788397}
-.controls{display:flex;align-items:center;justify-content:center;gap:10px;padding:14px 0 11px}.btn{border:1px solid #343c4d;background:rgba(22,27,38,.82);color:#d9deea;border-radius:13px;min-width:48px;min-height:44px;padding:9px 13px;font-size:14px;font-weight:700;cursor:pointer;transition:transform .12s,background .12s,border-color .12s;touch-action:manipulation}.btn:hover{background:#252c3a;border-color:#4b566b}.btn:active{transform:scale(.96)}.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}.btn.primary{width:58px;height:58px;border-radius:50%;padding:0;border:0;background:linear-gradient(145deg,#fff,#e5e7eb);color:#11141b;box-shadow:0 0 25px rgba(167,139,250,.25)}.play-icon{display:inline-block;width:0;height:0;margin-left:3px;border-top:9px solid transparent;border-bottom:9px solid transparent;border-left:14px solid #111}.pause-icon{display:inline-flex;gap:5px;vertical-align:middle}.pause-icon i{display:block;width:5px;height:18px;border-radius:2px;background:#111}.volume{display:flex;align-items:center;gap:8px;margin-left:10px;padding-left:11px;border-left:1px solid rgba(255,255,255,.07)}.volume-range{width:100px;height:4px;accent-color:#a78bfa;cursor:pointer}.volume-value{font-size:10px;min-width:25px;color:#cbd2de;text-align:right}.volume-icon{width:17px;height:17px;position:relative;display:inline-block}.volume-icon:before{content:"";position:absolute;left:1px;top:6px;width:5px;height:7px;background:#bfc8d6;border-radius:1px}.volume-icon:after{content:"";position:absolute;left:5px;top:3px;width:8px;height:13px;border:2px solid #bfc8d6;border-left:0;border-top-color:transparent;border-bottom-color:transparent;border-radius:50%}.volume-icon.is-muted{opacity:.45}.volume-icon.is-high:after{box-shadow:6px 0 0 -1px #bfc8d6}.volume-icon.is-medium:after{opacity:.8}
+.controls{display:flex;align-items:center;justify-content:center;gap:10px;padding:14px 0 11px}.btn{border:1px solid #343c4d;background:rgba(22,27,38,.82);color:#d9deea;border-radius:13px;min-width:48px;min-height:44px;padding:9px 13px;font-size:14px;font-weight:700;cursor:pointer;transition:transform .12s,background .12s,border-color .12s;touch-action:manipulation}.btn:hover{background:#252c3a;border-color:#4b566b}.btn.connected{border-color:rgba(52,211,153,.45);color:#a7f3d0}.btn.connecting{opacity:.75}.btn:active{transform:scale(.96)}.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}.btn.primary{width:58px;height:58px;border-radius:50%;padding:0;border:0;background:linear-gradient(145deg,#fff,#e5e7eb);color:#11141b;box-shadow:0 0 25px rgba(167,139,250,.25)}.play-icon{display:inline-block;width:0;height:0;margin-left:3px;border-top:9px solid transparent;border-bottom:9px solid transparent;border-left:14px solid #111}.pause-icon{display:inline-flex;gap:5px;vertical-align:middle}.pause-icon i{display:block;width:5px;height:18px;border-radius:2px;background:#111}.volume{display:flex;align-items:center;gap:8px;margin-left:10px;padding-left:11px;border-left:1px solid rgba(255,255,255,.07)}.volume-range{width:100px;height:4px;accent-color:#a78bfa;cursor:pointer}.volume-value{font-size:10px;min-width:25px;color:#cbd2de;text-align:right}.volume-icon{width:17px;height:17px;position:relative;display:inline-block}.volume-icon:before{content:"";position:absolute;left:1px;top:6px;width:5px;height:7px;background:#bfc8d6;border-radius:1px}.volume-icon:after{content:"";position:absolute;left:5px;top:3px;width:8px;height:13px;border:2px solid #bfc8d6;border-left:0;border-top-color:transparent;border-bottom-color:transparent;border-radius:50%}.volume-icon.is-muted{opacity:.45}.volume-icon.is-high:after{box-shadow:6px 0 0 -1px #bfc8d6}.volume-icon.is-medium:after{opacity:.8}
 .bottom{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 2px 2px;border-top:1px solid rgba(255,255,255,.07)}.bottom-hint{font-size:9px;letter-spacing:.12em;color:#657084}.actions{display:flex;gap:7px}.action{border:1px solid #303848;background:#111721;color:#bfc8d6;border-radius:9px;padding:7px 10px;font-size:10px;cursor:pointer}.action:hover{background:#1a2130}.action:disabled{opacity:.45;cursor:not-allowed}
 .queue{margin-top:12px;padding:12px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:rgba(7,10,16,.38)}.queue-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.queue-head strong{font-size:11px}.queue-count{font-size:10px;color:#8d98aa}.queue-list{display:grid;gap:6px;max-height:180px;overflow:auto}.queue-row{display:flex;gap:9px;align-items:center;padding:7px 8px;border-radius:9px;background:rgba(255,255,255,.025);min-width:0}.queue-row b{font-size:10px;color:#69758a;min-width:20px}.queue-row span{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.empty{font-size:10px;color:#69758a;padding:7px}
 .links{display:flex;justify-content:space-between;gap:10px;margin-top:12px}.links a{color:#cfd6e2;font-size:10px;text-decoration:none}.links a:hover{text-decoration:underline}
@@ -401,31 +401,35 @@ function loadSpotifySdk(){
   if(window.Spotify?.Player){sdkReady=true;return Promise.resolve();}
   if(sdkPromise)return sdkPromise;
   sdkPromise=new Promise((resolve,reject)=>{
-    const previous=window.onSpotifyWebPlaybackSDKReady;
-    let settled=false;
-    window.onSpotifyWebPlaybackSDKReady=()=>{
-      sdkReady=true;
-      try{if(typeof previous==="function")previous()}catch(_){}
-      if(!settled){settled=true;resolve();}
-    };
-    const existing=document.querySelector('script[data-sn7-spotify-sdk]');
-    if(existing)return;
-    const script=document.createElement("script");
-    script.src="https://sdk.scdn.co/spotify-player.js";
-    script.async=true;
-    script.dataset.sn7SpotifySdk="1";
-    script.onerror=()=>{
-      if(!settled){settled=true;sdkPromise=null;reject(Error("Não foi possível carregar o Spotify Web Playback SDK."));}
-    };
-    document.head.appendChild(script);
     const started=Date.now();
+    let settled=false;
+    const finish=(err)=>{
+      if(settled)return;
+      settled=true;
+      if(err){sdkPromise=null;reject(err);}
+      else{sdkReady=true;resolve();}
+    };
+    const previous=window.onSpotifyWebPlaybackSDKReady;
+    window.onSpotifyWebPlaybackSDKReady=()=>{
+      try{if(typeof previous==="function")previous()}catch(_){}
+      finish();
+    };
+    let script=document.querySelector('script[data-sn7-spotify-sdk]');
+    if(!script){
+      script=document.createElement("script");
+      script.src="https://sdk.scdn.co/spotify-player.js";
+      script.async=true;
+      script.dataset.sn7SpotifySdk="1";
+      script.onerror=()=>finish(Error("Não foi possível carregar o Spotify Web Playback SDK."));
+      document.head.appendChild(script);
+    }else{
+      script.addEventListener("error",()=>finish(Error("Não foi possível carregar o Spotify Web Playback SDK.")),{once:true});
+    }
     const poll=()=>{
       if(settled)return;
-      if(window.Spotify?.Player){
-        sdkReady=true;settled=true;resolve();return;
-      }
-      if(Date.now()-started>=12000){
-        settled=true;sdkPromise=null;reject(Error("Spotify Web Playback SDK não carregou."));
+      if(window.Spotify?.Player){finish();return;}
+      if(Date.now()-started>=15000){
+        finish(Error("Spotify Web Playback SDK não carregou. Toque em Conectar novamente."));
         return;
       }
       setTimeout(poll,100);
@@ -451,6 +455,8 @@ async function waitForDevice(deviceId,timeout=8000){
 }
 async function initPlayer(){
   if(state.player&&state.device&&state.connected)return state.player;
+  setConnectUi("connecting");
+  status("Preparando conexão com Spotify…");
   if(state.player){
     try{state.player.disconnect()}catch(_){}
     state.player=null;state.device=null;state.connected=false;
@@ -469,7 +475,7 @@ async function initPlayer(){
   player.addListener("playback_error",e=>status("Spotify: "+e.message,"error"));
   player.addListener("not_ready",({device_id})=>{
     if(!device_id||device_id===state.device){
-      state.device=null;state.connected=false;renderPlaying(false);
+      state.device=null;state.connected=false;renderPlaying(false);setConnectUi("error");
     }
   });
   player.addListener("player_state_changed",ps=>{
@@ -503,25 +509,35 @@ async function initPlayer(){
       resolve();
     };
     player.addListener("ready",onReady);
-    player.connect().then(ok=>{
-      if(!ok&&!done){
-        done=true;clearTimeout(timer);
-        reject(Error("Não foi possível conectar o player Spotify."));
+    (async()=>{
+      try{
+        if(typeof player.activateElement==="function"){
+          await player.activateElement();
+        }
+        const ok=await player.connect();
+        if(!ok&&!done){
+          done=true;clearTimeout(timer);
+          reject(Error("Não foi possível conectar o player Spotify."));
+        }
+      }catch(_){
+        if(!done){
+          done=true;clearTimeout(timer);
+          reject(Error("Não foi possível conectar o player Spotify."));
+        }
       }
-    }).catch(()=>{
-      if(!done){
-        done=true;clearTimeout(timer);
-        reject(Error("Não foi possível conectar o player Spotify."));
-      }
-    });
+    })();
+    /* legacy promise handlers intentionally replaced above */
   });
   try{
     await ready;
   }catch(e){
     try{player.disconnect()}catch(_){}
+    setConnectUi("error");
+    status(e.message||"Não foi possível conectar ao Spotify.","error");
     throw e;
   }
   state.player=player;
+  setConnectUi("connected");
   status("Spotify conectado ao navegador.","ok");
   source("Dispositivo pronto · Spotify Web Playback SDK");
   return player;
@@ -717,7 +733,11 @@ function setVolume(v){
   }).catch(()=>{});
 }
 
-$("connect").onclick=()=>initPlayer().catch(e=>status(e.message,"error"));
+$("connect").onclick=async()=>{
+  if(state.connected&&state.player)return;
+  try{await initPlayer();}
+  catch(e){setConnectUi("error");status(e.message||"Não foi possível conectar ao Spotify.","error");}
+};
 $("play").onclick=()=>{
   const playing=$("playerCard").classList.contains("playing");
   (playing?pause():playCurrent()).catch(e=>status(e.message,"error"));
@@ -744,6 +764,7 @@ $("queueToggle").onclick=()=>{
   else{panel.setAttribute("hidden","");queue.classList.remove("is-open")}
 };
 
+setConnectUi("idle");
 snapshot().then(d=>{
   renderPlaying(false);
   if(d.state?.is_playing)source("Música pronta · toque em Reproduzir para iniciar.");

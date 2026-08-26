@@ -429,6 +429,27 @@ def _set_progress(broadcaster_id, position_ms, duration_ms):
         conn.close()
 
 
+
+
+@obs_bp.post('/control/<token>/heartbeat')
+def overlay_heartbeat(token):
+    if not _allow_overlay_request(token):
+        return jsonify({'ok': False, 'error': 'Muitas solicitações. Aguarde alguns segundos.'}), 429
+    conn = _find_by_token(token)
+    if not conn:
+        return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
+    db = get_conn()
+    try:
+        with db.cursor() as cur:
+            cur.execute(
+                "UPDATE obs_connections SET updated_at=NOW() WHERE broadcaster_user_id=%s",
+                (int(conn['broadcaster_user_id']),),
+            )
+        db.commit()
+    finally:
+        db.close()
+    return jsonify({'ok': True})
+
 @obs_bp.post('/control/<token>/progress')
 def overlay_progress(token):
     if not _allow_overlay_request(token):

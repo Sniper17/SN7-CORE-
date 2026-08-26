@@ -2578,6 +2578,38 @@ async function saveMusicConfig() {
     el.classList.toggle("is-error",!!error);
   }
 
+  let obsStatusBusy=false;
+  let obsConnected=false;
+  window.musicCheckObs=async function(){
+    if(obsStatusBusy)return;
+    obsStatusBusy=true;
+    const btn=document.getElementById("sn7MusicObsConnect");
+    const label=document.getElementById("sn7MusicObsLabel");
+    if(label)label.textContent="Verificando…";
+    if(btn)btn.classList.add("is-checking");
+    try{
+      const data=await musicApi("/obs-status");
+      obsConnected=!!data.connected;
+      if(label)label.textContent=obsConnected?"OBS conectado":"OBS desconectado";
+      if(btn)btn.title=obsConnected?"OBS está conectado e pronto para reproduzir":"Abra/conecte a fonte do SN7 Core no OBS";
+      if(btn)btn.classList.toggle("is-connected",obsConnected);
+      if(btn)btn.classList.toggle("is-disconnected",!obsConnected);
+      const source=document.getElementById("sn7MusicSourceStatus");
+      if(source && !source.classList.contains("is-error")){
+        source.textContent=obsConnected
+          ? "CONTROLE REMOTO · OBS conectado"
+          : "OBS desconectado · abra a fonte no OBS";
+      }
+    }catch(error){
+      obsConnected=false;
+      if(label)label.textContent="OBS desconectado";
+      if(btn)btn.classList.add("is-disconnected");
+    }finally{
+      if(btn)btn.classList.remove("is-checking");
+      obsStatusBusy=false;
+    }
+  };
+
   function remoteProgress(position=0,duration=0) {
     const p=duration?Math.max(0,Math.min(100,Number(position||0)/Number(duration)*100)):0;
     const bar=document.getElementById("sn7MusicProgressBar");
@@ -2798,7 +2830,9 @@ async function saveMusicConfig() {
   }
 
   setInterval(()=>pollRemotePlayback().catch(()=>{}),1000);
+  setInterval(()=>window.musicCheckObs().catch(()=>{}),2000);
   pollRemotePlayback().catch(()=>{});
+  window.musicCheckObs().catch(()=>{});
 })();
 
 /* SN7 MUSIC V7 - remote playback polling is handled above. */

@@ -176,11 +176,47 @@
     });
   }
 
+  function ensureSpotifySdk(){
+    if(window.Spotify?.Player)return Promise.resolve();
+    if(state.spotifySdkPromise)return state.spotifySdkPromise;
+    state.spotifySdkPromise=new Promise((resolve,reject)=>{
+      const started=Date.now();
+      let settled=false;
+      const finish=(err)=>{
+        if(settled)return;
+        settled=true;
+        if(err){state.spotifySdkPromise=null;reject(err);}else resolve();
+      };
+      const previous=window.onSpotifyWebPlaybackSDKReady;
+      window.onSpotifyWebPlaybackSDKReady=()=>{
+        try{if(typeof previous==="function")previous()}catch(_){}
+        finish();
+      };
+      let script=document.querySelector('script[data-sn7-spotify-sdk]');
+      if(!script){
+        script=document.createElement("script");
+        script.src="https://sdk.scdn.co/spotify-player.js";
+        script.async=true;
+        script.dataset.sn7SpotifySdk="1";
+        script.onerror=()=>finish(new Error("Não foi possível carregar o Spotify Web Playback SDK no OBS."));
+        document.head.appendChild(script);
+      }
+      const poll=()=>{
+        if(settled)return;
+        if(window.Spotify?.Player){finish();return;}
+        if(Date.now()-started>=15000){finish(new Error("Spotify SDK não carregou no OBS."));return;}
+        setTimeout(poll,100);
+      };
+      poll();
+    });
+    return state.spotifySdkPromise;
+  }
+
   async function ensureSpotifyPlayer(){
     if(state.spotifyReady&&state.spotifyPlayer&&state.spotifyDeviceId)return;
     if(state.spotifyInitPromise)return state.spotifyInitPromise;
     state.spotifyInitPromise=(async()=>{
-      if(!window.Spotify)throw new Error("Spotify ainda está carregando. Aguarde um instante.");
+      await ensureSpotifySdk();
       state.spotifyToken=await fetchSpotifyToken();
       state.spotifyPlayer=new Spotify.Player({
         name:"SN7 Core OBS",
@@ -216,6 +252,9 @@
         renderProgress(position,duration);
         syncProgress(position,duration);
       });
+      if(typeof state.spotifyPlayer.activateElement==="function"){
+        try{await state.spotifyPlayer.activateElement();}catch(_){}
+      }
       const connected=await state.spotifyPlayer.connect();
       if(!connected)throw new Error("Não foi possível conectar o player Spotify ao OBS.");
     })();
@@ -375,6 +414,14 @@
     }catch(_){}
   }
 
+  async function heartbeat(){
+    try{
+      await fetch(`/control/${encodeURIComponent(TOKEN)}/heartbeat`,{
+        method:"POST",cache:"no-store",keepalive:true
+      });
+    }catch(_){}
+  }
+
   async function poll(){
     const r=await fetch(`/status/${encodeURIComponent(TOKEN)}`,{cache:"no-store"});
     if(!r.ok)throw new Error("Conexão OBS inválida.");
@@ -395,7 +442,7 @@
 
   window.onYouTubeIframeAPIReady=()=>{state.ytReady=true;poll().catch(showError);};
   const spotifyScript=document.createElement("script");
-  spotifyScript.src="https://sdk.scdn.co/spotify-player.js";spotifyScript.async=true;document.head.appendChild(spotifyScript);
+  spotifyScript.src="https://sdk.scdn.co/spotify-player.js";spotifyScript.async=true;spotifyScript.dataset.sn7SpotifySdk="1";document.head.appendChild(spotifyScript);
   const ytScript=document.createElement("script");
   ytScript.src="https://www.youtube.com/iframe_api";ytScript.async=true;document.head.appendChild(ytScript);
 
@@ -409,7 +456,9 @@
     }
   },500);
 
-  setInterval(()=>poll().catch(()=>{}),300);
+  setInterval(()=>poll().catch(()=>{}),500);
+  setInterval(()=>heartbeat(),2000);
+  heartbeat();
   poll().catch(showError);
 })();
 </script>

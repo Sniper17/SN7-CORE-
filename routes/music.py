@@ -155,6 +155,36 @@ def get_music(broadcaster_id):
         return jsonify({'ok': False, 'error': str(exc)}), 500
 
 
+
+
+@music_bp.get('/<int:broadcaster_id>/obs-status')
+def obs_status(broadcaster_id):
+    try:
+        require_session_broadcaster(broadcaster_id)
+    except PermissionError as exc:
+        return jsonify({'ok': False, 'error': str(exc)}), 401
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT updated_at FROM obs_connections WHERE broadcaster_user_id=%s",
+                (int(broadcaster_id),),
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+    now = time.time()
+    last_seen = None
+    connected = False
+    if row and row[0]:
+        last_seen = row[0].timestamp()
+        connected = (now - last_seen) <= 6
+    return jsonify({
+        'ok': True,
+        'connected': connected,
+        'last_seen': int(last_seen) if last_seen else None,
+    })
+
 @music_bp.get('/<int:broadcaster_id>/queue')
 def get_music_queue(broadcaster_id):
     """Endpoint leve usado pelo painel para sincronizar a fila rapidamente."""
