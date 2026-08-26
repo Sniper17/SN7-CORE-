@@ -1690,6 +1690,7 @@ let sn7SpotifyCurrentUri = "";
 let sn7SpotifyDeviceReadyPromise = null;
 let sn7SpotifyCreatePromise = null;
 let sn7SpotifyStarting = false;
+let sn7SpotifyRecoveryAt = 0;
 
 // O token já é entregue ao navegador pelo Web Playback SDK. Mantê-lo em
 // memória evita uma ida ao SN7/Render a cada Play/Resume.
@@ -1964,7 +1965,30 @@ async function createSpotifyPlayer() {
     finishReadyError(detail);
   });
   player.addListener("autoplay_failed", () => spotifySetStatus("O navegador bloqueou o autoplay. Toque em Reproduzir.", true));
-  player.addListener("playback_error", ({message}) => spotifySetStatus(`⚠ Spotify: ${message}`, true));
+  player.addListener("playback_error", ({message}) => {
+    const detail = String(message || "Falha de reprodução.");
+    spotifySetStatus(`⚠ Spotify: ${detail}`, true);
+
+    // Em alguns celulares o SDK pode receber o comando antes de terminar de
+    // criar a lista interna da reprodução. Se isso acontecer, não reconecte
+    // o player: apenas repita a faixa atual uma vez, depois de um pequeno
+    // intervalo. Isso recupera o estado sem alterar fila, OAuth ou volume.
+    if (
+      sn7MusicOutputMode === "browser" &&
+      /no list was loaded|list was loaded|cannot perform operation/i.test(detail) &&
+      sn7SpotifyDeviceId &&
+      sn7SpotifyCurrentUri &&
+      Date.now() - sn7SpotifyRecoveryAt > 1500
+    ) {
+      sn7SpotifyRecoveryAt = Date.now();
+      const uri = sn7SpotifyCurrentUri;
+      setTimeout(() => {
+        sendSpotifyPlay(uri, sn7SpotifyDeviceId)
+          .then(() => musicSetStatus("Navegador · Spotify conectado · aguardando áudio…"))
+          .catch(() => {});
+      }, 180);
+    }
+  });
   player.addListener("not_ready", ({device_id}) => {
     if (!device_id || device_id === sn7SpotifyDeviceId) {
       sn7SpotifyDeviceId = null;
@@ -2938,8 +2962,7 @@ musicRenderConnectionUi();
     }
     if (elapsed) elapsed.textContent = musicFormatTime(state.position / 1000);
     if (total) total.textContent = state.duration ? musicFormatTime(state.duration / 1000) : "—";
-    sn7MusicAnimateEqualizer(state.position, state.playing);
-  }
+    // O equalizador é puramente visual e é controlado pelo CSS via .is-playing.\n    // Não deixe uma função visual ausente interromper o relógio do player.\n  }
 
   function persistState(immediate = false) {
     if (!musicHasChannel()) return;
@@ -3006,6 +3029,28 @@ musicRenderConnectionUi();
     return link ? `spotify:track:${link[1]}` : "";
   }
 
+  function spotifyStateTrackUri(playbackState) {
+    const track = playbackState?.track_window?.current_track;
+    if (!track) return "";
+    if (track.uri) return String(track.uri);
+    if (track.id) return `spotify:track:${track.id}`;
+    return "";
+  }
+
+  async function getLoadedSpotifyState(player) {
+    try {
+      return await player.getCurrentState();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function isSpotifyEmptyListError(error) {
+    return /no list was loaded|list was loaded|cannot perform operation/i.test(
+      String(error?.message || error || "")
+    );
+  }
+
   async function browserPlayCurrent(current) {
     if (!current) throw new Error("Não há música selecionada.");
     if (sn7MusicOutputMode !== "browser") throw new Error("A saída Navegador não está selecionada.");
@@ -3022,7 +3067,7 @@ musicRenderConnectionUi();
         }
         await audio.play();
         setLocalPlaying(true);
-        musicSetStatus(`Navegador · reproduzindo`);
+        musicSetStatus("Navegador · reproduzindo");
         persistState(true);
         return;
       }
@@ -3035,9 +3080,15 @@ musicRenderConnectionUi();
     const uri = normalizedSpotifyUri(current);
     if (!uri) throw new Error("A faixa Spotify atual não possui um link válido.");
     const mySeq = ++state.playSeq;
-    const sameTrack = state.trackUri === uri || sn7SpotifyCurrentUri === uri;
 
-    // Resume é local no SDK e deve ser instantâneo.
+    // Só consideramos "mesma faixa" quando o SDK confirma que existe uma
+    // faixa carregada. Variáveis locais/globalmente otimistas não bastam:
+    // resume() sem uma lista carregada gera "Cannot perform operation;
+    // no list was loaded".
+    const sdkState = await getLoadedSpotifyState(player);
+    const loadedUri = spotifyStateTrackUri(sdkState);
+    const sameTrack = loadedUri === uri;
+
     if (sameTrack) {
       setLocalPlaying(true);
       musicSetStatus("Navegador · retomando…");
@@ -3047,20 +3098,33 @@ musicRenderConnectionUi();
         musicSetStatus("Navegador · reproduzindo");
         persistState(true);
       } catch (error) {
-        if (mySeq === state.playSeq) {
+        // Se o SDK perdeu a lista interna, a Web API recria a reprodução
+        // corretamente sem precisar destruir/reconectar o player.
+        if (!isSpotifyEmptyListError(error)) {
           setLocalPlaying(false);
           musicSetStatus(`⚠ ${error.message || "Não foi possível retomar."}`, true);
+          throw error;
         }
-        throw error;
+
+        try {
+          await sendSpotifyPlay(uri, sn7SpotifyDeviceId);
+          if (mySeq !== state.playSeq) return;
+          musicSetStatus("Navegador · Spotify conectado · aguardando áudio…");
+          persistState(true);
+        } catch (retryError) {
+          setLocalPlaying(false);
+          musicSetStatus(`⚠ ${retryError.message || "Spotify recusou a reprodução."}`, true);
+          throw retryError;
+        }
       }
       return;
     }
 
-    // Trocar de faixa exige a Web API do Spotify. O ponto importante é NÃO
-    // bloquear o botão aguardando a resposta. A UI fica livre imediatamente;
-    // o SDK confirma a reprodução através de player_state_changed.
-    state.trackUri = uri;
-    sn7SpotifyCurrentUri = uri;
+    // A troca de faixa é feita pela Web API do Spotify. O estado otimista é
+    // usado apenas para a UI; ele NÃO é usado para decidir se devemos chamar
+    // resume(). O SDK confirma a faixa real via player_state_changed.
+    state.trackUri = "";
+    sn7SpotifyCurrentUri = "";
     setLocalPlaying(true);
     state.clockRunning = false;
     state.position = 0;
@@ -3068,17 +3132,23 @@ musicRenderConnectionUi();
     musicSetStatus("Navegador · preparando reprodução…");
     persistState(false);
 
-    sendSpotifyPlay(uri, sn7SpotifyDeviceId)
-      .then(() => {
-        if (mySeq !== state.playSeq) return;
-        musicSetStatus("Navegador · Spotify conectado · aguardando áudio…");
-      })
-      .catch(error => {
-        if (mySeq !== state.playSeq) return;
-        setLocalPlaying(false);
-        musicSetStatus(`⚠ ${error.message || "Spotify recusou a reprodução."}`, true);
-        persistState(true);
-      });
+    try {
+      await sendSpotifyPlay(uri, sn7SpotifyDeviceId);
+      if (mySeq !== state.playSeq) return;
+
+      // Não precisamos bloquear a UI até o evento chegar. Apenas esperamos
+      // brevemente pela confirmação do SDK para evitar corrida no próximo
+      // comando e deixar a origem do estado consistente.
+      state.trackUri = uri;
+      sn7SpotifyCurrentUri = uri;
+      musicSetStatus("Navegador · Spotify conectado · aguardando áudio…");
+    } catch (error) {
+      if (mySeq !== state.playSeq) return;
+      setLocalPlaying(false);
+      musicSetStatus(`⚠ ${error.message || "Spotify recusou a reprodução."}`, true);
+      persistState(true);
+      throw error;
+    }
   }
 
   async function togglePlay() {
