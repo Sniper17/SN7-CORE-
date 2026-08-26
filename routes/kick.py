@@ -1311,7 +1311,7 @@ def _process_chat(payload, send_chat=None):
         if key == "poll_close":
             result=close_poll(bid,platform)
             if not result.get("ok"): send_chat(bid,result["error"]); return
-            st=result["state"]; counts=result["counts"]; send_chat(bid,"📊 Resultado: " + " | ".join(f"{o}: {counts[i]}" for i,o in enumerate(st["options"]))); return
+            st=result["state"]; counts=result["counts"]; send_chat(bid,"📊 Resultado: " + " • ".join(f"{o}: {counts[i]}" for i,o in enumerate(st["options"]))); return
 
         if key in {"quiz","quiz_answer"}:
             questions=[("Qual é o maior planeta do Sistema Solar?", "jupiter"),("Quantos lados tem um hexágono?", "6"),("Qual é a capital do Brasil?", "brasilia")]
@@ -1330,7 +1330,7 @@ def _process_chat(payload, send_chat=None):
         if key == "race_finish":
             result=race_finish(bid,platform)
             if not result.get("ok"): send_chat(bid,result["error"]); return
-            send_chat(bid,"🏁 " + " | ".join(f"{i+1}º {_mention(u)} +{prize} {currency}" for i,(u,prize) in enumerate(result["winners"]))); return
+            send_chat(bid,"🏁 " + " • ".join(f"{i+1}º {_mention(u)} +{prize} {currency}" for i,(u,prize) in enumerate(result["winners"]))); return
         if key == "target":
             result=target_guess(bid,user,args[0] if args else "",platform)
             if not result.get("ok"): send_chat(bid,result["error"]); return

@@ -204,10 +204,9 @@ def ensure_minigame_table():
 
 
 def mark_minigame_schema_ready():
-    """Chamado após init_db(): o boot já garantiu o schema e as migrações."""
-    global _MINIGAME_SCHEMA_READY, _MINIGAME_RUNTIME_READY
-    _MINIGAME_SCHEMA_READY = True
-    _MINIGAME_RUNTIME_READY = True
+    """Compatibilidade: só marca pronto depois de validar/migrar o schema."""
+    ensure_minigame_table()
+    _game_table()
 
 
 def _invalidate_settings_cache(bid, platform=None):
@@ -667,9 +666,17 @@ def steal_points(bid,username,target,platform="kick",user_id=None):
             cur.execute("SELECT username,points FROM players WHERE broadcaster_user_id=%s AND platform=%s AND LOWER(username) IN (LOWER(%s),LOWER(%s)) FOR UPDATE",(int(bid),platform,username,target)); rows=cur.fetchall()
             if len(rows)<2: conn.rollback(); return {"ok":False,"error":"💰 Usuário não encontrado."}
             data={r[0].lower():(r[0],int(r[1])) for r in rows}; t=data.get(target.lower()); a=data.get(username.lower())
-            if not t or t[1]<10: conn.rollback(); return {"ok":False,"error":"💰 O alvo não tem pontos suficientes."}
-            if random.random()>0.22: conn.rollback(); return {"ok":True,"win":False}
-            amount=max(1,min(int(t[1]*0.10),500)); cur.execute("UPDATE players SET points=points+%s WHERE broadcaster_user_id=%s AND platform=%s AND username=%s",(amount,int(bid),platform,username)); cur.execute("UPDATE players SET points=GREATEST(0,points-%s) WHERE broadcaster_user_id=%s AND platform=%s AND username=%s",(amount,int(bid),platform,t[0])); cur.execute("SELECT points FROM players WHERE broadcaster_user_id=%s AND platform=%s AND username=%s",(int(bid),platform,username)); newp=int(cur.fetchone()[0]); conn.commit()
+            if not t or t[1]<10: conn.rollback(); return {"ok":False,"error":"💰 O alvo não tem pontos suficientes para ser roubado."}
+            if random.random()>0.22: conn.rollback(); return {"ok":True,"win":False,"amount":0}
+            amount=max(1,min(int(t[1]*0.10),500))
+            # Usa os nomes reais retornados pelo SELECT, evitando falha quando
+            # o usuário escreve maiúsculas/minúsculas diferentes do cadastro.
+            cur.execute("UPDATE players SET points=points+%s,updated_at=NOW() WHERE broadcaster_user_id=%s AND platform=%s AND username=%s",(amount,int(bid),platform,a[0]))
+            cur.execute("UPDATE players SET points=GREATEST(0,points-%s),updated_at=NOW() WHERE broadcaster_user_id=%s AND platform=%s AND username=%s",(amount,int(bid),platform,t[0]))
+            cur.execute("SELECT points FROM players WHERE broadcaster_user_id=%s AND platform=%s AND username=%s",(int(bid),platform,username))
+            row_new=cur.fetchone()
+            newp=int(row_new[0]) if row_new else int(a[1])+amount
+            conn.commit()
     finally: conn.close()
     forget_rankings(bid); return {"ok":True,"win":True,"amount":amount,"points":newp}
 

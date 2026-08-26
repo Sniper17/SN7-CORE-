@@ -94,11 +94,15 @@ def database_bootstrap():
         return None
     if os.environ.get("DATABASE_URL"):
         init_db()
+        # O banco é inicializado antes dos handlers de chat. Nunca marque o
+        # schema dos minigames como pronto sem executar as migrações: bancos
+        # antigos podem não ter colunas adicionadas em versões recentes.
         try:
-            from core.minigames import mark_minigame_schema_ready
-            mark_minigame_schema_ready()
-        except Exception:
-            pass
+            from core.minigames import ensure_minigame_table
+            ensure_minigame_table()
+        except Exception as exc:
+            print(f"[MINIGAMES] falha na migração do schema: {exc}", flush=True)
+            raise
 
 
 def _dashboard_context():

@@ -168,23 +168,30 @@ def ensure_command_defaults(bid):
                 (bid,),
             )
 
-            # A ativação da sobrevivência aceita também a forma sem acento.
-            # O comando principal continua com a grafia exibida ao streamer.
-            cur.execute(
-                "SELECT id FROM command_configs WHERE broadcaster_user_id=%s AND command_key='survival_on'",
-                (bid,),
-            )
-            survival_on_row = cur.fetchone()
-            if survival_on_row:
+            # Sobrevivência aceita as grafias com e sem acento para evitar
+            # comandos silenciosamente ignorados em chats mobile.
+            survival_keys = {
+                'survival_on': ('!sobrevivenciaon',),
+                'survival': ('!sobrevivencia',),
+            }
+            for survival_key, aliases in survival_keys.items():
                 cur.execute(
-                    "SELECT 1 FROM command_aliases WHERE broadcaster_user_id=%s AND command_id=%s AND alias='!sobrevivenciaon'",
-                    (bid, survival_on_row[0]),
+                    "SELECT id FROM command_configs WHERE broadcaster_user_id=%s AND command_key=%s",
+                    (bid, survival_key),
                 )
-                if not cur.fetchone():
+                row_cmd = cur.fetchone()
+                if not row_cmd:
+                    continue
+                for alias in aliases:
                     cur.execute(
-                        "INSERT INTO command_aliases(broadcaster_user_id,command_id,alias) VALUES(%s,%s,'!sobrevivenciaon')",
-                        (bid, survival_on_row[0]),
+                        "SELECT 1 FROM command_aliases WHERE broadcaster_user_id=%s AND command_id=%s AND alias=%s",
+                        (bid, row_cmd[0], alias),
                     )
+                    if not cur.fetchone():
+                        cur.execute(
+                            "INSERT INTO command_aliases(broadcaster_user_id,command_id,alias) VALUES(%s,%s,%s)",
+                            (bid, row_cmd[0], alias),
+                        )
 
             # Organização do painel: categorias antigas são migradas sem alterar
             # a palavra de ativação nem a permissão real do comando.
