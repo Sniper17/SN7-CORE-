@@ -305,6 +305,40 @@ function source(text,error=false){
   el.textContent=text;
   el.classList.toggle("error",!!error);
 }
+function setConnectUi(mode){
+  const btn = $("connect");
+  if(!btn)return;
+
+  btn.classList.remove("connecting","connected");
+
+  if(mode === "connecting"){
+    btn.textContent = "…";
+    btn.title = "Conectando ao Spotify…";
+    btn.disabled = true;
+    btn.classList.add("connecting");
+    return;
+  }
+
+  if(mode === "connected"){
+    btn.textContent = "OK";
+    btn.title = "Spotify conectado";
+    btn.disabled = false;
+    btn.classList.add("connected");
+    return;
+  }
+
+  if(mode === "error"){
+    btn.textContent = "CON";
+    btn.title = "Conectar Spotify novamente";
+    btn.disabled = false;
+    return;
+  }
+
+  btn.textContent = "CON";
+  btn.title = "Conectar Spotify";
+  btn.disabled = false;
+}
+
 function fmt(v){
   v=Math.max(0,Math.floor(Number(v)||0));
   return `${Math.floor(v/60)}:${String(v%60).padStart(2,"0")}`;
