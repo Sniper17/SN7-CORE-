@@ -571,8 +571,8 @@ def _start_or_join_runtime(bid,username,platform,game,ttl=45):
 _RACE_TIMER_LOCK = RLock()
 _RACE_TIMERS = {}
 
-RACE_DURATION_SECONDS = 90
-RACE_MIN_STARTERS = 5
+RACE_JOIN_WINDOW_SECONDS = 20
+RACE_STORY_CHAPTERS = 3
 
 def _race_car_number(value):
     try:
@@ -582,23 +582,26 @@ def _race_car_number(value):
     return n if 1 <= n <= 100 else None
 
 def race_start(bid, username, platform="kick"):
-    """Abre uma corrida narrativa. O início da história acontece com 5 carros."""
+    """Abre uma corrida e deixa 20 segundos para os participantes entrarem."""
     if not _game_allowed(bid, platform, "race"):
         return {"ok": False, "error": "🏎️ Corrida está desativada nesta plataforma."}
     current = _runtime_get(bid, platform, "race", {})
     if current.get("open"):
         return {"ok": False, "error": "🏁 Já existe uma corrida aberta! Escolha seu carro com !car1 até !car100."}
+    now = time.time()
     state = {
         "open": True,
         "started": False,
         "started_at": None,
-        "duration_seconds": RACE_DURATION_SECONDS,
+        "join_deadline": now + RACE_JOIN_WINDOW_SECONDS,
+        "duration_seconds": 0,
         "players": [],
         "cars": {},
         "events": [],
+        "story_chapter": 0,
     }
     _runtime_set(bid, platform, "race", state)
-    return {"ok": True, "state": state, "min_starters": RACE_MIN_STARTERS}
+    return {"ok": True, "state": state, "join_seconds": RACE_JOIN_WINDOW_SECONDS}
 
 def race_join_car(bid, username, car, platform="kick"):
     if not _game_allowed(bid, platform, "race"):
@@ -611,6 +614,9 @@ def race_join_car(bid, username, car, platform="kick"):
         return {"ok": False, "error": "🏁 Não há corrida aberta. O streamer precisa usar !corrida."}
     if state.get("started"):
         return {"ok": False, "error": "🏁 A corrida já começou! Não dá mais para escolher carro."}
+    deadline = float(state.get("join_deadline") or 0)
+    if deadline and time.time() >= deadline:
+        return {"ok": False, "expired": True, "error": "🏁 O tempo para entrar acabou! A corrida já vai começar."}
 
     players = state.setdefault("players", [])
     cars = state.setdefault("cars", {})
@@ -620,7 +626,6 @@ def race_join_car(bid, username, car, platform="kick"):
     if occupied and str(occupied).lower() != uname.lower():
         return {"ok": False, "error": f"🏎️ O carro {car} já foi escolhido por {_mention_name(occupied)}."}
     if existing:
-        old_car = cars.get(existing)
         cars[existing] = car
         _runtime_set(bid, platform, "race", state)
         return {"ok": True, "state": state, "changed": True, "car": car, "message": f"🏎️ {_mention_name(uname)} trocou para o carro {car}!"}
@@ -628,10 +633,10 @@ def race_join_car(bid, username, car, platform="kick"):
     cars[uname] = car
     state.setdefault("eliminated", {})[uname] = False
     _runtime_set(bid, platform, "race", state)
+    remaining = max(0, int(deadline - time.time())) if deadline else 0
     return {
         "ok": True, "state": state, "car": car, "changed": False,
-        "ready": len(players) >= RACE_MIN_STARTERS,
-        "message": f"🏎️ {_mention_name(uname)} entrou no carro {car}! {len(players)}/{RACE_MIN_STARTERS} corredores.",
+        "message": f"🏎️ {_mention_name(uname)} entrou no carro {car}! {len(players)} corredores. {remaining}s para fechar as inscrições.",
     }
 
 def race_begin(bid, platform="kick"):
@@ -641,75 +646,86 @@ def race_begin(bid, platform="kick"):
     if state.get("started"):
         return {"ok": True, "state": state, "already_started": True}
     players = list(state.get("players") or [])
-    if len(players) < RACE_MIN_STARTERS:
-        return {"ok": False, "error": f"🏁 Faltam corredores. A história começa com {RACE_MIN_STARTERS} participantes. Agora: {len(players)}."}
+    if not players:
+        state["open"] = False
+        _runtime_set(bid, platform, "race", state)
+        return {"ok": False, "empty": True, "error": "🏁 O tempo acabou e ninguém entrou na corrida."}
     state["started"] = True
     state["started_at"] = time.time()
-    state["duration_seconds"] = RACE_DURATION_SECONDS
+    state["duration_seconds"] = 0
     state["progress"] = {u: random.randint(0, 8) for u in players}
     state["eliminated"] = {u: False for u in players}
     state["events"] = []
+    state["story_chapter"] = 0
     _runtime_set(bid, platform, "race", state)
     return {"ok": True, "state": state}
 
 def _race_active_players(state):
     return [u for u in state.get("players", []) if not state.get("eliminated", {}).get(u, False)]
 
+def _race_story_event(active, eliminated, chapter):
+    if not active:
+        return f"💥 CAPÍTULO {chapter}/3: A pista virou um caos total e ninguém conseguiu chegar ao fim!"
+    lead = random.choice(active)
+    variants = {
+        1: [
+            f"🚦 CAPÍTULO 1/3: A largada foi insana! {_mention_name(lead)} assumiu a frente enquanto os carros brigavam por espaço na primeira curva!",
+            f"🔥 CAPÍTULO 1/3: Os motores rugiram e a pista ficou apertada! {_mention_name(lead)} ganhou velocidade e abriu alguns metros!",
+            f"🌧️ CAPÍTULO 1/3: Uma chuva pesada começou na pista! {_mention_name(lead)} arriscou tudo e saiu da curva na liderança!",
+            f"💨 CAPÍTULO 1/3: A reta virou um duelo de velocidade! {_mention_name(lead)} fez uma ultrapassagem por fora e tomou a ponta!",
+        ],
+        2: [
+            f"🌀 CAPÍTULO 2/3: Uma curva fechada quase acabou com a disputa! {_mention_name(lead)} escapou por pouco e voltou para a briga!",
+            f"🔧 CAPÍTULO 2/3: Um carro perdeu potência no pior momento! {_mention_name(lead)} aproveitou a confusão e ganhou posições!",
+            f"⚡ CAPÍTULO 2/3: A disputa ficou lado a lado na reta! {_mention_name(lead)} freou no limite e saiu na frente!",
+            f"🏁 CAPÍTULO 2/3: A bandeira amarela apareceu depois de um incidente na pista! {_mention_name(lead)} manteve a calma e continuou acelerando!",
+        ],
+        3: [
+            f"🏆 CAPÍTULO 3/3: Última volta! {_mention_name(lead)} pisou fundo e partiu para a decisão!",
+            f"🔥 CAPÍTULO 3/3: A reta final chegou! {_mention_name(lead)} fez a última tentativa de ultrapassagem antes da linha de chegada!",
+            f"🚨 CAPÍTULO 3/3: Tudo ou nada na última curva! {_mention_name(lead)} segurou o carro e disparou para a chegada!",
+            f"🏎️💨 CAPÍTULO 3/3: Os motores chegaram ao limite! {_mention_name(lead)} cruzou a última curva em busca da vitória!",
+        ],
+    }
+    return random.choice(variants[chapter])
+
 def race_tick(bid, platform="kick"):
-    """Gera um capítulo curto da corrida. Só corredores vivos podem aparecer."""
+    """Gera exatamente 3 capítulos curtos da corrida."""
     state = _runtime_get(bid, platform, "race", {})
     if not state.get("open") or not state.get("started"):
         return {"ok": False, "done": False}
-    started = float(state.get("started_at") or time.time())
-    elapsed = int(time.time() - started)
-    duration = int(state.get("duration_seconds") or RACE_DURATION_SECONDS)
-    active = _race_active_players(state)
-    if elapsed >= duration or len(active) <= 1:
-        return {"ok": True, "done": True, "state": state, "event": None}
+    players = list(state.get("players") or [])
+    chapter = int(state.get("story_chapter") or 0)
+    if chapter >= RACE_STORY_CHAPTERS:
+        return {"ok": True, "done": True, "event": None, "state": state}
 
+    active = _race_active_players(state)
     progress = state.setdefault("progress", {})
     for u in active:
-        progress[u] = min(100, int(progress.get(u, 0)) + random.randint(3, 9))
+        progress[u] = min(100, int(progress.get(u, 0)) + random.randint(8, 20))
 
-    events = []
-    if len(active) >= 2:
-        event_type = random.choices(
-            ["overtake", "close", "mechanical", "crash", "spin", "drift", "straight"],
-            weights=[28, 16, 12, 12, 10, 10, 12],
-            k=1,
-        )[0]
-        if event_type == "overtake":
-            ordered = sorted(active, key=lambda u: progress.get(u, 0), reverse=True)
-            leader, other = ordered[0], ordered[1]
-            progress[leader] += random.randint(2, 6)
-            events.append(f"🔥 {_mention_name(leader)} ultrapassou {_mention_name(other)} e ganhou posições!")
-        elif event_type == "close":
-            a, b = random.sample(active, 2)
-            events.append(f"🏎️💨 {_mention_name(a)} e {_mention_name(b)} estão lado a lado na disputa pela posição!")
-        elif event_type == "mechanical":
-            u = random.choice(active)
-            progress[u] = max(0, progress.get(u, 0) - random.randint(3, 8))
-            events.append(f"🔧 {_mention_name(u)} teve um problema mecânico e perdeu velocidade!")
-        elif event_type == "crash":
-            u = random.choice(active)
-            state.setdefault("eliminated", {})[u] = True
-            events.append(f"💥 {_mention_name(u)} bateu no muro e está FORA da corrida!")
-        elif event_type == "spin":
-            u = random.choice(active)
-            progress[u] = max(0, progress.get(u, 0) - random.randint(5, 12))
-            events.append(f"🌀 {_mention_name(u)} rodou na pista e perdeu muito tempo!")
-        elif event_type == "drift":
-            u = random.choice(active)
-            progress[u] += random.randint(4, 8)
-            events.append(f"⚡ {_mention_name(u)} fez uma curva perfeita e acelerou na saída!")
-        else:
-            u = max(active, key=lambda x: progress.get(x, 0))
-            progress[u] += random.randint(3, 7)
-            events.append(f"🏁 {_mention_name(u)} acelerou forte na reta e abriu vantagem!")
+    # Pequenos incidentes dão variedade sem impedir a corrida de continuar.
+    if len(active) >= 3 and random.random() < 0.28:
+        victim = random.choice(active)
+        state.setdefault("eliminated", {})[victim] = True
+        active = _race_active_players(state)
+        event = random.choice([
+            f"💥 CAPÍTULO {chapter + 1}/3: {_mention_name(victim)} perdeu o controle na curva e está FORA da corrida!",
+            f"🚧 CAPÍTULO {chapter + 1}/3: {_mention_name(victim)} rodou e bateu na barreira de proteção! Fim de prova para ele!",
+            f"🔧 CAPÍTULO {chapter + 1}/3: O carro de {_mention_name(victim)} sofreu uma pane e parou na pista! Está FORA!",
+        ])
+    else:
+        lead = max(active, key=lambda u: progress.get(u, 0)) if active else None
+        event = _race_story_event(active, [], chapter + 1) if lead else f"💥 CAPÍTULO {chapter + 1}/3: A pista ficou caótica e todos perderam tempo!"
 
-    state.setdefault("events", []).extend(events[-2:])
+    chapter += 1
+    state["story_chapter"] = chapter
+    state.setdefault("events", []).append(event)
     _runtime_set(bid, platform, "race", state)
-    return {"ok": True, "done": False, "event": events[0] if events else None, "state": state, "elapsed": elapsed}
+    return {
+        "ok": True, "done": chapter >= RACE_STORY_CHAPTERS, "event": event,
+        "state": state, "chapter": chapter,
+    }
 
 def race_finish(bid, platform="kick"):
     state = _runtime_get(bid, platform, "race", {})
@@ -721,7 +737,6 @@ def race_finish(bid, platform="kick"):
         _runtime_set(bid, platform, "race", state)
         return {"ok": False, "error": "🏁 Ninguém entrou na corrida."}
 
-    # No evento final, quem foi eliminado jamais pode receber prêmio.
     active = _race_active_players(state)
     progress = state.setdefault("progress", {})
     active.sort(key=lambda u: progress.get(u, 0) + random.random() * 8, reverse=True)
@@ -735,14 +750,13 @@ def race_finish(bid, platform="kick"):
     state["open"] = False
     state["finished_at"] = time.time()
     state["winners"] = [u for u, _ in winners]
-    state["eliminated"] = state.get("eliminated", {})
     _runtime_set(bid, platform, "race", state)
     with _RACE_TIMER_LOCK:
         timer = _RACE_TIMERS.pop((int(bid), _platform(platform)), None)
         if timer:
             timer.cancel()
     forget_rankings(bid)
-    return {"ok": True, "winners": winners, "players": players, "eliminated": [u for u in players if state["eliminated"].get(u)]}
+    return {"ok": True, "winners": winners, "players": players, "eliminated": [u for u in players if state.get("eliminated", {}).get(u, False)]}
 
 def target_guess(bid,username,guess,platform="kick"):
     if not _game_allowed(bid,platform,"target"): return {"ok":False,"error":"🎯 Alvo está desativado nesta plataforma."}
@@ -766,30 +780,27 @@ def secret_guess(bid,username,guess,platform="kick"):
 _SURVIVAL_TIMER_LOCK = RLock()
 _SURVIVAL_TIMERS = {}
 
-SURVIVAL_MIN_STARTERS = 5
+SURVIVAL_JOIN_WINDOW_SECONDS = 20
+SURVIVAL_STORY_CHAPTERS = 3
 
 def survival_start(bid, username, platform="kick"):
-    """Abre uma rodada narrativa; a história só começa com 5 participantes."""
+    """Abre uma rodada e deixa 20 segundos para os participantes entrarem."""
     if not _game_allowed(bid, platform, "survival"):
         return {"ok": False, "error": "🧟 A Sobrevivência está desativada nesta plataforma."}
-
     settings = get_settings(bid, platform)
-    duration = int(settings.get("survival_duration_seconds", 90))
     prize = int(settings.get("survival_prize", 50))
     current = _runtime_get(bid, platform, "survival", {})
     if current.get("open"):
-        started_at = current.get("started_at")
-        if current.get("started") and started_at:
-            remaining = max(0, int(current.get("duration_seconds", duration) - (time.time() - float(started_at))))
-            return {"ok": False, "error": f"🧟 Já existe uma sobrevivência ativa! Faltam cerca de {remaining}s."}
-        return {"ok": False, "error": f"🧟 Já existe uma sobrevivência aberta! Digite !sobreviver para entrar. Precisa de {SURVIVAL_MIN_STARTERS} participantes para começar."}
+        return {"ok": False, "error": "🧟 Já existe uma sobrevivência aberta! Digite !sobreviver para participar."}
+    now = time.time()
     state = {
         "open": True, "started": False, "started_at": None,
-        "duration_seconds": duration, "prize": prize,
-        "players": [], "alive": {}, "events": [],
+        "join_deadline": now + SURVIVAL_JOIN_WINDOW_SECONDS,
+        "duration_seconds": 0, "prize": prize,
+        "players": [], "alive": {}, "events": [], "story_chapter": 0,
     }
     _runtime_set(bid, platform, "survival", state)
-    return {"ok": True, "state": state, "min_starters": SURVIVAL_MIN_STARTERS}
+    return {"ok": True, "state": state, "join_seconds": SURVIVAL_JOIN_WINDOW_SECONDS}
 
 def survival_join(bid, username, platform="kick"):
     if not _game_allowed(bid, platform, "survival"):
@@ -799,13 +810,17 @@ def survival_join(bid, username, platform="kick"):
         return {"ok": False, "error": "🧟 Não há uma sobrevivência ativa. O streamer precisa iniciar com !sobrevivênciaon."}
     if state.get("started"):
         return {"ok": False, "error": "🧟 A história já começou! Não dá mais para entrar nesta rodada."}
+    deadline = float(state.get("join_deadline") or 0)
+    if deadline and time.time() >= deadline:
+        return {"ok": False, "expired": True, "error": "🧟 O tempo para entrar acabou! A história já vai começar."}
     players = state.setdefault("players", [])
     if username.lower() in [str(x).lower() for x in players]:
         return {"ok": False, "already_joined": True, "state": state, "error": f"🧟 {_mention_name(username)} você já está na rodada!"}
     players.append(username)
     state.setdefault("alive", {})[username] = True
     _runtime_set(bid, platform, "survival", state)
-    return {"ok": True, "state": state}
+    remaining = max(0, int(deadline - time.time())) if deadline else 0
+    return {"ok": True, "state": state, "message": f"🧟 {_mention_name(username)} entrou na sobrevivência! {len(players)} participantes. {remaining}s para fechar as inscrições."}
 
 def survival_begin(bid, platform="kick"):
     state = _runtime_get(bid, platform, "survival", {})
@@ -815,57 +830,85 @@ def survival_begin(bid, platform="kick"):
         return {"ok": True, "state": state, "already_started": True}
     players = list(state.get("players") or [])
     if not players:
-        return {"ok": False, "error": "🧟 Ninguém entrou na sobrevivência ainda."}
+        state["open"] = False
+        _runtime_set(bid, platform, "survival", state)
+        return {"ok": False, "empty": True, "error": "🧟 O tempo acabou e ninguém entrou na sobrevivência."}
     state["started"] = True
     state["started_at"] = time.time()
+    state["duration_seconds"] = 0
     state["alive"] = {u: True for u in players}
     state["events"] = []
+    state["story_chapter"] = 0
     _runtime_set(bid, platform, "survival", state)
     return {"ok": True, "state": state}
 
+def _survival_kill_count(alive_count, chapter):
+    """Distribui as mortes pelos 3 capítulos, deixando exatamente 2 vivos."""
+    target = 2 if alive_count >= 2 else alive_count
+    deaths_needed = max(0, alive_count - target)
+    remaining_chapters = max(1, SURVIVAL_STORY_CHAPTERS - chapter + 1)
+    if deaths_needed <= 0:
+        return 0
+    return min(deaths_needed, max(1, (deaths_needed + remaining_chapters - 1) // remaining_chapters))
+
+def _survival_dead_text(dead):
+    names = [_mention_name(u) for u in dead]
+    if len(names) == 1:
+        return names[0] + " foi eliminado!"
+    if len(names) == 2:
+        return f"{names[0]} e {names[1]} foram eliminados!"
+    return ", ".join(names[:-1]) + f" e {names[-1]} foram eliminados!"
+
+def _survival_story_event(dead, chapter, remaining_count):
+    dtext = _survival_dead_text(dead) if dead else "Ninguém foi eliminado nesta etapa."
+    suffix = f" Restam {remaining_count} sobreviventes."
+    variants = {
+        1: [
+            f"🌑 CAPÍTULO 1/3: A noite caiu de repente. Uma horda surgiu entre as árvores e {dtext}{suffix}",
+            f"🌧️ CAPÍTULO 1/3: Uma tempestade derrubou o acampamento. No caos, {dtext}{suffix}",
+            f"🚨 CAPÍTULO 1/3: O alarme disparou e criaturas invadiram a região. {dtext}{suffix}",
+            f"🔥 CAPÍTULO 1/3: Um incêndio cercou o grupo. Na fuga, {dtext}{suffix}",
+            f"🩸 CAPÍTULO 1/3: Pegadas cercaram o abrigo. O ataque foi rápido e {dtext}{suffix}",
+        ],
+        2: [
+            f"🌫️ CAPÍTULO 2/3: A neblina cobriu a estrada e separou o grupo. {dtext}{suffix}",
+            f"🏚️ CAPÍTULO 2/3: O abrigo começou a desabar. Entre os escombros, {dtext}{suffix}",
+            f"🐺 CAPÍTULO 2/3: Uma matilha cercou o grupo. A fuga foi brutal e {dtext}{suffix}",
+            f"⚡ CAPÍTULO 2/3: Um raio atingiu a área e provocou um apagão. {dtext}{suffix}",
+            f"🚪 CAPÍTULO 2/3: Uma porta se fechou atrás do grupo e o corredor virou uma armadilha. {dtext}{suffix}",
+        ],
+        3: [
+            f"☠️ CAPÍTULO 3/3: O último perigo apareceu quando tudo parecia terminado. {dtext}{suffix}",
+            f"🌅 CAPÍTULO 3/3: O amanhecer chegou, mas a criatura final encontrou o grupo. {dtext}{suffix}",
+            f"💥 CAPÍTULO 3/3: A ponte explodiu no momento da fuga. {dtext}{suffix}",
+            f"🧟 CAPÍTULO 3/3: A última horda cercou os sobreviventes. {dtext}{suffix}",
+            f"🚁 CAPÍTULO 3/3: O resgate chegou, mas o caminho foi bloqueado. {dtext}{suffix}",
+        ],
+    }
+    return random.choice(variants[chapter])
+
 def survival_tick(bid, platform="kick"):
+    """Publica exatamente 3 capítulos e força o resultado a terminar com 2 vivos quando possível."""
     state = _runtime_get(bid, platform, "survival", {})
     if not state.get("open") or not state.get("started"):
         return {"ok": False, "done": False}
-    started = float(state.get("started_at") or time.time())
-    elapsed = int(time.time() - started)
-    duration = int(state.get("duration_seconds") or 90)
-    alive = [u for u in state.get("players", []) if state.get("alive", {}).get(u, False)]
-    if elapsed >= duration or not alive:
+    players = list(state.get("players") or [])
+    alive = [u for u in players if state.get("alive", {}).get(u, False)]
+    chapter = int(state.get("story_chapter") or 0)
+    if chapter >= SURVIVAL_STORY_CHAPTERS:
         return {"ok": True, "done": True, "event": None, "state": state}
-    events = []
-    if len(alive) >= 1:
-        kind = random.choices(
-            ["danger", "loot", "escape", "death", "team", "weather", "quiet"],
-            weights=[18, 14, 18, 12, 14, 12, 12], k=1
-        )[0]
-        if kind == "death" and len(alive) > 1:
-            u = random.choice(alive)
-            state.setdefault("alive", {})[u] = False
-            events.append(f"💀 {_mention_name(u)} não conseguiu escapar e MORREU! Está fora da rodada.")
-        elif kind == "loot":
-            u = random.choice(alive)
-            events.append(f"🎒 {_mention_name(u)} encontrou suprimentos e conseguiu se preparar melhor!")
-        elif kind == "escape":
-            u = random.choice(alive)
-            events.append(f"🏃 {_mention_name(u)} escapou por pouco de uma criatura!")
-        elif kind == "team" and len(alive) > 1:
-            a, b = random.sample(alive, 2)
-            events.append(f"🤝 {_mention_name(a)} ajudou {_mention_name(b)} a atravessar uma área perigosa!")
-        elif kind == "weather":
-            events.append(random.choice([
-                "🌧️ Uma tempestade forte começou e a visibilidade caiu!",
-                "🌫️ Uma névoa tomou conta da região. Ninguém sabe o que está escondido nela!",
-                "⚡ Um raio caiu perto do grupo e todos correram para procurar abrigo!",
-            ]))
-        elif kind == "danger":
-            u = random.choice(alive)
-            events.append(f"😱 {_mention_name(u)} encontrou uma criatura, mas conseguiu escapar!")
-        elif kind == "quiet":
-            events.append("🌲 Por alguns instantes, tudo ficou silencioso... silencioso demais.")
-    state.setdefault("events", []).extend(events[-2:])
+
+    chapter += 1
+    death_count = _survival_kill_count(len(alive), chapter)
+    dead = random.sample(alive, death_count) if death_count else []
+    for u in dead:
+        state.setdefault("alive", {})[u] = False
+    alive_after = [u for u in players if state.get("alive", {}).get(u, False)]
+    event = _survival_story_event(dead, chapter, len(alive_after))
+    state["story_chapter"] = chapter
+    state.setdefault("events", []).append(event)
     _runtime_set(bid, platform, "survival", state)
-    return {"ok": True, "done": False, "event": events[0] if events else None, "state": state, "elapsed": elapsed}
+    return {"ok": True, "done": chapter >= SURVIVAL_STORY_CHAPTERS, "event": event, "state": state, "chapter": chapter, "dead_this_chapter": dead, "alive_count": len(alive_after)}
 
 def survival_finish(bid, platform="kick", expected_started_at=None):
     state = _runtime_get(bid, platform, "survival", {})
@@ -875,6 +918,11 @@ def survival_finish(bid, platform="kick", expected_started_at=None):
         return {"ok": False, "stale": True}
     players = list(state.get("players") or [])
     alive = [u for u in players if state.get("alive", {}).get(u, False)]
+    if len(alive) > 2:
+        random.shuffle(alive)
+        for u in alive[2:]:
+            state.setdefault("alive", {})[u] = False
+        alive = alive[:2]
     prize = max(0, int(state.get("prize", 50)))
     winners = []
     for u in alive:
@@ -898,27 +946,8 @@ def clear_survival_timer(bid, platform="kick"):
         timer.cancel()
 
 def register_survival_timer(bid, platform, started_at, callback):
-    """Agenda o encerramento automático; callback é executado ao terminar."""
-    settings = get_settings(bid, platform)
-    duration = int(settings.get("survival_duration_seconds", 90))
-    key = (int(bid), _platform(platform))
-    clear_survival_timer(*key)
-
-    def _run():
-        with _SURVIVAL_TIMER_LOCK:
-            _SURVIVAL_TIMERS.pop(key, None)
-        try:
-            callback(int(bid), _platform(platform), float(started_at))
-        except Exception as exc:
-            print(f"[SURVIVAL] erro no encerramento automático: {exc}", flush=True)
-
-    timer = Timer(max(1, duration), _run)
-    timer.daemon = True
-    with _SURVIVAL_TIMER_LOCK:
-        _SURVIVAL_TIMERS[key] = timer
-    timer.start()
-    return timer
-
+    """Compatibilidade com versões antigas; a rodada atual é controlada pelos timers narrativos."""
+    return None
 
 def steal_points(bid,username,target,platform="kick",user_id=None):
     if not _game_allowed(bid,platform,"steal"): return {"ok":False,"error":"💰 Roubo está desativado nesta plataforma."}

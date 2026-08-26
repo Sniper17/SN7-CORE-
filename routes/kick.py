@@ -35,7 +35,11 @@ _chat_executors_lock = RLock()
 # estes timers apenas publicam os capítulos no chat enquanto o processo está ativo.
 _RACE_STORY_TIMERS = {}
 _SURVIVAL_STORY_TIMERS = {}
+_RACE_JOIN_TIMERS = {}
+_SURVIVAL_JOIN_TIMERS = {}
 _STORY_TIMER_LOCK = RLock()
+STORY_CHAPTER_DELAY_SECONDS = 4
+JOIN_WINDOW_SECONDS = 20
 
 def _cancel_story_timer(store, bid, platform):
     key = (int(bid), str(platform or "kick").lower())
@@ -47,7 +51,7 @@ def _cancel_story_timer(store, bid, platform):
         except Exception:
             pass
 
-def _schedule_race_story(bid, platform, delay=7):
+def _schedule_race_story(bid, platform, delay=STORY_CHAPTER_DELAY_SECONDS):
     key = (int(bid), str(platform or "kick").lower())
     _cancel_story_timer(_RACE_STORY_TIMERS, bid, platform)
     def run():
@@ -62,19 +66,17 @@ def _schedule_race_story(bid, platform, delay=7):
                 final = race_finish(bid, platform)
                 if final.get("ok"):
                     winners = final.get("winners") or []
-                    if winners:
-                        text = "🏁 FIM DA CORRIDA! " + " • ".join(
-                            f"{i+1}º {_mention(u)} +{prize} pontos" for i, (u, prize) in enumerate(winners)
-                        )
-                        _send_chat(bid, text)
                     eliminated = final.get("eliminated") or []
+                    if winners:
+                        _send_chat(bid, "🏁 RESULTADO DA CORRIDA! " + " • ".join(
+                            f"{i+1}º {_mention(u)} +{prize} pontos" for i, (u, prize) in enumerate(winners)
+                        ))
+                    else:
+                        _send_chat(bid, "🏁 FIM DA CORRIDA! Ninguém chegou ao final.")
                     if eliminated:
                         _send_chat(bid, "💥 Fora da corrida: " + " • ".join(_mention(u) for u in eliminated))
                 return
-            state = result.get("state") or {}
-            elapsed = int(time.time() - float(state.get("started_at") or time.time()))
-            remaining = max(1, int(state.get("duration_seconds", 90)) - elapsed)
-            _schedule_race_story(bid, platform, min(random.randint(7, 12), remaining))
+            _schedule_race_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
         except Exception as exc:
             print(f"[RACE-STORY] erro: {exc}", flush=True)
     timer = Timer(max(1, delay), run)
@@ -83,13 +85,12 @@ def _schedule_race_story(bid, platform, delay=7):
         _RACE_STORY_TIMERS[key] = timer
     timer.start()
 
-def _schedule_survival_story(bid, platform, delay=7):
+def _schedule_survival_story(bid, platform, delay=STORY_CHAPTER_DELAY_SECONDS):
     key = (int(bid), str(platform or "kick").lower())
     _cancel_story_timer(_SURVIVAL_STORY_TIMERS, bid, platform)
     def run():
         try:
-            from core.minigames import survival_begin, survival_tick, survival_finish
-            state = survival_begin(bid, platform).get("state")
+            from core.minigames import survival_tick, survival_finish
             result = survival_tick(bid, platform)
             if not result.get("ok"):
                 return
@@ -101,7 +102,7 @@ def _schedule_survival_story(bid, platform, delay=7):
                     winners = final.get("winners") or []
                     dead = final.get("dead") or []
                     if winners:
-                        _send_chat(bid, "🧟 FIM DA SOBREVIVÊNCIA! Sobreviveram: " + " • ".join(
+                        _send_chat(bid, "🧟 RESULTADO DA SOBREVIVÊNCIA! Sobreviveram: " + " • ".join(
                             f"{_mention(u)} +{prize} pontos" for u, prize in winners
                         ))
                     else:
@@ -109,10 +110,7 @@ def _schedule_survival_story(bid, platform, delay=7):
                     if dead:
                         _send_chat(bid, "💀 Eliminados: " + " • ".join(_mention(u) for u in dead))
                 return
-            state = result.get("state") or {}
-            elapsed = int(time.time() - float(state.get("started_at") or time.time()))
-            remaining = max(1, int(state.get("duration_seconds", 90)) - elapsed)
-            _schedule_survival_story(bid, platform, min(random.randint(7, 12), remaining))
+            _schedule_survival_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
         except Exception as exc:
             print(f"[SURVIVAL-STORY] erro: {exc}", flush=True)
     timer = Timer(max(1, delay), run)
@@ -121,6 +119,43 @@ def _schedule_survival_story(bid, platform, delay=7):
         _SURVIVAL_STORY_TIMERS[key] = timer
     timer.start()
 
+def _schedule_join_timer(store, bid, platform, callback, label):
+    key = (int(bid), str(platform or "kick").lower())
+    _cancel_story_timer(store, bid, platform)
+    def run():
+        try:
+            with _STORY_TIMER_LOCK:
+                store.pop(key, None)
+            callback(bid, platform)
+        except Exception as exc:
+            print(f"[{label}] erro: {exc}", flush=True)
+    timer = Timer(JOIN_WINDOW_SECONDS, run)
+    timer.daemon = True
+    with _STORY_TIMER_LOCK:
+        store[key] = timer
+    timer.start()
+
+def _start_race_after_join_window(bid, platform):
+    from core.minigames import race_begin
+    begun = race_begin(bid, platform)
+    if begun.get("ok") and not begun.get("already_started"):
+        state = begun.get("state") or {}
+        count = len(state.get("players") or [])
+        _send_chat(bid, f"🏁🏎️ Inscrições encerradas! {count} corredores. A corrida começou! 3 capítulos e o resultado final!")
+        _schedule_race_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
+    elif begun.get("empty"):
+        _send_chat(bid, "🏁 Corrida encerrada: ninguém entrou nos 20 segundos.")
+
+def _start_survival_after_join_window(bid, platform):
+    from core.minigames import survival_begin
+    begun = survival_begin(bid, platform)
+    if begun.get("ok") and not begun.get("already_started"):
+        state = begun.get("state") or {}
+        count = len(state.get("players") or [])
+        _send_chat(bid, f"🧟 Tempo encerrado! {count} participantes. A história começou! Serão 3 capítulos e o resultado final!")
+        _schedule_survival_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
+    elif begun.get("empty"):
+        _send_chat(bid, "🧟 Sobrevivência encerrada: ninguém entrou nos 20 segundos.")
 
 
 def _chat_executor(bid):
@@ -1232,7 +1267,7 @@ def _process_chat(payload, send_chat=None):
     args = pieces[1:]
 
     # Corrida: !car1 até !car100 são comandos dinâmicos e não precisam existir
-    # como 100 registros separados no painel.
+    # como 100 registros separados no painel. A janela de entrada é de 20s.
     car_match = re.fullmatch(r"!car(\d{1,3})", cmd)
     if car_match:
         try:
@@ -1242,15 +1277,18 @@ def _process_chat(payload, send_chat=None):
                 return
             from core.minigames import race_join_car, race_begin
             result = race_join_car(bid, user, car_number, platform)
+            if result.get("expired"):
+                begun = race_begin(bid, platform)
+                if begun.get("ok"):
+                    _send_chat(bid, "🏁🏎️ As inscrições acabaram! A corrida começou! 3 capítulos e o resultado final!")
+                    _schedule_race_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
+                else:
+                    send_chat(bid, result.get("error", "🏁 O tempo para entrar acabou."))
+                return
             if not result.get("ok"):
                 send_chat(bid, result.get("error", "🏎️ Não foi possível entrar na corrida."))
                 return
             send_chat(bid, result.get("message") or f"🏎️ {_mention(user)} escolheu o carro {car_number}!")
-            if result.get("ready"):
-                begun = race_begin(bid, platform)
-                if begun.get("ok") and not begun.get("already_started"):
-                    send_chat(bid, "🏁🏎️ 5 corredores confirmados! A corrida começou! Duração: 90s. SEGURA ESSA PISTA!")
-                    _schedule_race_story(bid, platform, 6)
             return
         except Exception as exc:
             print(f"[RACE-CAR] erro: {exc}", flush=True)
@@ -1274,6 +1312,7 @@ def _process_chat(payload, send_chat=None):
         # Mini Games têm um interruptor global. Isso evita que um comando
         # seja reativado isoladamente enquanto o recurso inteiro está desligado.
         key = cfg["command_key"]
+        ismod = _is_moderator(sender, bid)
 
         if cfg["category"] == "minigames":
             try:
@@ -1457,13 +1496,17 @@ def _process_chat(payload, send_chat=None):
                 return
             send_chat(
                 bid,
-                "🏁🏎️ CORRIDA ABERTA! Digite !car1 até !car100 para escolher seu carro. "
-                "Ex.: !car7, !car9. Escolha um número de 1 a 100 para participar! "
-                "A história começa com 5 corredores e dura 90s!",
+                "🏁🏎️ CORRIDA ABERTA! Você tem 20s para entrar. Digite !car1 até !car100 para escolher seu carro. "
+                "Depois dos 20s, quem entrou entrou: começam 3 capítulos e o resultado!",
             )
+            _schedule_join_timer(_RACE_JOIN_TIMERS, bid, platform, _start_race_after_join_window, "RACE-JOIN")
             return
         if key == "race_finish":
+            if not ismod:
+                send_chat(bid, "⛔ Apenas streamer/mod pode finalizar a corrida.")
+                return
             result = race_finish(bid, platform)
+            _cancel_story_timer(_RACE_JOIN_TIMERS, bid, platform)
             _cancel_story_timer(_RACE_STORY_TIMERS, bid, platform)
             if not result.get("ok"):
                 send_chat(bid,result["error"]); return
@@ -1479,50 +1522,43 @@ def _process_chat(payload, send_chat=None):
             if not result.get("ok"): send_chat(bid,result["error"]); return
             send_chat(bid, f"🔢 🎉 {_mention(user)} descobriu o número e ganhou 500 {currency}!" if result.get("win") else f"🔢 Tente um número {result['hint']}."); return
         if key == "survival_on":
+            if not ismod:
+                send_chat(bid, "⛔ Apenas streamer/mod pode iniciar a sobrevivência.")
+                return
             result = survival_start(bid, user, platform)
             if not result.get("ok"):
                 send_chat(bid, result.get("error") or "🧟 Não foi possível abrir a sobrevivência.")
                 return
-
-            min_starters = int(result.get("min_starters", 5))
             send_chat(
                 bid,
-                f"🧟 SOBREVIVÊNCIA ABERTA! Digite !sobreviver para participar. "
-                f"A história começa com {min_starters} participantes e dura 90s!",
+                "🧟 SOBREVIVÊNCIA ABERTA! Você tem 20s para entrar. Digite !sobreviver. "
+                "Depois dos 20s, quem entrou entrou: começam 3 capítulos e o resultado!",
             )
+            _schedule_join_timer(_SURVIVAL_JOIN_TIMERS, bid, platform, _start_survival_after_join_window, "SURVIVAL-JOIN")
             return
 
         if key == "survival":
             result = survival_join(bid, user, platform)
             if result.get("expired"):
-                finished = survival_finish(bid, platform)
-                if finished.get("ok"):
-                    winners = finished.get("winners") or []
-                    if winners:
-                        send_chat(bid, "🧟 A rodada terminou! " + " • ".join(f"{_mention(u)} +{prize} {currency}" for u, prize in winners))
-                    else:
-                        send_chat(bid, "🧟 A rodada terminou sem participantes.")
+                begun = survival_begin(bid, platform)
+                if begun.get("ok"):
+                    send_chat(bid, "🧟 As inscrições acabaram! A história começou! 3 capítulos e o resultado final!")
+                    _schedule_survival_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
                 else:
-                    send_chat(bid, result.get("error") or "🧟 A rodada já terminou.")
+                    send_chat(bid, result.get("error") or "🧟 O tempo para entrar acabou.")
                 return
             if not result.get("ok"):
                 send_chat(bid, result.get("error") or "🧟 Não foi possível entrar.")
                 return
-
-            state = result["state"]
-            count = len(state.get("players") or [])
-            send_chat(bid, f"🧟 {_mention(user)} entrou na sobrevivência! {count}/5 participantes.")
-
-            if count >= 5 and not state.get("started"):
-                begun = survival_begin(bid, platform)
-                if begun.get("ok") and not begun.get("already_started"):
-                    send_chat(bid, "🧟 5 sobreviventes confirmados! A história começou! Duração: 90s. BOA SORTE!")
-                    _schedule_survival_story(bid, platform, 6)
+            send_chat(bid, result.get("message") or f"🧟 {_mention(user)} entrou na sobrevivência!")
             return
 
-
         if key == "survival_finish":
+            if not ismod:
+                send_chat(bid, "⛔ Apenas streamer/mod pode finalizar a sobrevivência.")
+                return
             clear_survival_timer(bid, platform)
+            _cancel_story_timer(_SURVIVAL_JOIN_TIMERS, bid, platform)
             _cancel_story_timer(_SURVIVAL_STORY_TIMERS, bid, platform)
             result = survival_finish(bid, platform)
             if not result.get("ok"):
@@ -1897,7 +1933,6 @@ def _process_chat(payload, send_chat=None):
                 )
             return
 
-        ismod = _is_moderator(sender, bid)
         if key in {"addcmd", "addpoint", "settpoint", "delcmd", "poll_close", "race_finish", "survival_on", "survival_finish"} and not ismod:
             send_chat(bid, "⛔ Apenas streamer/mod pode usar este comando.")
             return
