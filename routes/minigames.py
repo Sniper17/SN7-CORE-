@@ -50,7 +50,8 @@ def save_minigames(broadcaster_id):
         allowed = {
             "enabled", "bets_enabled", "slots_enabled", "slot_bankroll", "slot_bankroll_max", "slot_hourly_refill",
             "slot_min_bet", "slot_max_bet", "slot_cooldown_seconds",
-            "coinflip_enabled", "polls_enabled", "quiz_enabled", "race_enabled", "target_enabled", "secret_enabled", "survival_enabled", "steal_enabled", "vault_enabled", "jackpot_enabled",
+            "coinflip_enabled", "polls_enabled", "quiz_enabled", "race_enabled", "target_enabled", "secret_enabled",
+            "survival_enabled", "survival_duration_seconds", "survival_prize", "steal_enabled", "vault_enabled", "jackpot_enabled",
         }
         values = {key: data[key] for key in allowed if key in data}
         try:

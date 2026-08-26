@@ -2,7 +2,7 @@ import random
 import time
 from copy import deepcopy
 from datetime import datetime, timezone
-from threading import RLock
+from threading import RLock, Timer
 
 from core.cache import forget_rankings
 from core.database import get_conn
@@ -26,6 +26,8 @@ DEFAULTS = {
     "target_enabled": True,
     "secret_enabled": True,
     "survival_enabled": True,
+    "survival_duration_seconds": 90,
+    "survival_prize": 50,
     "steal_enabled": True,
     "vault_enabled": True,
     "jackpot_enabled": True,
@@ -120,6 +122,8 @@ def _normalize(values):
     result["slot_min_bet"] = max(1, result["slot_min_bet"])
     result["slot_max_bet"] = max(result["slot_min_bet"], result["slot_max_bet"])
     result["slot_cooldown_seconds"] = max(1, min(60, result["slot_cooldown_seconds"]))
+    result["survival_duration_seconds"] = max(10, min(3600, result["survival_duration_seconds"]))
+    result["survival_prize"] = max(0, result["survival_prize"])
     return result
 
 
@@ -159,6 +163,8 @@ def ensure_minigame_table():
                         target_enabled BOOLEAN NOT NULL DEFAULT TRUE,
                         secret_enabled BOOLEAN NOT NULL DEFAULT TRUE,
                         survival_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                        survival_duration_seconds INTEGER NOT NULL DEFAULT 90,
+                        survival_prize BIGINT NOT NULL DEFAULT 50,
                         steal_enabled BOOLEAN NOT NULL DEFAULT TRUE,
                         vault_enabled BOOLEAN NOT NULL DEFAULT TRUE,
                         jackpot_enabled BOOLEAN NOT NULL DEFAULT TRUE,
@@ -180,6 +186,8 @@ def ensure_minigame_table():
                     ("target_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
                     ("secret_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
                     ("survival_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
+                    ("survival_duration_seconds", "INTEGER NOT NULL DEFAULT 90"),
+                    ("survival_prize", "BIGINT NOT NULL DEFAULT 50"),
                     ("steal_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
                     ("vault_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
                     ("jackpot_enabled", "BOOLEAN NOT NULL DEFAULT TRUE"),
@@ -237,7 +245,7 @@ def get_settings(bid, platform="kick"):
                 SELECT enabled, bets_enabled, slots_enabled, slot_bankroll, slot_bankroll_max, slot_hourly_refill,
                        slot_min_bet, slot_max_bet, slot_cooldown_seconds,
                        coinflip_enabled, polls_enabled, quiz_enabled, race_enabled, target_enabled, secret_enabled,
-                       survival_enabled, steal_enabled, vault_enabled, jackpot_enabled,
+                       survival_enabled, survival_duration_seconds, survival_prize, steal_enabled, vault_enabled, jackpot_enabled,
                        last_slot_refill_at
                   FROM minigame_settings
                  WHERE broadcaster_user_id=%s AND platform=%s
@@ -257,10 +265,10 @@ def get_settings(bid, platform="kick"):
             "slot_min_bet": row[6], "slot_max_bet": row[7], "slot_cooldown_seconds": row[8],
             "coinflip_enabled": row[9], "polls_enabled": row[10], "quiz_enabled": row[11],
             "race_enabled": row[12], "target_enabled": row[13], "secret_enabled": row[14],
-            "survival_enabled": row[15], "steal_enabled": row[16], "vault_enabled": row[17],
-            "jackpot_enabled": row[18],
+            "survival_enabled": row[15], "survival_duration_seconds": row[16], "survival_prize": row[17],
+            "steal_enabled": row[18], "vault_enabled": row[19], "jackpot_enabled": row[20],
         })
-        value["last_slot_refill_at"] = row[19].isoformat() if row[19] else None
+        value["last_slot_refill_at"] = row[21].isoformat() if row[21] else None
     _SETTINGS_CACHE[cache_key] = (now, dict(value))
     return value
 
@@ -280,8 +288,9 @@ def update_settings(bid, platform, values):
                 INSERT INTO minigame_settings
                     (broadcaster_user_id,platform,enabled,bets_enabled,slots_enabled,slot_bankroll,slot_bankroll_max,
                      slot_hourly_refill,slot_min_bet,slot_max_bet,slot_cooldown_seconds,
-                    coinflip_enabled,polls_enabled,quiz_enabled,race_enabled,target_enabled,secret_enabled,survival_enabled,steal_enabled,vault_enabled,jackpot_enabled,last_slot_refill_at)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
+                    coinflip_enabled,polls_enabled,quiz_enabled,race_enabled,target_enabled,secret_enabled,
+                    survival_enabled,survival_duration_seconds,survival_prize,steal_enabled,vault_enabled,jackpot_enabled,last_slot_refill_at)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW())
                 ON CONFLICT (broadcaster_user_id,platform) DO UPDATE SET
                     enabled=EXCLUDED.enabled,
                     bets_enabled=EXCLUDED.bets_enabled,
@@ -294,14 +303,17 @@ def update_settings(bid, platform, values):
                     slot_cooldown_seconds=EXCLUDED.slot_cooldown_seconds,
                     coinflip_enabled=EXCLUDED.coinflip_enabled,polls_enabled=EXCLUDED.polls_enabled,quiz_enabled=EXCLUDED.quiz_enabled,
                     race_enabled=EXCLUDED.race_enabled,target_enabled=EXCLUDED.target_enabled,secret_enabled=EXCLUDED.secret_enabled,
-                    survival_enabled=EXCLUDED.survival_enabled,steal_enabled=EXCLUDED.steal_enabled,vault_enabled=EXCLUDED.vault_enabled,jackpot_enabled=EXCLUDED.jackpot_enabled,
+                    survival_enabled=EXCLUDED.survival_enabled,
+                    survival_duration_seconds=EXCLUDED.survival_duration_seconds,
+                    survival_prize=EXCLUDED.survival_prize,
+                    steal_enabled=EXCLUDED.steal_enabled,vault_enabled=EXCLUDED.vault_enabled,jackpot_enabled=EXCLUDED.jackpot_enabled,
                     updated_at=NOW()
                 """,
                 (int(bid), platform, clean["enabled"], clean["bets_enabled"], clean["slots_enabled"],
                  clean["slot_bankroll"], clean["slot_bankroll_max"], clean["slot_hourly_refill"],
                  clean["slot_min_bet"], clean["slot_max_bet"], clean["slot_cooldown_seconds"],
                  clean["coinflip_enabled"],clean["polls_enabled"],clean["quiz_enabled"],clean["race_enabled"],clean["target_enabled"],clean["secret_enabled"],
-                 clean["survival_enabled"],clean["steal_enabled"],clean["vault_enabled"],clean["jackpot_enabled"]),
+                 clean["survival_enabled"],clean["survival_duration_seconds"],clean["survival_prize"],clean["steal_enabled"],clean["vault_enabled"],clean["jackpot_enabled"]),
             )
         conn.commit()
     finally:
@@ -532,17 +544,119 @@ def secret_guess(bid,username,guess,platform="kick"):
     if guess==int(state["target"]): _adjust_points(bid,username,500,platform); state["open"]=False; _runtime_set(bid,platform,"secret",state); forget_rankings(bid); return {"ok":True,"win":True,"points":500}
     return {"ok":True,"win":False,"hint":"maior" if guess<int(state["target"]) else "menor"}
 
-def survival_join(bid,username,platform="kick"):
-    if not _game_allowed(bid,platform,"survival"): return {"ok":False,"error":"🧟 Sobrevivência está desativada nesta plataforma."}
-    return {"ok":True,"state":_start_or_join_runtime(bid,username,platform,"survival",30)}
+_SURVIVAL_TIMER_LOCK = RLock()
+_SURVIVAL_TIMERS = {}
 
-def survival_finish(bid,platform="kick"):
-    state=_runtime_get(bid,platform,"survival",{}); players=state.get("players",[])
-    if not players: return {"ok":False,"error":"🧟 Ninguém entrou na sobrevivência."}
-    survivors=[u for u in players if random.random()<0.35] or [random.choice(players)]
-    winners=[]
-    for u in survivors: _adjust_points(bid,u,250,platform); winners.append((u,250))
-    state["open"]=False; _runtime_set(bid,platform,"survival",state); forget_rankings(bid); return {"ok":True,"winners":winners}
+def survival_start(bid, username, platform="kick"):
+    """Abre uma nova rodada de sobrevivência. Somente o streamer/mod inicia."""
+    if not _game_allowed(bid, platform, "survival"):
+        return {"ok": False, "error": "🧟 A Sobrevivência está desativada nesta plataforma."}
+
+    settings = get_settings(bid, platform)
+    duration = int(settings.get("survival_duration_seconds", 90))
+    prize = int(settings.get("survival_prize", 50))
+    current = _runtime_get(bid, platform, "survival", {})
+    if current.get("open"):
+        current_duration = int(current.get("duration_seconds") or duration)
+        elapsed = time.time() - float(current.get("started_at", time.time()))
+        if elapsed < current_duration:
+            remaining = max(0, current_duration - int(elapsed))
+            return {"ok": False, "error": f"🧟 Já existe uma sobrevivência ativa! Faltam cerca de {remaining}s."}
+        # Se o timer atrasou, encerra a rodada antiga antes de abrir a nova.
+        survival_finish(bid, platform, expected_started_at=current.get("started_at"))
+
+    state = {
+        "open": True,
+        "started_at": time.time(),
+        "duration_seconds": duration,
+        "prize": prize,
+        "players": [],
+    }
+    _runtime_set(bid, platform, "survival", state)
+    return {"ok": True, "state": state}
+
+def survival_join(bid, username, platform="kick"):
+    if not _game_allowed(bid, platform, "survival"):
+        return {"ok": False, "error": "🧟 A Sobrevivência está desativada nesta plataforma."}
+
+    state = _runtime_get(bid, platform, "survival", {})
+    if not state.get("open"):
+        return {"ok": False, "error": "🧟 Não há uma sobrevivência ativa. O streamer precisa iniciar com !sobrevivênciaOn."}
+
+    duration = int(state.get("duration_seconds") or get_settings(bid, platform).get("survival_duration_seconds", 90))
+    elapsed = time.time() - float(state.get("started_at", 0))
+    if elapsed >= duration:
+        return {"ok": False, "expired": True, "error": "🧟 A rodada já terminou. Aguarde o streamer iniciar outra."}
+
+    players = state.setdefault("players", [])
+    if username.lower() in [str(x).lower() for x in players]:
+        remaining = max(0, duration - int(elapsed))
+        return {"ok": False, "already_joined": True, "state": state, "error": f"🧟 {_mention_name(username)} você já está na rodada! Faltam cerca de {remaining}s."}
+
+    players.append(username)
+    _runtime_set(bid, platform, "survival", state)
+    return {"ok": True, "state": state}
+
+def survival_finish(bid, platform="kick", expected_started_at=None):
+    state = _runtime_get(bid, platform, "survival", {})
+    if not state.get("open"):
+        return {"ok": False, "error": "🧟 Não há uma sobrevivência ativa."}
+
+    if expected_started_at is not None and float(state.get("started_at", 0)) != float(expected_started_at):
+        return {"ok": False, "stale": True}
+
+    players = list(state.get("players") or [])
+    if not players:
+        state["open"] = False
+        _runtime_set(bid, platform, "survival", state)
+        return {"ok": True, "winners": [], "players": [], "prize": int(state.get("prize", 50))}
+
+    survivors = [u for u in players if random.random() < 0.35] or [random.choice(players)]
+    prize = max(0, int(state.get("prize", 50)))
+    winners = []
+    for u in survivors:
+        _adjust_points(bid, u, prize, platform)
+        winners.append((u, prize))
+
+    state["open"] = False
+    state["finished_at"] = time.time()
+    state["winners"] = [u for u, _ in winners]
+    _runtime_set(bid, platform, "survival", state)
+    forget_rankings(bid)
+    return {"ok": True, "winners": winners, "players": players, "prize": prize}
+
+def _mention_name(username):
+    return f"@{str(username).lstrip('@')}"
+
+def clear_survival_timer(bid, platform="kick"):
+    key = (int(bid), _platform(platform))
+    with _SURVIVAL_TIMER_LOCK:
+        timer = _SURVIVAL_TIMERS.pop(key, None)
+    if timer:
+        timer.cancel()
+
+def register_survival_timer(bid, platform, started_at, callback):
+    """Agenda o encerramento automático; callback é executado ao terminar."""
+    settings = get_settings(bid, platform)
+    duration = int(settings.get("survival_duration_seconds", 90))
+    key = (int(bid), _platform(platform))
+    clear_survival_timer(*key)
+
+    def _run():
+        with _SURVIVAL_TIMER_LOCK:
+            _SURVIVAL_TIMERS.pop(key, None)
+        try:
+            callback(int(bid), _platform(platform), float(started_at))
+        except Exception as exc:
+            print(f"[SURVIVAL] erro no encerramento automático: {exc}", flush=True)
+
+    timer = Timer(max(1, duration), _run)
+    timer.daemon = True
+    with _SURVIVAL_TIMER_LOCK:
+        _SURVIVAL_TIMERS[key] = timer
+    timer.start()
+    return timer
+
 
 def steal_points(bid,username,target,platform="kick",user_id=None):
     if not _game_allowed(bid,platform,"steal"): return {"ok":False,"error":"💰 Roubo está desativado nesta plataforma."}
@@ -550,7 +664,7 @@ def steal_points(bid,username,target,platform="kick",user_id=None):
     ensure_player(bid,username,user_id,platform); conn=get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT username,points FROM players WHERE broadcaster_user_id=%s AND platform=%s AND username IN (%s,%s) FOR UPDATE",(int(bid),platform,username,target)); rows=cur.fetchall()
+            cur.execute("SELECT username,points FROM players WHERE broadcaster_user_id=%s AND platform=%s AND LOWER(username) IN (LOWER(%s),LOWER(%s)) FOR UPDATE",(int(bid),platform,username,target)); rows=cur.fetchall()
             if len(rows)<2: conn.rollback(); return {"ok":False,"error":"💰 Usuário não encontrado."}
             data={r[0].lower():(r[0],int(r[1])) for r in rows}; t=data.get(target.lower()); a=data.get(username.lower())
             if not t or t[1]<10: conn.rollback(); return {"ok":False,"error":"💰 O alvo não tem pontos suficientes."}

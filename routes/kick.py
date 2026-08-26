@@ -1145,7 +1145,11 @@ def _process_chat(payload, send_chat=None):
             f"{cfg['command_key'] if cfg else 'não encontrado'}",
             flush=True,
         )
-        if not cfg or not cfg["enabled"]:
+        if not cfg:
+            return
+        if not cfg["enabled"]:
+            if cfg.get("category") == "minigames":
+                send_chat(bid, f"🎮 O Mini Game {cfg.get('command') or cmd} está desativado nesta live.")
             return
 
         # Mini Games têm um interruptor global. Isso evita que um comando
@@ -1157,6 +1161,7 @@ def _process_chat(payload, send_chat=None):
                 from core.minigames import get_settings
                 mini_settings = get_settings(bid, platform)
                 if not mini_settings.get("enabled", True):
+                    send_chat(bid, "🎮 Os Mini Games estão desativados nesta live.")
                     return
                 game_key = "slots" if key == "slots" else "bets" if key in {"duel", "bet_accept", "bet_decline"} else None
                 if game_key and not mini_settings.get(f"{game_key}_enabled", True):
@@ -1166,6 +1171,19 @@ def _process_chat(payload, send_chat=None):
                 return
 
         ch = get_channel(bid)
+
+        # Todos os Mini Games compartilham estas funções. O import fica fora
+        # dos blocos individuais para que !roubar, !sobreviver, !corrida etc.
+        # nunca dependam de outro comando ter sido executado antes.
+        if cfg.get("category") == "minigames" or key in {"poll_close", "race_finish", "survival_on", "survival_finish"}:
+            from core.minigames import (
+                play_coinflip, start_poll, vote_poll, close_poll,
+                race_join, race_finish, target_guess, secret_guess,
+                survival_start, survival_join, survival_finish,
+                register_survival_timer, clear_survival_timer,
+                steal_points, vault_play, jackpot_play,
+                _runtime_get, _runtime_set, _adjust_points,
+            )
 
         # Expiração de apostas só é necessária quando uma ação de aposta
         # acontece. Nunca bloqueie comandos comuns como !pontos com uma
@@ -1267,7 +1285,6 @@ def _process_chat(payload, send_chat=None):
                 return
 
         if key in {"coinflip", "coinflip_coroa"}:
-            from core.minigames import play_coinflip, start_poll, vote_poll, close_poll, race_join, race_finish, target_guess, secret_guess, survival_join, survival_finish, steal_points, vault_play, jackpot_play, _runtime_get, _runtime_set, _adjust_points
             choice = "cara" if key == "coinflip" else "coroa"
             if key == "coinflip":
                 if len(args) >= 2 and args[0].lower() in {"cara","coroa"}: choice=args[0].lower(); amount=args[1]
@@ -1322,14 +1339,76 @@ def _process_chat(payload, send_chat=None):
             result=secret_guess(bid,user,args[0] if args else "",platform)
             if not result.get("ok"): send_chat(bid,result["error"]); return
             send_chat(bid, f"🔢 🎉 {_mention(user)} descobriu o número e ganhou 500 {currency}!" if result.get("win") else f"🔢 Tente um número {result['hint']}."); return
+        if key == "survival_on":
+            result = survival_start(bid, user, platform)
+            if not result.get("ok"):
+                send_chat(bid, result.get("error") or "🧟 Não foi possível iniciar a sobrevivência.")
+                return
+
+            state = result["state"]
+            duration = int(state.get("duration_seconds", 90))
+            prize = int(state.get("prize", 50))
+            started_at = float(state["started_at"])
+            send_chat(
+                bid,
+                f"🧟 SOBREVIVÊNCIA ATIVADA! Duração: {duration}s. Prêmio: {prize} {currency}. "
+                f"Para participar, digite !sobreviver!",
+            )
+
+            def _finish_survival_timer(timer_bid, timer_platform, timer_started_at):
+                result_timer = survival_finish(timer_bid, timer_platform, expected_started_at=timer_started_at)
+                if not result_timer.get("ok") or result_timer.get("stale"):
+                    return
+                winners = result_timer.get("winners") or []
+                if winners:
+                    send_chat(
+                        timer_bid,
+                        "🧟 FIM DA SOBREVIVÊNCIA! " +
+                        " • ".join(f"{_mention(u)} sobreviveu e ganhou +{prize} {currency}" for u, prize in winners),
+                    )
+                else:
+                    send_chat(timer_bid, "🧟 FIM DA SOBREVIVÊNCIA! Ninguém entrou na rodada.")
+
+            register_survival_timer(bid, platform, started_at, _finish_survival_timer)
+            return
+
         if key == "survival":
-            result=survival_join(bid,user,platform); send_chat(bid,result.get("error") or f"🧟 {_mention(user)} entrou na sobrevivência! {len(result['state']['players'])} participantes."); return
+            result = survival_join(bid, user, platform)
+            if result.get("expired"):
+                finished = survival_finish(bid, platform)
+                if finished.get("ok"):
+                    winners = finished.get("winners") or []
+                    if winners:
+                        send_chat(bid, "🧟 A rodada terminou! " + " • ".join(f"{_mention(u)} +{prize} {currency}" for u, prize in winners))
+                    else:
+                        send_chat(bid, "🧟 A rodada terminou sem participantes.")
+                else:
+                    send_chat(bid, result.get("error") or "🧟 A rodada já terminou.")
+                return
+            send_chat(
+                bid,
+                result.get("error") or
+                f"🧟 {_mention(user)} entrou na sobrevivência! {len(result['state']['players'])} participantes.",
+            )
+            return
+
         if key == "survival_finish":
-            result=survival_finish(bid,platform)
-            if not result.get("ok"): send_chat(bid,result["error"]); return
-            send_chat(bid,"🧟 Sobreviveram: " + ", ".join(f"{_mention(u)} +{prize} {currency}" for u,prize in result["winners"])); return
+            clear_survival_timer(bid, platform)
+            result = survival_finish(bid, platform)
+            if not result.get("ok"):
+                send_chat(bid, result["error"])
+                return
+            winners = result.get("winners") or []
+            if winners:
+                send_chat(bid, "🧟 Sobreviveram: " + " • ".join(f"{_mention(u)} +{prize} {currency}" for u,prize in winners))
+            else:
+                send_chat(bid, "🧟 Sobrevivência finalizada. Ninguém entrou na rodada.")
+            return
         if key == "steal":
-            target=args[0].lstrip("@") if args else ""
+            if not args or not str(args[0]).strip().lstrip("@"): 
+                send_chat(bid, f"💰 Use {cfg['command']} @usuário")
+                return
+            target=args[0].lstrip("@").strip()
             result=steal_points(bid,user,target,platform,uid)
             if not result.get("ok"): send_chat(bid,result["error"]); return
             send_chat(bid, f"💰 {_mention(user)} roubou {result['amount']} {currency}! Saldo: {result['points']} {currency}." if result.get("win") else f"💨 {_mention(user)} tentou roubar, mas falhou!"); return
@@ -1689,7 +1768,7 @@ def _process_chat(payload, send_chat=None):
             return
 
         ismod = _is_moderator(sender, bid)
-        if key in {"addcmd", "addpoint", "settpoint", "delcmd", "poll_close", "race_finish", "survival_finish"} and not ismod:
+        if key in {"addcmd", "addpoint", "settpoint", "delcmd", "poll_close", "race_finish", "survival_on", "survival_finish"} and not ismod:
             send_chat(bid, "⛔ Apenas streamer/mod pode usar este comando.")
             return
 
@@ -1835,6 +1914,11 @@ def _process_chat(payload, send_chat=None):
 
     except Exception as exc:
         print(f"[KICK-CHAT] erro processando {content!r}: {exc}", flush=True)
+        try:
+            if cfg and (cfg.get("category") == "minigames" or key in {"poll_close", "race_finish", "survival_on", "survival_finish"}):
+                send_chat(bid, "🎮 Não consegui processar esse Mini Game agora. Tente novamente em alguns segundos.")
+        except Exception:
+            pass
 
 def _remember_recent_chat(payload):
     """Deduplica uma mensagem mesmo quando IDs de webhook diferem."""

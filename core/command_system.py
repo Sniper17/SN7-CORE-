@@ -28,6 +28,7 @@ SYSTEM = {
     "target": ("!alvo", "Tenta acertar o número do alvo.", "minigames", "🎯 $(target_result)"),
     "secret": ("!numero", "Tenta descobrir o número secreto.", "minigames", "🔢 $(secret_result)"),
     "survival": ("!sobreviver", "Entra na rodada de sobrevivência.", "minigames", "🧟 $(survival_result)"),
+    "survival_on": ("!sobrevivênciaon", "Streamer/mod inicia uma rodada de sobrevivência.", "admin", "🧟 $(survival_result)"),
     "survival_finish": ("!finalizarsobrevivencia", "Finaliza a rodada de sobrevivência.", "admin", "🧟 $(survival_result)"),
     "steal": ("!roubar", "Tenta roubar uma pequena parte dos pontos de outro usuário.", "minigames", "💰 $(steal_result)"),
     "vault": ("!cofre", "Tenta abrir o cofre.", "minigames", "🔐 $(vault_result)"),
@@ -56,7 +57,7 @@ MINIGAME_COMMAND_KEYS = {
     "race": ("race",),
     "target": ("target",),
     "secret": ("secret",),
-    "survival": ("survival",),
+    "survival": ("survival", "survival_on"),
     "steal": ("steal",),
     "vault": ("vault",),
     "jackpot": ("jackpot",),
@@ -167,6 +168,24 @@ def ensure_command_defaults(bid):
                 (bid,),
             )
 
+            # A ativação da sobrevivência aceita também a forma sem acento.
+            # O comando principal continua com a grafia exibida ao streamer.
+            cur.execute(
+                "SELECT id FROM command_configs WHERE broadcaster_user_id=%s AND command_key='survival_on'",
+                (bid,),
+            )
+            survival_on_row = cur.fetchone()
+            if survival_on_row:
+                cur.execute(
+                    "SELECT 1 FROM command_aliases WHERE broadcaster_user_id=%s AND command_id=%s AND alias='!sobrevivenciaon'",
+                    (bid, survival_on_row[0]),
+                )
+                if not cur.fetchone():
+                    cur.execute(
+                        "INSERT INTO command_aliases(broadcaster_user_id,command_id,alias) VALUES(%s,%s,'!sobrevivenciaon')",
+                        (bid, survival_on_row[0]),
+                    )
+
             # Organização do painel: categorias antigas são migradas sem alterar
             # a palavra de ativação nem a permissão real do comando.
             cur.execute(
@@ -192,7 +211,7 @@ def ensure_command_defaults(bid):
                 UPDATE command_configs
                    SET category='minigames', updated_at=NOW()
                  WHERE broadcaster_user_id=%s
-                   AND command_key IN ('duel','bet_accept','bet_decline','slots','coinflip','coinflip_coroa','poll','vote','quiz','quiz_answer','race','target','secret','survival','steal','vault','jackpot')
+                   AND command_key IN ('duel','bet_accept','bet_decline','slots','coinflip','coinflip_coroa','poll','vote','quiz','quiz_answer','race','target','secret','survival','survival_on','steal','vault','jackpot')
                 """,
                 (bid,),
             )
@@ -403,7 +422,7 @@ def _sync_minigame_from_command(cur, bid, changed_key):
         "race": ("race",),
         "target": ("target",),
         "secret": ("secret",),
-        "survival": ("survival",),
+        "survival": ("survival", "survival_on"),
         "steal": ("steal",),
         "vault": ("vault",),
         "jackpot": ("jackpot",),
