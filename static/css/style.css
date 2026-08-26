@@ -616,7 +616,7 @@ nav button.active::after{content:""!important;position:absolute!important;inset:
 .sn7-source-card .sn7-connection-status{grid-column:3;grid-row:1;justify-self:end}
 .sn7-source-card .sn7-source-action{grid-column:4;grid-row:1;justify-self:end}
 .sn7-source-card .sn7-source-allow{grid-column:2 / span 3;grid-row:2;display:inline-flex!important;align-items:center;gap:5px;margin:0!important;color:#7f899a;font-size:9px}
-.sn7-source-card .sn7-source-allow input{width:15px;height:15px;margin:0;accent-color:#b7abff}
+.sn7-source-card .sn7-source-allow input{position:absolute!important;opacity:0!important;width:1px!important;height:1px!important;margin:-1px!important;padding:0!important;pointer-events:none!important}
 .sn7-source-card strong{font-size:12px!important}
 .sn7-source-card small{font-size:9px!important}
 .sn7-connection-status{
@@ -672,7 +672,7 @@ body.sn7-modal-open{overflow:hidden!important;overscroll-behavior:none!important
 .sn7-music-future-note{margin-top:9px;color:#697386;font-size:9px;line-height:1.45}
 
 /* SN7 MUSIC V4 - status visual e permissões sem ruído */
-.sn7-source-card .sn7-source-allow:not(.sn7-link-allow){display:inline-flex!important;align-items:center;gap:5px;margin:0!important;color:#7f899a;font-size:9px;cursor:pointer}.sn7-source-card .sn7-source-allow input{width:15px;height:15px;margin:0;accent-color:#b7abff}.sn7-source-card .sn7-source-allow .sn7-checkbox-box{display:grid;place-items:center;width:15px;height:15px;border:1px solid #394253;border-radius:4px;color:transparent;font-size:10px;line-height:1}.sn7-source-card .sn7-source-allow input:checked + .sn7-checkbox-box{color:#fff;background:#7c68d9;border-color:#9b8cff}
+.sn7-source-card .sn7-source-allow:not(.sn7-link-allow){display:inline-flex!important;align-items:center;gap:5px;margin:0!important;color:#7f899a;font-size:9px;cursor:pointer}.sn7-source-card .sn7-source-allow input{position:absolute!important;opacity:0!important;width:1px!important;height:1px!important;margin:-1px!important;padding:0!important;pointer-events:none!important}.sn7-source-card .sn7-source-allow .sn7-checkbox-box{display:grid;place-items:center;width:15px;height:15px;border:1px solid #394253;border-radius:4px;color:transparent;font-size:10px;line-height:1}.sn7-source-card .sn7-source-allow input:checked + .sn7-checkbox-box{color:#fff;background:#7c68d9;border-color:#9b8cff}
 .sn7-link-allow{grid-column:3 / span 2!important;grid-row:1!important;justify-self:end!important}
 .sn7-link-allow{display:inline-flex!important;align-items:center!important;gap:7px!important}
 .sn7-link-allow input{
@@ -2209,4 +2209,55 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
   .sn7-source-card .sn7-connection-status{grid-column:3 !important;grid-row:1 !important}
   .sn7-source-card .sn7-source-action{grid-column:2 !important;grid-row:2 !important;justify-self:start !important}
   .sn7-source-card .sn7-source-allow{grid-column:3 !important;grid-row:2 !important;justify-self:end !important}
+}
+
+
+
+/* SN7 FIX — checkbox das fontes de música */
+.sn7-source-card .sn7-source-allow input[type="checkbox"] {
+  position:absolute !important;
+  opacity:0 !important;
+  width:1px !important;
+  height:1px !important;
+  margin:-1px !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  clip:rect(0 0 0 0) !important;
+  clip-path:inset(50%) !important;
+  white-space:nowrap !important;
+  border:0 !important;
+  appearance:none !important;
+  -webkit-appearance:none !important;
+  pointer-events:none !important;
+}
+
+.sn7-source-card .sn7-source-allow .sn7-checkbox-box {
+  width:15px !important;
+  height:15px !important;
+  min-width:15px !important;
+  min-height:15px !important;
+  flex:0 0 15px !important;
+  display:grid !important;
+  place-items:center !important;
+  box-sizing:border-box !important;
+  border:1px solid #394253 !important;
+  border-radius:4px !important;
+  background:#0b0f15 !important;
+  color:transparent !important;
+  font:900 10px/1 system-ui,-apple-system,"Segoe UI",sans-serif !important;
+  transition:
+    background .14s ease,
+    border-color .14s ease,
+    color .14s ease,
+    transform .12s ease !important;
+}
+
+.sn7-source-card .sn7-source-allow input[type="checkbox"]:checked + .sn7-checkbox-box {
+  color:#fff !important;
+  background:#7c68d9 !important;
+  border-color:#9b8cff !important;
+}
+
+.sn7-source-card .sn7-source-allow:active .sn7-checkbox-box {
+  transform:scale(.96) !important;
 }

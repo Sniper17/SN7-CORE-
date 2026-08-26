@@ -504,9 +504,20 @@ def _provider_config(provider):
 def _oauth_redirect_uri(provider):
     cfg = _provider_config(provider)
     configured = os.environ.get(cfg["redirect_env"], "").strip() if cfg else ""
+
+    # O redirect URI precisa ser absolutamente idêntico ao cadastrado no provedor.
+    # O domínio público atual do SN7 é sn7core.com. Algumas instalações antigas
+    # ainda carregam o endereço legado do Render nas variáveis de ambiente; para
+    # Spotify isso causava "redirect_uri: Not matching configuration".
     if configured.startswith("https://") and "/api/music/callback/" in configured:
-        return configured.rstrip("/")
-    public_url = os.environ.get("SN7_PUBLIC_URL", "https://sn7-core.onrender.com").strip().rstrip("/")
+        configured = configured.rstrip("/")
+        if provider == "spotify" and "sn7-core.onrender.com" in configured:
+            return "https://sn7core.com/api/music/callback/spotify"
+        return configured
+
+    public_url = os.environ.get("SN7_PUBLIC_URL", "https://sn7core.com").strip().rstrip("/")
+    if "sn7-core.onrender.com" in public_url:
+        public_url = "https://sn7core.com"
     return f"{public_url}/api/music/callback/{provider}"
 
 
