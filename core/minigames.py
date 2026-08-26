@@ -766,8 +766,10 @@ def secret_guess(bid,username,guess,platform="kick"):
 _SURVIVAL_TIMER_LOCK = RLock()
 _SURVIVAL_TIMERS = {}
 
+SURVIVAL_MIN_STARTERS = 5
+
 def survival_start(bid, username, platform="kick"):
-    """Abre uma nova rodada narrativa de sobrevivência de 90 segundos."""
+    """Abre uma rodada narrativa; a história só começa com 5 participantes."""
     if not _game_allowed(bid, platform, "survival"):
         return {"ok": False, "error": "🧟 A Sobrevivência está desativada nesta plataforma."}
 
@@ -776,14 +778,18 @@ def survival_start(bid, username, platform="kick"):
     prize = int(settings.get("survival_prize", 50))
     current = _runtime_get(bid, platform, "survival", {})
     if current.get("open"):
-        return {"ok": False, "error": f"🧟 Já existe uma sobrevivência ativa! Faltam cerca de {max(0, int(current.get('duration_seconds', duration) - (time.time()-float(current.get('started_at', time.time())))))}s."}
+        started_at = current.get("started_at")
+        if current.get("started") and started_at:
+            remaining = max(0, int(current.get("duration_seconds", duration) - (time.time() - float(started_at))))
+            return {"ok": False, "error": f"🧟 Já existe uma sobrevivência ativa! Faltam cerca de {remaining}s."}
+        return {"ok": False, "error": f"🧟 Já existe uma sobrevivência aberta! Digite !sobreviver para entrar. Precisa de {SURVIVAL_MIN_STARTERS} participantes para começar."}
     state = {
         "open": True, "started": False, "started_at": None,
         "duration_seconds": duration, "prize": prize,
         "players": [], "alive": {}, "events": [],
     }
     _runtime_set(bid, platform, "survival", state)
-    return {"ok": True, "state": state}
+    return {"ok": True, "state": state, "min_starters": SURVIVAL_MIN_STARTERS}
 
 def survival_join(bid, username, platform="kick"):
     if not _game_allowed(bid, platform, "survival"):

@@ -8,6 +8,7 @@ from urllib.parse import urlencode, quote, urlparse
 import ipaddress
 import socket
 import re
+import random
 
 import requests
 from cryptography.hazmat.primitives import hashes, serialization
@@ -56,7 +57,7 @@ def _schedule_race_story(bid, platform, delay=7):
             if not result.get("ok"):
                 return
             if result.get("event"):
-                send_chat(bid, result["event"])
+                _send_chat(bid, result["event"])
             if result.get("done"):
                 final = race_finish(bid, platform)
                 if final.get("ok"):
@@ -65,10 +66,10 @@ def _schedule_race_story(bid, platform, delay=7):
                         text = "🏁 FIM DA CORRIDA! " + " • ".join(
                             f"{i+1}º {_mention(u)} +{prize} pontos" for i, (u, prize) in enumerate(winners)
                         )
-                        send_chat(bid, text)
+                        _send_chat(bid, text)
                     eliminated = final.get("eliminated") or []
                     if eliminated:
-                        send_chat(bid, "💥 Fora da corrida: " + " • ".join(_mention(u) for u in eliminated))
+                        _send_chat(bid, "💥 Fora da corrida: " + " • ".join(_mention(u) for u in eliminated))
                 return
             state = result.get("state") or {}
             elapsed = int(time.time() - float(state.get("started_at") or time.time()))
@@ -93,20 +94,20 @@ def _schedule_survival_story(bid, platform, delay=7):
             if not result.get("ok"):
                 return
             if result.get("event"):
-                send_chat(bid, result["event"])
+                _send_chat(bid, result["event"])
             if result.get("done"):
                 final = survival_finish(bid, platform)
                 if final.get("ok"):
                     winners = final.get("winners") or []
                     dead = final.get("dead") or []
                     if winners:
-                        send_chat(bid, "🧟 FIM DA SOBREVIVÊNCIA! Sobreviveram: " + " • ".join(
+                        _send_chat(bid, "🧟 FIM DA SOBREVIVÊNCIA! Sobreviveram: " + " • ".join(
                             f"{_mention(u)} +{prize} pontos" for u, prize in winners
                         ))
                     else:
-                        send_chat(bid, "🧟 FIM DA SOBREVIVÊNCIA! Ninguém sobreviveu.")
+                        _send_chat(bid, "🧟 FIM DA SOBREVIVÊNCIA! Ninguém sobreviveu.")
                     if dead:
-                        send_chat(bid, "💀 Eliminados: " + " • ".join(_mention(u) for u in dead))
+                        _send_chat(bid, "💀 Eliminados: " + " • ".join(_mention(u) for u in dead))
                 return
             state = result.get("state") or {}
             elapsed = int(time.time() - float(state.get("started_at") or time.time()))
@@ -1480,35 +1481,15 @@ def _process_chat(payload, send_chat=None):
         if key == "survival_on":
             result = survival_start(bid, user, platform)
             if not result.get("ok"):
-                send_chat(bid, result.get("error") or "🧟 Não foi possível iniciar a sobrevivência.")
+                send_chat(bid, result.get("error") or "🧟 Não foi possível abrir a sobrevivência.")
                 return
 
-            state = result["state"]
-            duration = int(state.get("duration_seconds", 90))
-            prize = int(state.get("prize", 50))
-            started_at = float(state["started_at"])
+            min_starters = int(result.get("min_starters", 5))
             send_chat(
                 bid,
-                f"🧟 SOBREVIVÊNCIA ATIVADA! Duração: {duration}s. Prêmio: {prize} {currency}. "
-                f"Para participar, digite !sobreviver!",
+                f"🧟 SOBREVIVÊNCIA ABERTA! Digite !sobreviver para participar. "
+                f"A história começa com {min_starters} participantes e dura 90s!",
             )
-
-            def _finish_survival_timer(timer_bid, timer_platform, timer_started_at):
-                result_timer = survival_finish(timer_bid, timer_platform, expected_started_at=timer_started_at)
-                if not result_timer.get("ok") or result_timer.get("stale"):
-                    return
-                winners = result_timer.get("winners") or []
-                if winners:
-                    send_chat(
-                        timer_bid,
-                        "🧟 FIM DA SOBREVIVÊNCIA! " +
-                        " • ".join(f"{_mention(u)} sobreviveu e ganhou +{prize} {currency}" for u, prize in winners),
-                    )
-                else:
-                    send_chat(timer_bid, "🧟 FIM DA SOBREVIVÊNCIA! Ninguém entrou na rodada.")
-
-            register_survival_timer(bid, platform, started_at, _finish_survival_timer)
-            _schedule_survival_story(bid, platform, 7)
             return
 
         if key == "survival":
@@ -1524,12 +1505,21 @@ def _process_chat(payload, send_chat=None):
                 else:
                     send_chat(bid, result.get("error") or "🧟 A rodada já terminou.")
                 return
-            send_chat(
-                bid,
-                result.get("error") or
-                f"🧟 {_mention(user)} entrou na sobrevivência! {len(result['state']['players'])} participantes.",
-            )
+            if not result.get("ok"):
+                send_chat(bid, result.get("error") or "🧟 Não foi possível entrar.")
+                return
+
+            state = result["state"]
+            count = len(state.get("players") or [])
+            send_chat(bid, f"🧟 {_mention(user)} entrou na sobrevivência! {count}/5 participantes.")
+
+            if count >= 5 and not state.get("started"):
+                begun = survival_begin(bid, platform)
+                if begun.get("ok") and not begun.get("already_started"):
+                    send_chat(bid, "🧟 5 sobreviventes confirmados! A história começou! Duração: 90s. BOA SORTE!")
+                    _schedule_survival_story(bid, platform, 6)
             return
+
 
         if key == "survival_finish":
             clear_survival_timer(bid, platform)
