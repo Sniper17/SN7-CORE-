@@ -2127,7 +2127,7 @@ function musicRender(data) {
 
   if (title) title.textContent = current?.title || "Nenhuma música";
   if (artist) artist.textContent = current?.artist || (queue.length ? "Pronta para a próxima reprodução." : "A fila está pronta para receber músicas.");
-  if (art) art.textContent = current ? "♫" : "♪";
+  if (art) art.classList.toggle("has-track", !!current);
   if (source) {
     if (!current) source.textContent = "Player pronto";
     else if (current.source_url) source.textContent = `Fonte: ${String(current.provider || "link").toUpperCase()}`;
@@ -2141,32 +2141,12 @@ function musicRender(data) {
   musicRenderPlaying(Boolean(sn7MusicData.state?.is_playing));
   renderMusicQueue(queue);
 
-  const audio = ensureMusicAudio();
-  const url = current?.source_url || "";
-  const provider = String(current?.provider || "").toLowerCase();
-  if (provider === "spotify" && /^spotify:track:[A-Za-z0-9]+$/.test(url)) {
-    audio.pause();
-    audio.removeAttribute("src");
-    audio.load();
-    if (sn7SpotifyPlayer) {
-      sn7SpotifyPlayer.setVolume(volume / 100).catch(() => {});
-    }
-  } else if (url && /^https?:\/\//i.test(url) && /\.(mp3|m4a|aac|ogg|wav|opus)(\?.*)?$/i.test(url)) {
-    if (audio.src !== url) {
-      audio.src = url;
-      audio.volume = volume / 100;
-    }
-  } else if (!url) {
-    audio.pause();
-    audio.removeAttribute("src");
-    audio.load();
-  } else {
-    audio.pause();
-    audio.removeAttribute("src");
-    audio.load();
-    audio.volume = volume / 100;
-  }
-  musicRenderProgress();
+  // O painel é somente controle remoto: não cria nem carrega áudio local.
+  // A reprodução da live fica exclusivamente no player/overlay do OBS.
+  musicRenderProgress(
+    Number(sn7MusicData.state?.position_ms || 0),
+    Number(sn7MusicData.state?.duration_ms || 0)
+  );
 }
 
 function renderMusicQueue(queue) {
@@ -2600,31 +2580,50 @@ async function saveMusicConfig() {
   let obsStatusBusy=false;
   let obsConnected=false;
   window.musicCheckObs=async function(){
+    // Verificação manual: nenhuma consulta ou tentativa automática.
     if(obsStatusBusy)return;
     obsStatusBusy=true;
     const btn=document.getElementById("sn7MusicObsConnect");
     const label=document.getElementById("sn7MusicObsLabel");
-    if(label)label.textContent="Verificando…";
-    if(btn)btn.classList.add("is-checking");
+    if(label)label.textContent="Verificando OBS…";
+    if(btn){
+      btn.disabled=true;
+      btn.classList.add("is-checking");
+      btn.classList.remove("is-unchecked","is-connected","is-disconnected");
+    }
     try{
       const data=await musicApi("/obs-status");
       obsConnected=!!data.connected;
       if(label)label.textContent=obsConnected?"OBS conectado":"OBS desconectado";
-      if(btn)btn.title=obsConnected?"OBS está conectado e pronto para reproduzir":"Abra/conecte a fonte do SN7 Core no OBS";
-      if(btn)btn.classList.toggle("is-connected",obsConnected);
-      if(btn)btn.classList.toggle("is-disconnected",!obsConnected);
+      if(btn){
+        btn.title=obsConnected
+          ?"OBS está conectado e pronto para reproduzir"
+          :"Abra/conecte a fonte do SN7 Core no OBS e clique novamente";
+        btn.classList.toggle("is-connected",obsConnected);
+        btn.classList.toggle("is-disconnected",!obsConnected);
+      }
       const source=document.getElementById("sn7MusicSourceStatus");
       if(source && !source.classList.contains("is-error")){
         source.textContent=obsConnected
-          ? "CONTROLE REMOTO · OBS conectado"
-          : "OBS desconectado · abra a fonte no OBS";
+          ?"CONTROLE REMOTO · OBS conectado"
+          :"OBS desconectado · clique em VERIFICAR OBS novamente";
       }
     }catch(error){
       obsConnected=false;
-      if(label)label.textContent="OBS desconectado";
-      if(btn)btn.classList.add("is-disconnected");
+      if(label)label.textContent="OBS não verificado";
+      if(btn){
+        btn.title="Não foi possível verificar. Clique novamente para tentar";
+        btn.classList.add("is-disconnected");
+      }
+      const source=document.getElementById("sn7MusicSourceStatus");
+      if(source && !source.classList.contains("is-error")){
+        source.textContent="⚠ Não foi possível verificar o OBS";
+      }
     }finally{
-      if(btn)btn.classList.remove("is-checking");
+      if(btn){
+        btn.disabled=false;
+        btn.classList.remove("is-checking");
+      }
       obsStatusBusy=false;
     }
   };
@@ -2827,7 +2826,11 @@ async function saveMusicConfig() {
     if(title)title.textContent=current?.title||"Nenhuma música";
     if(artist)artist.textContent=current?.artist||(queue.length?"Pronta para a próxima reprodução.":"A fila está pronta para receber músicas.");
     if(art)art.classList.toggle("has-track",!!current);
-    if(source)source.textContent=current?"CONTROLE REMOTO · OBS":"Player pronto";
+    if(source){
+      if(!current) source.textContent="Player pronto · OBS não verificado";
+      else if(obsConnected) source.textContent="CONTROLE REMOTO · OBS conectado";
+      else source.textContent="CONTROLE REMOTO · OBS não verificado";
+    }
     const count=document.getElementById("sn7MusicQueueCount");
     if(count)count.textContent=String(queue.length);
 
@@ -2848,10 +2851,9 @@ async function saveMusicConfig() {
     finally{playbackPollBusy=false;}
   }
 
+  // Estado do player pode ser sincronizado automaticamente; a conexão OBS não.
   setInterval(()=>pollRemotePlayback().catch(()=>{}),1000);
-  setInterval(()=>window.musicCheckObs().catch(()=>{}),2000);
   pollRemotePlayback().catch(()=>{});
-  window.musicCheckObs().catch(()=>{});
 })();
 
 /* SN7 MUSIC V7 - remote playback polling is handled above. */

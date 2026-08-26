@@ -2184,3 +2184,29 @@ body.sn7-modal-open { overscroll-behavior: none !important; }
 .sn7-obs-connect.is-connected{border-color:rgba(52,211,153,.35);color:#b8f7df}
 .sn7-obs-connect.is-connected .sn7-obs-dot{background:#34d399;box-shadow:0 0 9px rgba(52,211,153,.6)}
 .sn7-obs-connect.is-checking{opacity:.7}
+
+/* SN7 MUSIC FIX - fontes e verificação OBS manual */
+.sn7-source-card{
+  grid-template-columns:34px minmax(0,1fr) auto auto !important;
+  grid-template-rows:auto auto !important;
+  min-width:0;
+}
+.sn7-source-card .sn7-source-action{justify-self:end !important;min-width:70px}
+.sn7-source-card .sn7-source-allow{min-width:0;white-space:nowrap}
+.sn7-source-card .sn7-source-allow span:last-child{overflow:hidden;text-overflow:ellipsis}
+.sn7-obs-connect.is-unchecked{color:#c8cfdb;border-color:rgba(255,255,255,.14)}
+.sn7-obs-connect.is-disconnected{border-color:rgba(251,113,133,.28);color:#ffb4bf}
+.sn7-obs-connect:disabled{cursor:wait;opacity:.72}
+@media(max-width:600px){
+  .sn7-music-source-grid{grid-template-columns:1fr !important}
+  .sn7-source-card{
+    grid-template-columns:34px minmax(0,1fr) auto !important;
+    grid-template-rows:auto auto !important;
+    column-gap:9px !important;row-gap:6px !important;
+  }
+  .sn7-source-card .sn7-source-icon{grid-column:1 !important;grid-row:1 / span 2 !important}
+  .sn7-source-card>span:nth-child(2){grid-column:2 !important;grid-row:1 !important}
+  .sn7-source-card .sn7-connection-status{grid-column:3 !important;grid-row:1 !important}
+  .sn7-source-card .sn7-source-action{grid-column:2 !important;grid-row:2 !important;justify-self:start !important}
+  .sn7-source-card .sn7-source-allow{grid-column:3 !important;grid-row:2 !important;justify-self:end !important}
+}

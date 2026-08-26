@@ -285,8 +285,8 @@ body.sn7-modal-open{overflow:hidden}
 
           <div class="sn7-music-bottom">
             <span class="sn7-music-bottom-hint">CONTROLE REMOTO SPOTIFY · AUTO-ADVANCE</span>
-            <button type="button" class="sn7-obs-connect" id="sn7MusicObsConnect" onclick="musicCheckObs()" aria-label="Verificar conexão do OBS">
-              <span class="sn7-obs-dot" aria-hidden="true"></span><span id="sn7MusicObsLabel">OBS desconectado</span>
+            <button type="button" class="sn7-obs-connect is-unchecked" id="sn7MusicObsConnect" onclick="musicCheckObs()" aria-label="Verificar conexão do OBS" title="Clique para verificar a conexão do OBS">
+              <span class="sn7-obs-dot" aria-hidden="true"></span><span id="sn7MusicObsLabel">VERIFICAR OBS</span>
             </button>
             <button type="button" class="sn7-music-queue-toggle" id="sn7MusicQueueToggle" onclick="openMusicQueue()" aria-expanded="false" aria-controls="sn7MusicInlineQueue">
               ☷ <span>FILA</span><b id="sn7MusicQueueCount">0</b>
@@ -340,7 +340,7 @@ body.sn7-modal-open{overflow:hidden}
             <div class="sn7-source-card">
               <span class="sn7-source-icon">↗</span>
               <span><strong>Links</strong><small>URLs diretas de áudio</small></span>
-              <label class="sn7-source-allow sn7-link-allow"><input id="musicAllowLinks" type="checkbox><span class="sn7-checkbox-box" aria-hidden="true">✓</span><span>Aceitar links</span></label>
+              <label class="sn7-source-allow sn7-link-allow"><input id="musicAllowLinks" type="checkbox"><span class="sn7-checkbox-box" aria-hidden="true">✓</span><span>Aceitar links</span></label>
             </div>
           </div>
           <div class="sn7-music-future-note">TikTok será adicionado à mesma área de conexões quando a integração oficial estiver pronta.</div>
