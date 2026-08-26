@@ -2076,23 +2076,42 @@ function musicConnect(provider) {
 
 async function musicDisconnect(provider) {
   if (!musicHasChannel()) return;
+  const key = String(provider || "").charAt(0).toUpperCase() + String(provider || "").slice(1);
+  const button = $(`music${key}Connect`);
+  const card = button?.closest(".sn7-source-card");
   const label = provider === "youtube" ? "YouTube" : provider === "spotify" ? "Spotify" : "SoundCloud";
-  const ok = await sn7ConfirmAction(
-    `Desconectar ${label}?`,
-    `A conta do ${label} será desconectada deste canal.`,
-    "Desconectar"
-  );
-  if (!ok) return;
+  if (button) { button.disabled = true; button.textContent = "Desconectando…"; }
+  card?.classList.add("is-connecting");
+  const msg = $("musicConfigMsg");
+  if (msg) { msg.textContent = `Desconectando ${label}…`; msg.className = "sn7-save-message"; }
   try {
-    const data = await apiJson(`/api/music/${BROADCASTER_ID}/disconnect/${encodeURIComponent(provider)}`, {method:"POST"});
-    musicRenderConnections(data);
-    sn7MusicConnectionsPromise = Promise.resolve(data);
-  } catch (error) {
-    const msg = $("musicConfigMsg");
-    if (msg) {
-      msg.textContent = `⚠ ${error.message}`;
-      msg.className = "sn7-save-message error";
+    // Desconexão é uma ação explícita do streamer: executa imediatamente,
+    // sem modal intermediário que possa parecer que o toque não respondeu.
+    const data = await apiJson(`/api/music/${BROADCASTER_ID}/disconnect/${encodeURIComponent(provider)}`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      cache:"no-store"
+    });
+    if (provider === "spotify") {
+      try {
+        if (sn7SpotifyPlayer && typeof sn7SpotifyPlayer.disconnect === "function") sn7SpotifyPlayer.disconnect();
+      } catch (_) {}
+      sn7SpotifyPlayer = null;
+      sn7SpotifyDeviceId = null;
+      sn7SpotifyCurrentUri = "";
+      sn7SpotifyDeviceReadyPromise = null;
     }
+    sn7MusicConnectionsData = data;
+    sn7MusicConnectionsPromise = Promise.resolve(data);
+    musicRenderConnections(data);
+    if (msg) { msg.textContent = `✓ ${label} desconectado.`; msg.className = "sn7-save-message success"; }
+  } catch (error) {
+    if (msg) { msg.textContent = `⚠ ${error.message}`; msg.className = "sn7-save-message error"; }
+    // Restaura o estado visual após uma falha.
+    loadMusicConnections(true).catch(() => {});
+  } finally {
+    card?.classList.remove("is-connecting");
+    if (button) button.disabled = false;
   }
 }
 
@@ -2490,7 +2509,7 @@ function musicRenderToggleFeedback() {
 }
 
 document.addEventListener("change", (event) => {
-  if (event.target?.id === "musicAllowLinks" || event.target?.id === "musicPublicCommands") {
+  if (event.target?.id === "musicAllowYoutube" || event.target?.id === "musicAllowSpotify" || event.target?.id === "musicAllowSoundcloud" || event.target?.id === "musicAllowLinks" || event.target?.id === "musicPublicCommands") {
     musicRenderToggleFeedback();
   }
 });

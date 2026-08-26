@@ -752,7 +752,9 @@ def get_spotify_player_token(broadcaster_id):
 @music_bp.get("/<int:broadcaster_id>/connections")
 def get_music_connections(broadcaster_id):
     try:
-        return jsonify({"ok": True, "connections": _music_connections(broadcaster_id)})
+        response = jsonify({"ok": True, "connections": _music_connections(broadcaster_id)})
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        return response
     except Exception as exc:
         print(f"[MUSIC-OAUTH] status erro: {exc}", flush=True)
         return jsonify({"ok": False, "error": "Não foi possível consultar as conexões."}), 500
@@ -884,4 +886,6 @@ def disconnect_music_provider(broadcaster_id, provider):
         conn.commit()
     finally:
         conn.close()
-    return jsonify({"ok": True, "connections": _music_connections(broadcaster_id)})
+    response = jsonify({"ok": True, "connections": _music_connections(broadcaster_id), "disconnected": provider})
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return response

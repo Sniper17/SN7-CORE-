@@ -672,7 +672,7 @@ body.sn7-modal-open{overflow:hidden!important;overscroll-behavior:none!important
 .sn7-music-future-note{margin-top:9px;color:#697386;font-size:9px;line-height:1.45}
 
 /* SN7 MUSIC V4 - status visual e permissões sem ruído */
-.sn7-source-card .sn7-source-allow:not(.sn7-link-allow){display:none!important}
+.sn7-source-card .sn7-source-allow:not(.sn7-link-allow){display:inline-flex!important;align-items:center;gap:5px;margin:0!important;color:#7f899a;font-size:9px;cursor:pointer}.sn7-source-card .sn7-source-allow input{width:15px;height:15px;margin:0;accent-color:#b7abff}.sn7-source-card .sn7-source-allow .sn7-checkbox-box{display:grid;place-items:center;width:15px;height:15px;border:1px solid #394253;border-radius:4px;color:transparent;font-size:10px;line-height:1}.sn7-source-card .sn7-source-allow input:checked + .sn7-checkbox-box{color:#fff;background:#7c68d9;border-color:#9b8cff}
 .sn7-link-allow{grid-column:3 / span 2!important;grid-row:1!important;justify-self:end!important}
 .sn7-link-allow{display:inline-flex!important;align-items:center!important;gap:7px!important}
 .sn7-link-allow input{
