@@ -1994,9 +1994,18 @@ async function createSpotifyPlayer() {
     }
     const duration = Number(track?.duration_ms || playbackState.duration || 0);
     const position = Number(playbackState.position || 0);
-    if (sn7MusicOutputMode === "browser" && !playing && duration > 0 && position >= duration - 1200 && !sn7BrowserAutoAdvanceLock) {
-      sn7BrowserAutoAdvanceLock = true;
-      Promise.resolve(musicSkip(true)).finally(() => { sn7BrowserAutoAdvanceLock = false; });
+
+    // Fallback de segurança: quando o SDK emitir o estado final pausado,
+    // entrega o avanço ao motor V9. O relógio local também faz esse trabalho,
+    // então não dependemos de um único evento do SDK para trocar a faixa.
+    if (
+      sn7MusicOutputMode === "browser" &&
+      !playing &&
+      duration > 0 &&
+      position >= duration - 1500 &&
+      typeof window.musicAutoAdvance === "function"
+    ) {
+      window.musicAutoAdvance();
     }
   });
 
@@ -2877,6 +2886,7 @@ musicRenderConnectionUi();
     trackUri: "",
     lastSdkStateAt: 0,
     lastPersistAt: 0,
+    autoAdvanceBusy: false,
     destroyed: false,
   };
 
@@ -2928,6 +2938,7 @@ musicRenderConnectionUi();
     }
     if (elapsed) elapsed.textContent = musicFormatTime(state.position / 1000);
     if (total) total.textContent = state.duration ? musicFormatTime(state.duration / 1000) : "—";
+    sn7MusicAnimateEqualizer(state.position, state.playing);
   }
 
   function persistState(immediate = false) {
@@ -3158,6 +3169,28 @@ musicRenderConnectionUi();
     }
   }
 
+  async function autoAdvance() {
+    if (state.autoAdvanceBusy || state.queueBusy) return false;
+    const current = ensureData().current;
+    if (!current || !state.duration || !state.playing) return false;
+
+    const remaining = state.duration - state.position;
+    if (remaining > 500) return false;
+
+    state.autoAdvanceBusy = true;
+    state.clockRunning = false;
+    musicSetStatus("Navegador · próxima música…");
+
+    try {
+      await selectQueue("next");
+      return true;
+    } finally {
+      state.autoAdvanceBusy = false;
+    }
+  }
+
+  window.musicAutoAdvance = autoAdvance;
+
   async function seekTo(position) {
     const duration = state.duration || Number(ensureData().state.duration_ms || 0);
     if (!duration) return;
@@ -3221,13 +3254,24 @@ musicRenderConnectionUi();
     await seekTo(state.position + (event.key === "ArrowRight" ? 10000 : -10000));
   };
 
-  // Atualiza somente a apresentação local. Zero consultas ao backend.
+  // Relógio local de alta resolução: o SDK continua sendo a fonte de verdade,
+  // mas a interface não precisa esperar outro evento de rede para mover a barra.
   state.progressTimer = setInterval(() => {
     if (!state.playing || !state.clockRunning || !state.duration) return;
     const now = performance.now();
-    const position = Math.min(state.duration, state.position + Math.max(0, now - state.progressAt));
+    const position = Math.min(
+      state.duration,
+      state.position + Math.max(0, now - state.progressAt)
+    );
     drawProgress(position, state.duration);
-  }, 200);
+
+    // O avanço automático é disparado pelo relógio local antes do SDK resetar
+    // o estado para 0 no fim da faixa. Isso evita depender exclusivamente de
+    // player_state_changed, que pode chegar atrasado em alguns celulares.
+    if (state.position >= state.duration - 500) {
+      autoAdvance().catch(() => {});
+    }
+  }, 100);
 
   // Persiste posição ocasionalmente, sem transformar o player em um polling de
   // banco. Isso também evita que Render/PostgreSQL atrase os controles.
