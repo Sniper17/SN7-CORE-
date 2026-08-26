@@ -2914,6 +2914,8 @@ musicRenderConnectionUi();
       btn.title=playing?"Pausar":"Reproduzir";
     }
     if(sn7MusicData?.state)sn7MusicData.state.is_playing=!!playing;
+    if (typeof localProgressPlaying !== "undefined") localProgressPlaying=!!playing;
+    if (playing && typeof localProgressAt !== "undefined" && !localProgressAt) localProgressAt=performance.now();
   };
 
   window.musicRenderProgress=function(position=0,duration=0){
@@ -2953,23 +2955,32 @@ musicRenderConnectionUi();
       if (typeof player.activateElement === "function") {
         try { await player.activateElement(); } catch (_) {}
       }
-      // Garante que o Web Playback Device esteja ativo antes de enviar o
-      // comando de reprodução pela Web API.
-      if (sn7SpotifyDeviceId) {
-        try { await transferSpotifyToWebPlayer(sn7SpotifyDeviceId); } catch (_) {}
-      }
+      // O botão CON já transfere o controle para o Web Playback Device.
+      // NÃO faça essa transferência novamente a cada Play: a chamada /me/player
+      // pode aguardar vários segundos no mobile e era a principal causa do
+      // atraso perceptível ao iniciar a faixa. Só garantimos o dispositivo no
+      // momento da conexão.
       let liveState=null;
       try { liveState=await player.getCurrentState(); } catch (_) {}
       const loadedId=liveState?.track_window?.current_track?.id || null;
       const trackId=normalizedUri.split(":").pop();
-      if (loadedId===trackId) {
-        await player.resume();
-      } else {
-        await sendSpotifyPlay(normalizedUri,sn7SpotifyDeviceId);
-      }
-      sn7SpotifyCurrentUri=normalizedUri;
+      // Feedback imediato: o botão muda para PAUSE no mesmo toque.
+      // A confirmação real do Spotify chega pelo player_state_changed.
       if (sn7MusicData?.state) sn7MusicData.state.is_playing=true;
       musicRenderPlaying(true);
+      musicSetStatus(`Navegador · iniciando ${current.title||"faixa atual"}…`);
+      try {
+        if (loadedId===trackId) {
+          await player.resume();
+        } else {
+          await sendSpotifyPlay(normalizedUri,sn7SpotifyDeviceId);
+        }
+      } catch (error) {
+        if (sn7MusicData?.state) sn7MusicData.state.is_playing=false;
+        musicRenderPlaying(false);
+        throw error;
+      }
+      sn7SpotifyCurrentUri=normalizedUri;
       musicSetStatus(`Navegador · Spotify · ${current.title||"faixa atual"}`);
       musicApi("/state",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({is_playing:true})}).catch(()=>{});
       return;
@@ -3197,6 +3208,38 @@ musicRenderConnectionUi();
     }catch(_){}
     finally{playbackPollBusy=false;}
   }
+
+  // O Spotify Web Playback SDK não deve depender do polling do backend para
+  // animar a barra. Interpolamos localmente entre os últimos estados reais
+  // recebidos do SDK e corrigimos a posição quando um novo estado chega.
+  let localProgressPosition=0;
+  let localProgressDuration=0;
+  let localProgressAt=0;
+  let localProgressPlaying=false;
+
+  const originalMusicRenderProgress = window.musicRenderProgress;
+  window.musicRenderProgress=function(position=0,duration=0){
+    localProgressPosition=Number(position)||0;
+    localProgressDuration=Number(duration)||0;
+    localProgressAt=performance.now();
+    localProgressPlaying=!!sn7MusicData?.state?.is_playing;
+    if (typeof originalMusicRenderProgress === "function") {
+      originalMusicRenderProgress(localProgressPosition,localProgressDuration);
+    }
+  };
+
+  setInterval(()=>{
+    if (!localProgressPlaying || !localProgressDuration) return;
+    const elapsed=Math.max(0,performance.now()-localProgressAt);
+    const position=Math.min(localProgressDuration,localProgressPosition+elapsed);
+    const p=localProgressDuration?Math.min(100,position/localProgressDuration*100):0;
+    const bar=document.getElementById("sn7MusicProgressBar");
+    const track=document.getElementById("sn7MusicProgress");
+    if(bar)bar.style.width=`${p}%`;
+    if(track){track.style.setProperty("--sn7-progress",`${p}%`);track.setAttribute("aria-valuenow",String(Math.round(p)));}
+    const elapsedEl=document.getElementById("sn7MusicElapsed");
+    if(elapsedEl)elapsedEl.textContent=musicFormatTime(position/1000);
+  },250);
 
   // Estado do player pode ser sincronizado automaticamente; a conexão OBS não.
   setInterval(()=>pollRemotePlayback().catch(()=>{}),1000);
