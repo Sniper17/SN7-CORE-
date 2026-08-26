@@ -1,8 +1,11 @@
+import json
 import random
 import time
 from copy import deepcopy
 from datetime import datetime, timezone
 from threading import RLock, Timer
+
+from psycopg.types.json import Jsonb
 
 from core.cache import forget_rankings
 from core.database import get_conn
@@ -110,10 +113,19 @@ def _platform(platform):
 
 def _normalize(values):
     result = dict(DEFAULTS)
+    boolean_keys = {
+        "enabled", "bets_enabled", "slots_enabled", "coinflip_enabled",
+        "polls_enabled", "quiz_enabled", "race_enabled", "target_enabled",
+        "secret_enabled", "survival_enabled", "steal_enabled",
+        "vault_enabled", "jackpot_enabled",
+    }
     for key in DEFAULTS:
         if key in values:
-            if key in {"enabled", "bets_enabled", "slots_enabled"}:
-                result[key] = bool(values[key])
+            if key in boolean_keys:
+                value = values[key]
+                if isinstance(value, str):
+                    value = value.strip().lower() in {"1", "true", "on", "yes", "sim"}
+                result[key] = bool(value)
             else:
                 result[key] = int(values[key])
     result["slot_bankroll"] = max(0, result["slot_bankroll"])
@@ -453,6 +465,22 @@ def _game_table():
 def _runtime_key(bid, platform, game):
     return (int(bid), _platform(platform), str(game or "").strip().lower())
 
+def _coerce_runtime_state(value, default=None):
+    """Normaliza JSONB retornado pelo driver para um dict Python."""
+    if value is None:
+        value = default
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        try:
+            decoded = json.loads(value)
+            return decoded if isinstance(decoded, dict) else {}
+        except (TypeError, ValueError):
+            return {}
+    return dict(value) if hasattr(value, "items") else {}
+
 def _runtime_get(bid,platform,game,default=None):
     _game_table()
     key = _runtime_key(bid, platform, game)
@@ -465,22 +493,49 @@ def _runtime_get(bid,platform,game,default=None):
     conn=get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT state FROM minigame_runtime WHERE broadcaster_user_id=%s AND platform=%s AND game=%s",(key[0],key[1],key[2])); row=cur.fetchone()
-            value = (row[0] if row and row[0] is not None else default) or {}
+            cur.execute(
+                "SELECT state FROM minigame_runtime WHERE broadcaster_user_id=%s AND platform=%s AND game=%s",
+                (key[0],key[1],key[2]),
+            )
+            row=cur.fetchone()
+            value = _coerce_runtime_state(row[0] if row else default, default)
     finally: conn.close()
     with _RUNTIME_CACHE_LOCK:
         _RUNTIME_CACHE[key] = (time.monotonic() + _RUNTIME_CACHE_TTL, deepcopy(value))
-    return dict(value)
+    return deepcopy(value)
 
-def _runtime_set(bid,platform,game,state):
-    _game_table(); key = _runtime_key(bid, platform, game)
-    conn=get_conn()
+def _runtime_set(bid, platform, game, state):
+    """Persiste o estado JSONB sem depender do adaptador implícito do psycopg."""
+    _game_table()
+    key = _runtime_key(bid, platform, game)
+    clean_state = _coerce_runtime_state(state, {})
+    payload = json.dumps(clean_state, ensure_ascii=False, separators=(",", ":"))
+
+    conn = get_conn()
     try:
-        with conn.cursor() as cur: cur.execute("INSERT INTO minigame_runtime(broadcaster_user_id,platform,game,state) VALUES(%s,%s,%s,%s) ON CONFLICT(broadcaster_user_id,platform,game) DO UPDATE SET state=EXCLUDED.state,updated_at=NOW()",(key[0],key[1],key[2],state))
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO minigame_runtime (
+                    broadcaster_user_id, platform, game, state
+                )
+                VALUES (%s, %s, %s, %s::jsonb)
+                ON CONFLICT (broadcaster_user_id, platform, game)
+                DO UPDATE SET
+                    state = EXCLUDED.state,
+                    updated_at = NOW()
+                """,
+                (key[0], key[1], key[2], payload),
+            )
         conn.commit()
-    finally: conn.close()
+    finally:
+        conn.close()
+
     with _RUNTIME_CACHE_LOCK:
-        _RUNTIME_CACHE[key] = (time.monotonic() + _RUNTIME_CACHE_TTL, deepcopy(state or {}))
+        _RUNTIME_CACHE[key] = (
+            time.monotonic() + _RUNTIME_CACHE_TTL,
+            deepcopy(clean_state),
+        )
 
 def start_poll(bid,username,question,options,platform="kick"):
     if not _game_allowed(bid,platform,"polls"): return {"ok":False,"error":"📊 Enquetes estão desativadas nesta plataforma."}

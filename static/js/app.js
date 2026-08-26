@@ -759,7 +759,15 @@ function sn7ConfirmAction(title, message, confirmText = "Continuar") {
         </div>
       </div>`;
 
+    // Sempre no <body> e no topo absoluto da pilha de modais. Isso evita
+    // que um editor/configuração com stacking context cubra a confirmação.
     document.body.appendChild(modal);
+    modal.style.setProperty("position", "fixed", "important");
+    modal.style.setProperty("inset", "0", "important");
+    modal.style.setProperty("z-index", "2147483647", "important");
+    modal.style.setProperty("display", "flex", "important");
+    modal.style.setProperty("align-items", "center", "important");
+    modal.style.setProperty("justify-content", "center", "important");
     requestAnimationFrame(() => modal.classList.add("open"));
 
     const finish = (value) => {

@@ -205,7 +205,15 @@ nav button.active::after{content:""!important;position:absolute!important;inset:
 
 /* Confirmation must sit above every configuration/editor modal. */
 .sn7-confirm-modal{
-  z-index:2147483646 !important;
+  position:fixed !important;
+  inset:0 !important;
+  z-index:2147483647 !important;
+  width:100vw !important;
+  height:100dvh !important;
+  box-sizing:border-box !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
   opacity:0;
   visibility:hidden;
   pointer-events:none;

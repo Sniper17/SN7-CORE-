@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa, ed25519
 from flask import Blueprint, Response, jsonify, redirect, request, session
 
-from core.database import get_conn
+from core.database import get_conn, init_db
 from core.services import ensure_channel, ensure_player, get_channel, get_player, get_rank, award_watch_presence, add_points, get_point_rewards
 from core.command_system import find_command, list_commands
 from core.auth import get_session_broadcaster_id, stable_channel_id
@@ -1167,8 +1167,10 @@ def _process_chat(payload, send_chat=None):
                 if game_key and not mini_settings.get(f"{game_key}_enabled", True):
                     return
             except Exception as exc:
+                # Não silencie o comando. O handler específico continua e o
+                # tratamento final informa a falha ao chat, além de registrar o erro.
                 print(f"[MINIGAMES] erro verificando status global: {exc}", flush=True)
-                return
+                mini_settings = None
 
         ch = get_channel(bid)
 
@@ -1946,6 +1948,16 @@ def _remember_recent_chat(payload):
 
 def _process_webhook(payload, event_type):
     print(f"[KICK-WEBHOOK] evento recebido para processamento: {event_type}", flush=True)
+
+    # Bootstrap/migration acontece fora do request HTTP. A Kick recebe 200
+    # imediatamente, enquanto este worker prepara o PostgreSQL para o comando.
+    try:
+        init_db()
+        from core.minigames import ensure_minigame_table
+        ensure_minigame_table()
+    except Exception as exc:
+        print(f"[KICK-WEBHOOK] falha no bootstrap do banco: {exc}", flush=True)
+        return
     if event_type == "chat.message.sent":
         print("[KICK-WEBHOOK] processando chat.message.sent", flush=True)
         # A chegada de um chat.message.sent é uma prova direta de que o bot
