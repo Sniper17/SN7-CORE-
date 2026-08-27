@@ -123,6 +123,14 @@ def _viewer():
 
 
 def _resolve_channel(target):
+    """Resolve o canal para o ID canônico do perfil SN7.
+
+    A Kick possui dois IDs relevantes: o broadcaster_user_id da Kick e o
+    sn7_profile_id usado pelo Core para unificar Kick/YouTube/Twitch. A Loja
+    grava itens e carteiras no ID canônico. Por isso, a resolução por slug
+    deve consultar a conexão Kick primeiro e nunca escolher uma linha antiga
+    da tabela channels só porque ela existe.
+    """
     value = str(target or "").strip()
     if not value:
         return None
@@ -130,30 +138,51 @@ def _resolve_channel(target):
     try:
         with conn.cursor() as cur:
             if value.isdigit():
+                numeric = int(value)
+                # Aceita tanto o ID canônico SN7 quanto o ID nativo da Kick.
                 cur.execute("""
-                    SELECT broadcaster_user_id, username
-                      FROM channels WHERE broadcaster_user_id=%s
-                    LIMIT 1
-                """, (int(value),))
+                    SELECT COALESCE(sn7_profile_id,broadcaster_user_id), username
+                      FROM kick_connections
+                     WHERE broadcaster_user_id=%s OR sn7_profile_id=%s
+                     ORDER BY CASE WHEN sn7_profile_id=%s THEN 0 ELSE 1 END
+                     LIMIT 1
+                """, (numeric, numeric, numeric))
+                row = cur.fetchone()
+                if row:
+                    return {"broadcaster_user_id": int(row[0]), "username": str(row[1] or value)}
+
+                cur.execute("""
+                    SELECT COALESCE(sn7_profile_id,broadcaster_user_id), username
+                      FROM channels
+                     WHERE broadcaster_user_id=%s OR sn7_profile_id=%s
+                     ORDER BY CASE WHEN sn7_profile_id=%s THEN 0 ELSE 1 END
+                     LIMIT 1
+                """, (numeric, numeric, numeric))
             else:
-                cur.execute("""
-                    SELECT broadcaster_user_id, username
-                      FROM channels WHERE LOWER(username)=LOWER(%s)
-                    LIMIT 1
-                """, (value,))
-            row = cur.fetchone()
-            if row:
-                return {"broadcaster_user_id": int(row[0]), "username": str(row[1] or value)}
-            if not value.isdigit():
+                # Slug/username: a conexão Kick é a fonte mais confiável para
+                # descobrir o perfil SN7 ao qual a Loja pertence.
                 cur.execute("""
                     SELECT COALESCE(sn7_profile_id,broadcaster_user_id), username
                       FROM kick_connections
                      WHERE LOWER(username)=LOWER(%s)
-                    LIMIT 1
+                     ORDER BY CASE WHEN sn7_profile_id IS NOT NULL THEN 0 ELSE 1 END
+                     LIMIT 1
                 """, (value,))
                 row = cur.fetchone()
                 if row:
                     return {"broadcaster_user_id": int(row[0]), "username": str(row[1] or value)}
+
+                cur.execute("""
+                    SELECT COALESCE(sn7_profile_id,broadcaster_user_id), username
+                      FROM channels
+                     WHERE LOWER(username)=LOWER(%s)
+                     ORDER BY CASE WHEN sn7_profile_id IS NOT NULL THEN 0 ELSE 1 END, broadcaster_user_id DESC
+                     LIMIT 1
+                """, (value,))
+
+            row = cur.fetchone()
+            if row:
+                return {"broadcaster_user_id": int(row[0]), "username": str(row[1] or value)}
     finally:
         conn.close()
     return None
