@@ -19,8 +19,8 @@ from core.database import get_conn, init_db
 from core.services import ensure_channel, ensure_player, get_channel, get_player, get_rank, award_watch_presence, add_points, get_point_rewards
 from core.command_system import find_command, list_commands
 from core.auth import get_session_broadcaster_id, stable_channel_id
-from core.cache import forget_rankings
-from threading import RLock, Timer
+from core.cache import forget_rankings, get_cached_balance, set_cached_balance
+from threading import RLock, Timer, local
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -30,6 +30,19 @@ kick_bp = Blueprint("kick", __name__)
 # de cada canal sem bloquear canais diferentes.
 _chat_executors = {}
 _chat_executors_lock = RLock()
+
+# Session HTTP por thread: mantém keep-alive/TCP reutilizável com a API da Kick.
+# O webhook continua assíncrono, mas o POST de resposta evita o custo de abrir
+# uma nova sessão TCP em cada comando.
+_kick_http_local = local()
+
+def _kick_http_session():
+    session = getattr(_kick_http_local, "session", None)
+    if session is None:
+        session = requests.Session()
+        session.headers.update({"Accept": "application/json"})
+        _kick_http_local.session = session
+    return session
 
 # Timers narrativos dos Mini Games. A sessão continua persistida no PostgreSQL;
 # estes timers apenas publicam os capítulos no chat enquanto o processo está ativo.
@@ -947,19 +960,18 @@ def _send_chat(broadcaster_id, content):
     text = str(content or "").strip()[:500]
     if not text:
         return False
-    response = requests.post(
+    response = _kick_http_session().post(
         f"{KICK_API}/chat",
         headers={
             "Authorization": f"Bearer {conn_data['access_token']}",
             "Content-Type": "application/json",
-            "Accept": "application/json",
         },
         json={
             "content": text,
             "type": "user",
             "broadcaster_user_id": int(broadcaster_id),
         },
-        timeout=20,
+        timeout=8,
     )
     try:
         data = response.json()
@@ -1162,9 +1174,12 @@ def _expire_pending_bets(bid, platform="kick"):
 
 
 def _format_balance(bid, user, platform="kick"):
-    # !pontos é um dos comandos mais usados. Antes eram necessárias duas
-    # consultas separadas para saldo/rank, além do ensure_player. Agora saldo
-    # e posição saem de uma única leitura indexada do PostgreSQL.
+    # !pontos é um dos comandos mais usados. Depois do primeiro acesso,
+    # respostas repetidas dentro de uma janela curtíssima saem da memória,
+    # evitando uma ida ao PostgreSQL a cada comando.
+    cached = get_cached_balance(bid, platform, user)
+    if cached is not None:
+        return cached
     ch = get_channel(bid)
     conn = get_conn()
     try:
@@ -1197,7 +1212,7 @@ def _format_balance(bid, user, platform="kick"):
     points = int(row[0] or 0) if row else 0
     rank = int(row[1]) if row and row[1] is not None else None
     emoji = str(ch["currency_emoji"] or "").strip()
-    return {
+    value = {
         "user": _mention(user),
         "points": points,
         "currency": ch["currency_name"],
@@ -1206,6 +1221,8 @@ def _format_balance(bid, user, platform="kick"):
         "rank": rank if rank is not None else "",
         "rank_text": f" Sua posição no ranking é #{rank}." if rank is not None else "",
     }
+    set_cached_balance(bid, value, platform, user)
+    return value
 def _format_ranking(bid, platform="kick"):
  ch=get_channel(bid);limit=max(1,min(int(ch['rank_limit']),10));c=get_conn()
  try:

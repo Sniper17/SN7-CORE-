@@ -93,7 +93,7 @@ def forget_rewards(broadcaster_id):
         _rewards.pop(int(broadcaster_id), None)
 
 
-_COMMAND_TTL = 30
+_COMMAND_TTL = 300  # configurações mudam via painel e invalidam o cache imediatamente
 _commands = {}
 _commands_lock = RLock()
 
@@ -149,6 +149,51 @@ def set_cached_channel(broadcaster_id, value):
 def forget_channel(broadcaster_id):
     with _channels_lock:
         _channels.pop(int(broadcaster_id), None)
+
+
+# Cache curtíssimo para !pontos. Ele evita abrir uma nova conexão/consulta ao
+# PostgreSQL quando o mesmo usuário consulta o saldo repetidamente. O TTL é
+# intencionalmente baixo para não esconder alterações de pontos.
+_BALANCE_TTL = 0.75
+_BALANCE_MAX = 20000
+_balances = OrderedDict()
+_balances_lock = RLock()
+
+def _balance_key(broadcaster_id, platform, username):
+    return (int(broadcaster_id), str(platform or "kick").strip().lower(), str(username or "").strip().lower())
+
+def get_cached_balance(broadcaster_id, platform="kick", username=""):
+    now = time.monotonic()
+    key = _balance_key(broadcaster_id, platform, username)
+    with _balances_lock:
+        item = _balances.get(key)
+        if not item or item["expires_at"] <= now:
+            _balances.pop(key, None)
+            return None
+        _balances.move_to_end(key)
+        return dict(item["value"])
+
+def set_cached_balance(broadcaster_id, value, platform="kick", username=""):
+    key = _balance_key(broadcaster_id, platform, username)
+    with _balances_lock:
+        _balances[key] = {
+            "value": dict(value),
+            "expires_at": time.monotonic() + _BALANCE_TTL,
+        }
+        _balances.move_to_end(key)
+        while len(_balances) > _BALANCE_MAX:
+            _balances.popitem(last=False)
+
+def forget_balance(broadcaster_id, platform="kick", username=""):
+    key = _balance_key(broadcaster_id, platform, username)
+    with _balances_lock:
+        _balances.pop(key, None)
+
+def forget_balances(broadcaster_id):
+    bid = int(broadcaster_id)
+    with _balances_lock:
+        for key in [key for key in _balances if key[0] == bid]:
+            _balances.pop(key, None)
 
 # Cache curto dos rankings para o painel e comandos. A gravação de pontos
 # invalida este cache, então o painel não fica preso em dados antigos.
