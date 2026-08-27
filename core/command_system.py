@@ -43,7 +43,7 @@ SYSTEM = {
     "resumemusic": ("!resume", "Continua a música pausada.", "music", "▶️ Música retomada."),
     "clearmusic": ("!clearqueue", "Limpa a fila de músicas do canal.", "music", "🧹 Fila de músicas limpa."),
     "addcmd": ("!addcmd", "Cria ou atualiza um comando personalizado.", "admin", "✅ $(command) configurado."),
-    "addpoint": ("!addpoint", "Adiciona pontos a um usuário.", "admin", "🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency)."),
+    "addpoint": ("!addpoint", "Adiciona pontos a um usuário ou a todos os participantes recentes do chat.", "admin", "🪙 $(target) recebeu +$(amount) $(currency). Saldo: $(new_points) $(currency)."),
     "settpoint": ("!setpoint", "Define o saldo de um usuário.", "admin", "🪙 Saldo de $(target): $(new_points) $(currency)."),
     "delcmd": ("!delcmd", "Remove um comando personalizado.", "admin", "🗑️ $(command) removido."),
 }

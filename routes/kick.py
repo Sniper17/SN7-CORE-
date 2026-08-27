@@ -198,6 +198,45 @@ _recent_chat_events = {}
 _recent_chat_events_ttl = 2.0
 _recent_chat_events_lock = RLock()
 
+# Participantes vistos recentemente no chat. Usado pelo !addpoint sem exigir
+# uma lista externa de espectadores (a Kick não fornece "quem está online").
+_RECENT_CHAT_PARTICIPANTS = {}
+_RECENT_CHAT_PARTICIPANTS_TTL = 15 * 60
+_RECENT_CHAT_PARTICIPANTS_LOCK = RLock()
+
+
+def _remember_chat_participant(bid, platform, username, user_id=None):
+    if not username:
+        return
+    key = (int(bid), str(platform or "kick").lower())
+    now = time.monotonic()
+    with _RECENT_CHAT_PARTICIPANTS_LOCK:
+        bucket = _RECENT_CHAT_PARTICIPANTS.setdefault(key, {})
+        # Limpeza preguiçosa para não deixar participantes antigos acumularem.
+        for uname, data in list(bucket.items()):
+            if now - float(data.get("last_seen", 0)) > _RECENT_CHAT_PARTICIPANTS_TTL:
+                bucket.pop(uname, None)
+        normalized = str(username).strip().lower()
+        bucket[normalized] = {
+            "username": str(username).strip().lstrip("@"),
+            "user_id": user_id,
+            "last_seen": now,
+        }
+
+
+def _get_recent_chat_participants(bid, platform="kick"):
+    key = (int(bid), str(platform or "kick").lower())
+    now = time.monotonic()
+    with _RECENT_CHAT_PARTICIPANTS_LOCK:
+        bucket = _RECENT_CHAT_PARTICIPANTS.get(key, {})
+        participants = []
+        for normalized, data in list(bucket.items()):
+            if now - float(data.get("last_seen", 0)) <= _RECENT_CHAT_PARTICIPANTS_TTL:
+                participants.append(dict(data))
+            else:
+                bucket.pop(normalized, None)
+        return participants
+
 
 def _env(name, default=""):
     import os
@@ -2003,8 +2042,71 @@ def _process_chat(payload, send_chat=None):
             return
 
         if key in {"addpoint", "settpoint"}:
+            # !addpoint 50 = +50 para todos que falaram no chat nos últimos 15 min.
+            # A forma antiga !addpoint @usuario 50 continua funcionando.
+            if key == "addpoint" and len(args) == 1:
+                try:
+                    amount = int(args[0])
+                except ValueError:
+                    send_chat(bid, "❌ Quantidade inválida. Use !addpoint 50.")
+                    return
+                if amount <= 0:
+                    send_chat(bid, "❌ A quantidade precisa ser maior que 0.")
+                    return
+
+                participants = _get_recent_chat_participants(bid, platform)
+                if not participants:
+                    send_chat(bid, "🎁 Nenhum participante recente foi encontrado no chat.")
+                    return
+
+                conn = get_conn()
+                updated = 0
+                try:
+                    with conn.cursor() as cur:
+                        for participant in participants:
+                            username = participant["username"]
+                            uid = participant.get("user_id")
+                            if platform == "kick" and uid:
+                                try:
+                                    uid = int(uid)
+                                except (TypeError, ValueError):
+                                    uid = None
+                            cur.execute(
+                                """
+                                INSERT INTO players (broadcaster_user_id, platform, kick_user_id, username)
+                                VALUES (%s,%s,%s,%s)
+                                ON CONFLICT (broadcaster_user_id, platform, username)
+                                DO UPDATE SET
+                                    kick_user_id=COALESCE(EXCLUDED.kick_user_id, players.kick_user_id),
+                                    updated_at=NOW()
+                                """,
+                                (int(bid), platform, uid, username),
+                            )
+                            cur.execute(
+                                """
+                                UPDATE players
+                                   SET points=points+%s, updated_at=NOW()
+                                 WHERE broadcaster_user_id=%s AND platform=%s AND LOWER(username)=LOWER(%s)
+                                """,
+                                (amount, int(bid), platform, username),
+                            )
+                            updated += cur.rowcount
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise
+                finally:
+                    conn.close()
+
+                forget_rankings(bid)
+                send_chat(
+                    bid,
+                    f"🎁 +{amount} {currency} distribuídos para {updated} participante(s) recente(s) do chat! 💰",
+                )
+                return
+
             if len(args) < 2:
-                send_chat(bid, f'Use {cfg["command"]} @usuário quantidade')
+                send_chat(bid, f'Use {cfg["command"]} @usuário quantidade ou {cfg["command"]} quantidade para todos.')
                 return
 
             target = args[0].lstrip("@").strip()
@@ -2050,7 +2152,6 @@ def _process_chat(payload, send_chat=None):
                         "amount": amount,
                         "new_points": new_points,
                         "currency": currency,
-                        "emoji": emoji,
                     },
                 ),
             )
@@ -2161,6 +2262,18 @@ def _process_webhook(payload, event_type):
         if _remember_recent_chat(payload):
             print("[KICK-WEBHOOK] mensagem duplicada detectada no cache; ignorando", flush=True)
             return
+        try:
+            sender = payload.get("sender") or {}
+            username = str(sender.get("username") or sender.get("slug") or "").strip()
+            if username:
+                _remember_chat_participant(
+                    int(payload.get("sn7_profile_id") or broadcaster.get("user_id") or 0),
+                    payload.get("platform") or "kick",
+                    username,
+                    sender.get("user_id"),
+                )
+        except (TypeError, ValueError):
+            pass
         _process_chat(payload)
         return
 
