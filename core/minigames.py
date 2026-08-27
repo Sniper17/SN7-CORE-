@@ -821,6 +821,211 @@ _SURVIVAL_TIMERS = {}
 SURVIVAL_JOIN_WINDOW_SECONDS = 90
 SURVIVAL_STORY_CHAPTERS = 3
 
+# Cada rodada recebe um cenário. O último cenário é excluído na próxima
+# rodada da mesma live para evitar repetir o local imediatamente.
+_SURVIVAL_LOCATIONS = {
+    "🌲 Floresta": {
+        "protections": [
+            "{p} encontra um galho grosso e improvisa um bastão resistente.",
+            "{p} acha uma faca de caça abandonada perto de uma árvore caída.",
+            "{p} encontra um escudo improvisado feito com uma placa de metal.",
+            "{p} recupera uma mochila com corda e uma lanterna.",
+        ],
+        "actions": [
+            "{a} percebe pegadas frescas e descobre um caminho escondido entre as árvores.",
+            "Uma tempestade derruba árvores ao redor e {a} corre para não ficar preso.",
+            "{a} ouve um animal se aproximando e consegue se esconder atrás de um tronco.",
+            "{a} encontra um pequeno riacho e avisa o grupo sobre água potável.",
+        ],
+        "deaths": [
+            "na confusão entre as árvores, {k} embosca {v} e o elimina.",
+            "durante a fuga da tempestade, {k} alcança {v} e o derruba.",
+            "no silêncio da mata, {k} surpreende {v} e o elimina.",
+            "perto do riacho, {k} entra em confronto com {v} e vence.",
+        ],
+    },
+    "❄️ Neve": {
+        "protections": [
+            "{p} encontra um casaco térmico e consegue se proteger do frio.",
+            "{p} acha uma picareta presa na neve e a guarda para se defender.",
+            "{p} encontra uma barraca parcialmente soterrada e recupera uma manta.",
+            "{p} descobre uma mochila de expedição com óculos e luvas térmicas.",
+        ],
+        "actions": [
+            "uma nevasca reduz a visão e {a} encontra uma passagem entre as pedras.",
+            "{a} percebe o gelo rachando e avisa o grupo a tempo de recuar.",
+            "{a} encontra uma cabana abandonada e acende um sinal para os outros.",
+            "uma avalanche pequena bloqueia a trilha e {a} abre outro caminho.",
+        ],
+        "deaths": [
+            "no meio da nevasca, {k} encurrala {v} e o elimina.",
+            "perto da cabana, {k} surpreende {v} e vence o confronto.",
+            "enquanto todos procuram abrigo, {k} ataca {v} e o elimina.",
+            "na trilha coberta de gelo, {k} alcança {v} e o derruba.",
+        ],
+    },
+    "🌊 Ilha": {
+        "protections": [
+            "{p} encontra um remo quebrado e o transforma em arma.",
+            "{p} recupera uma faca de sobrevivência dos destroços de um barco.",
+            "{p} acha uma prancha e usa parte dela como escudo.",
+            "{p} encontra um sinalizador e o guarda para pedir socorro.",
+        ],
+        "actions": [
+            "{a} encontra água doce entre as pedras e marca o local.",
+            "uma onda forte invade o acampamento e {a} salva parte dos suprimentos.",
+            "{a} avista destroços no mar e nada até a margem para investigar.",
+            "um barco aparece no horizonte e {a} tenta acender um sinal.",
+        ],
+        "deaths": [
+            "entre os destroços, {k} entra em confronto com {v} e o elimina.",
+            "durante a fuga das ondas, {k} surpreende {v} e vence.",
+            "perto das rochas, {k} embosca {v} e o elimina.",
+            "na disputa pelos suprimentos, {k} enfrenta {v} e o derruba.",
+        ],
+    },
+    "🏜️ Deserto": {
+        "protections": [
+            "{p} encontra uma barra de ferro em um veículo abandonado.",
+            "{p} recupera um facão enferrujado de um acampamento antigo.",
+            "{p} encontra um capacete e um colete de proteção.",
+            "{p} acha uma lona resistente e monta uma pequena cobertura.",
+        ],
+        "actions": [
+            "uma tempestade de areia se aproxima e {a} encontra abrigo entre as ruínas.",
+            "{a} descobre uma cantil escondida sob os destroços.",
+            "{a} encontra marcas de pneus e segue a trilha em busca de ajuda.",
+            "o calor aumenta brutalmente e {a} localiza uma passagem subterrânea.",
+        ],
+        "deaths": [
+            "no meio da tempestade de areia, {k} surpreende {v} e o elimina.",
+            "dentro das ruínas, {k} encurrala {v} e vence.",
+            "pela disputa por água, {k} enfrenta {v} e o elimina.",
+            "quando a visibilidade cai, {k} alcança {v} e o derruba.",
+        ],
+    },
+    "🏙️ Cidade Abandonada": {
+        "protections": [
+            "{p} encontra um capacete de proteção em um quartel de bombeiros.",
+            "{p} recupera um bastão de segurança de uma loja abandonada.",
+            "{p} encontra um colete resistente dentro de uma viatura.",
+            "{p} pega uma placa metálica e improvisa um escudo.",
+        ],
+        "actions": [
+            "um alarme dispara e {a} descobre uma rota de fuga por um prédio.",
+            "{a} encontra um supermercado saqueado e recupera comida.",
+            "uma estrutura começa a desabar e {a} guia o grupo para fora.",
+            "{a} liga um gerador e ilumina parte da rua.",
+        ],
+        "deaths": [
+            "no prédio escuro, {k} embosca {v} e o elimina.",
+            "durante o desabamento, {k} alcança {v} e o derruba.",
+            "na disputa pelos suprimentos, {k} enfrenta {v} e vence.",
+            "sob a luz do gerador, {k} surpreende {v} e o elimina.",
+        ],
+    },
+    "🌴 Selva": {
+        "protections": [
+            "{p} encontra um facão e abre caminho pela vegetação.",
+            "{p} acha uma mochila impermeável com equipamentos.",
+            "{p} encontra uma placa de madeira e improvisa um escudo.",
+            "{p} recupera uma corda grossa e a enrola para se defender.",
+        ],
+        "actions": [
+            "{a} percebe uma cobra no caminho e desvia por uma trilha segura.",
+            "uma chuva torrencial começa e {a} encontra uma cabana abandonada.",
+            "{a} atravessa uma ponte improvisada antes que ela desabe.",
+            "{a} encontra frutas e água corrente e marca o local.",
+        ],
+        "deaths": [
+            "na confusão da mata fechada, {k} surpreende {v} e o elimina.",
+            "durante a chuva, {k} alcança {v} perto da cabana e vence.",
+            "na ponte improvisada, {k} entra em confronto com {v} e o derruba.",
+            "perto do riacho, {k} embosca {v} e o elimina.",
+        ],
+    },
+    "🌋 Vulcão": {
+        "protections": [
+            "{p} encontra uma máscara de proteção e consegue respirar melhor.",
+            "{p} acha um capacete resistente perto de uma estação abandonada.",
+            "{p} encontra luvas térmicas e um escudo metálico.",
+            "{p} recupera uma mochila de emergência com equipamentos.",
+        ],
+        "actions": [
+            "cinzas começam a cair e {a} encontra uma rota por um túnel.",
+            "pedras vulcânicas caem perto do grupo e {a} avisa sobre uma área segura.",
+            "{a} encontra uma fonte de água em uma antiga estação.",
+            "o chão começa a tremer e {a} corre para uma plataforma elevada.",
+        ],
+        "deaths": [
+            "entre a fumaça, {k} surpreende {v} e o elimina.",
+            "durante a fuga das pedras, {k} alcança {v} e vence.",
+            "no túnel, {k} encurrala {v} e o elimina.",
+            "perto da estação, {k} entra em confronto com {v} e o derruba.",
+        ],
+    },
+    "🚢 Navio Abandonado": {
+        "protections": [
+            "{p} encontra um colete salva-vidas reforçado e o veste.",
+            "{p} recupera uma ferramenta pesada da sala de máquinas.",
+            "{p} encontra um escudo improvisado feito de uma tampa metálica.",
+            "{p} acha uma lanterna e uma chave inglesa.",
+        ],
+        "actions": [
+            "o navio começa a inclinar e {a} encontra uma rota para o convés.",
+            "{a} liga parte da energia e ilumina os corredores.",
+            "uma porta trava atrás do grupo e {a} encontra uma saída de emergência.",
+            "{a} descobre um bote ainda utilizável no convés.",
+        ],
+        "deaths": [
+            "no corredor estreito, {k} surpreende {v} e o elimina.",
+            "durante a inclinação do navio, {k} enfrenta {v} e vence.",
+            "na sala de máquinas, {k} encurrala {v} e o derruba.",
+            "perto do bote, {k} entra em confronto com {v} e o elimina.",
+        ],
+    },
+    "🧊 Base Congelada": {
+        "protections": [
+            "{p} encontra um traje térmico reforçado.",
+            "{p} recupera um escudo balístico abandonado.",
+            "{p} encontra uma ferramenta de emergência e a usa para se proteger.",
+            "{p} acha um capacete de segurança e uma lanterna.",
+        ],
+        "actions": [
+            "o gerador volta a funcionar e {a} encontra um mapa da instalação.",
+            "uma porta automática se fecha e {a} descobre um corredor de manutenção.",
+            "{a} encontra suprimentos médicos em um laboratório abandonado.",
+            "o gelo rompe uma tubulação e {a} desvia do vazamento.",
+        ],
+        "deaths": [
+            "no corredor congelado, {k} surpreende {v} e o elimina.",
+            "perto do laboratório, {k} encurrala {v} e vence.",
+            "durante o apagão, {k} ataca {v} e o elimina.",
+            "na passagem de manutenção, {k} enfrenta {v} e o derruba.",
+        ],
+    },
+    "🏚️ Ruínas": {
+        "protections": [
+            "{p} encontra uma espada antiga e a usa para se defender.",
+            "{p} acha uma placa de metal entre os escombros.",
+            "{p} recupera um capacete de uma antiga expedição.",
+            "{p} encontra uma corda e uma pequena ferramenta.",
+        ],
+        "actions": [
+            "{a} encontra uma passagem secreta atrás de uma parede caída.",
+            "um desabamento bloqueia a entrada e {a} procura outra saída.",
+            "{a} descobre um depósito com água e suprimentos.",
+            "um sino antigo toca sozinho e {a} investiga a origem do som.",
+        ],
+        "deaths": [
+            "entre os escombros, {k} embosca {v} e o elimina.",
+            "durante o desabamento, {k} enfrenta {v} e vence.",
+            "na passagem secreta, {k} surpreende {v} e o elimina.",
+            "perto do depósito, {k} entra em confronto com {v} e o derruba.",
+        ],
+    },
+}
+
 def survival_start(bid, username, platform="kick"):
     """Abre uma rodada e deixa 90 segundos para os participantes entrarem."""
     if not _game_allowed(bid, platform, "survival"):
@@ -830,15 +1035,25 @@ def survival_start(bid, username, platform="kick"):
     current = _runtime_get(bid, platform, "survival", {})
     if current.get("open"):
         return {"ok": False, "error": "🧟 Já existe uma sobrevivência aberta! Digite !sobreviver para participar."}
+
+    previous_location = current.get("location")
+    locations = [name for name in _SURVIVAL_LOCATIONS if name != previous_location]
+    location = random.choice(locations or list(_SURVIVAL_LOCATIONS))
     now = time.time()
     state = {
         "open": True, "started": False, "started_at": None,
         "join_deadline": now + SURVIVAL_JOIN_WINDOW_SECONDS,
         "duration_seconds": 0, "prize": prize,
         "players": [], "alive": {}, "events": [], "story_chapter": 0,
+        "location": location,
     }
     _runtime_set(bid, platform, "survival", state)
-    return {"ok": True, "state": state, "join_seconds": SURVIVAL_JOIN_WINDOW_SECONDS}
+    return {
+        "ok": True,
+        "state": state,
+        "join_seconds": SURVIVAL_JOIN_WINDOW_SECONDS,
+        "location": location,
+    }
 
 def survival_join(bid, username, platform="kick"):
     if not _game_allowed(bid, platform, "survival"):
@@ -880,53 +1095,63 @@ def survival_begin(bid, platform="kick"):
     _runtime_set(bid, platform, "survival", state)
     return {"ok": True, "state": state}
 
-def _survival_kill_count(alive_count, chapter):
-    """Distribui as mortes pelos 3 capítulos, deixando exatamente 2 vivos."""
-    target = 2 if alive_count >= 2 else alive_count
-    deaths_needed = max(0, alive_count - target)
-    remaining_chapters = max(1, SURVIVAL_STORY_CHAPTERS - chapter + 1)
-    if deaths_needed <= 0:
-        return 0
-    return min(deaths_needed, max(1, (deaths_needed + remaining_chapters - 1) // remaining_chapters))
+def _survival_story_event(state, chapter):
+    players = list(state.get("players") or [])
+    alive = [u for u in players if state.get("alive", {}).get(u, False)]
+    location = state.get("location") or "🌲 Floresta"
+    scene = _SURVIVAL_LOCATIONS.get(location) or _SURVIVAL_LOCATIONS["🌲 Floresta"]
 
-def _survival_dead_text(dead):
-    names = [_mention_name(u) for u in dead]
-    if len(names) == 1:
-        return names[0] + " foi eliminado!"
-    if len(names) == 2:
-        return f"{names[0]} e {names[1]} foram eliminados!"
-    return ", ".join(names[:-1]) + f" e {names[-1]} foram eliminados!"
+    # Em cada capítulo: proteção + ação + exatamente uma morte quando há
+    # pelo menos dois vivos. Com dois, um elimina o outro.
+    protector = random.choice(alive) if alive else None
+    killer = victim = None
+    if len(alive) >= 2:
+        if len(alive) == 2:
+            killer, victim = alive[0], alive[1]
+            if random.choice([True, False]):
+                killer, victim = victim, killer
+        else:
+            victim, killer = random.sample(alive, 2)
+            if protector == victim:
+                protector = next(u for u in alive if u not in {victim, killer})
+        for_protection = _mention_name(protector) if protector else "Um sobrevivente"
+    else:
+        for_protection = _mention_name(protector) if protector else "O último sobrevivente"
 
-def _survival_story_event(dead, chapter, remaining_count):
-    dtext = _survival_dead_text(dead) if dead else "Todos escaparam por pouco da morte."
-    suffix = f" Restam {remaining_count} sobreviventes."
-    variants = {
-        1: [
-            f"🌑 CAPÍTULO 1/3: A noite caiu de repente. Uma horda surgiu entre as árvores e {dtext}{suffix}",
-            f"🌧️ CAPÍTULO 1/3: Uma tempestade derrubou o acampamento. No caos, {dtext}{suffix}",
-            f"🚨 CAPÍTULO 1/3: O alarme disparou e criaturas invadiram a região. {dtext}{suffix}",
-            f"🔥 CAPÍTULO 1/3: Um incêndio cercou o grupo. Na fuga, {dtext}{suffix}",
-            f"🩸 CAPÍTULO 1/3: Pegadas cercaram o abrigo. O ataque foi rápido e {dtext}{suffix}",
-        ],
-        2: [
-            f"🌫️ CAPÍTULO 2/3: A neblina cobriu a estrada e separou o grupo. {dtext}{suffix}",
-            f"🏚️ CAPÍTULO 2/3: O abrigo começou a desabar. Entre os escombros, {dtext}{suffix}",
-            f"🐺 CAPÍTULO 2/3: Uma matilha cercou o grupo. A fuga foi brutal e {dtext}{suffix}",
-            f"⚡ CAPÍTULO 2/3: Um raio atingiu a área e provocou um apagão. {dtext}{suffix}",
-            f"🚪 CAPÍTULO 2/3: Uma porta se fechou atrás do grupo e o corredor virou uma armadilha. {dtext}{suffix}",
-        ],
-        3: [
-            f"☠️ CAPÍTULO 3/3: O último perigo apareceu quando tudo parecia terminado. {dtext}{suffix}",
-            f"🌅 CAPÍTULO 3/3: O amanhecer chegou, mas a criatura final encontrou o grupo. {dtext}{suffix}",
-            f"💥 CAPÍTULO 3/3: A ponte explodiu no momento da fuga. {dtext}{suffix}",
-            f"🧟 CAPÍTULO 3/3: A última horda cercou os sobreviventes. {dtext}{suffix}",
-            f"🚁 CAPÍTULO 3/3: O resgate chegou, mas o caminho foi bloqueado. {dtext}{suffix}",
-        ],
-    }
-    return random.choice(variants[chapter])
+    protection = random.choice(scene["protections"]).format(p=for_protection)
+
+    action_player = random.choice(alive) if alive else None
+    if len(alive) >= 2 and action_player == killer:
+        others = [u for u in alive if u != killer]
+        action_player = random.choice(others or alive)
+    action = random.choice(scene["actions"]).format(
+        a=_mention_name(action_player) if action_player else "O último sobrevivente"
+    )
+
+    dead = []
+    death_text = "Ninguém caiu neste capítulo."
+    if killer and victim:
+        state.setdefault("alive", {})[victim] = False
+        dead = [victim]
+        death_text = random.choice(scene["deaths"]).format(
+            k=_mention_name(killer), v=_mention_name(victim)
+        )
+
+    alive_after = [u for u in players if state.get("alive", {}).get(u, False)]
+    remaining_text = (
+        f" Restam {len(alive_after)} sobreviventes."
+        if alive_after else " Não restou ninguém."
+    )
+
+    return (
+        f"{location} • 📖 CAPÍTULO {chapter}/3: "
+        f"🛡️ {protection} "
+        f"⚡ {action} "
+        f"💀 {death_text}{remaining_text}"
+    ), dead
 
 def survival_tick(bid, platform="kick"):
-    """Publica exatamente 3 capítulos, eliminando participantes sempre que houver mais de 2 vivos."""
+    """Publica exatamente 3 capítulos, cada um com proteção, ação e morte quando possível."""
     state = _runtime_get(bid, platform, "survival", {})
     if not state.get("open") or not state.get("started"):
         return {"ok": False, "done": False}
@@ -937,41 +1162,20 @@ def survival_tick(bid, platform="kick"):
         return {"ok": True, "done": True, "event": None, "state": state}
 
     chapter += 1
-    death_count = _survival_kill_count(len(alive), chapter)
-    dead = random.sample(alive, death_count) if death_count else []
-    for u in dead:
-        state.setdefault("alive", {})[u] = False
+    event, dead = _survival_story_event(state, chapter)
     alive_after = [u for u in players if state.get("alive", {}).get(u, False)]
-    event = _survival_story_event(dead, chapter, len(alive_after))
     state["story_chapter"] = chapter
     state.setdefault("events", []).append(event)
     _runtime_set(bid, platform, "survival", state)
-    return {"ok": True, "done": chapter >= SURVIVAL_STORY_CHAPTERS, "event": event, "state": state, "chapter": chapter, "dead_this_chapter": dead, "alive_count": len(alive_after)}
-
-def survival_finish(bid, platform="kick", expected_started_at=None):
-    state = _runtime_get(bid, platform, "survival", {})
-    if not state.get("open"):
-        return {"ok": False, "error": "🧟 Não há uma sobrevivência ativa."}
-    if expected_started_at is not None and float(state.get("started_at", 0)) != float(expected_started_at):
-        return {"ok": False, "stale": True}
-    players = list(state.get("players") or [])
-    alive = [u for u in players if state.get("alive", {}).get(u, False)]
-    if len(alive) > 2:
-        random.shuffle(alive)
-        for u in alive[2:]:
-            state.setdefault("alive", {})[u] = False
-        alive = alive[:2]
-    prize = max(0, int(state.get("prize", 50)))
-    winners = []
-    for u in alive:
-        _adjust_points(bid, u, prize, platform)
-        winners.append((u, prize))
-    state["open"] = False
-    state["finished_at"] = time.time()
-    state["winners"] = [u for u, _ in winners]
-    _runtime_set(bid, platform, "survival", state)
-    forget_rankings(bid)
-    return {"ok": True, "winners": winners, "players": players, "dead": [u for u in players if not state.get("alive", {}).get(u, False)], "prize": prize}
+    return {
+        "ok": True,
+        "done": chapter >= SURVIVAL_STORY_CHAPTERS,
+        "event": event,
+        "state": state,
+        "chapter": chapter,
+        "dead_this_chapter": dead,
+        "alive_count": len(alive_after),
+    }
 
 def _mention_name(username):
     return f"@{str(username).lstrip('@')}"

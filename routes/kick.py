@@ -1550,8 +1550,9 @@ def _process_chat(payload, send_chat=None):
                 return
             send_chat(
                 bid,
-                "🧟 SOBREVIVÊNCIA ABERTA! Você tem 90s para entrar. Digite !sobreviver. "
-                "Depois dos 90s, quem entrou entrou: começam 3 capítulos e o resultado!",
+                f"🧟 SOBREVIVÊNCIA ABERTA em {result.get('location', 'um local desconhecido')}! "
+                "Você tem 90s para entrar. Digite !sobreviver. "
+                "Depois dos 90s, quem entrou entrou: 3 capítulos, 2 ações e 1 morte por capítulo!",
             )
             _schedule_join_timer(_SURVIVAL_JOIN_TIMERS, bid, platform, _start_survival_after_join_window, "SURVIVAL-JOIN")
             return
