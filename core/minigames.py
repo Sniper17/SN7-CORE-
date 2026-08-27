@@ -1,5 +1,6 @@
 import json
 import random
+import re
 import time
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -536,6 +537,123 @@ def _runtime_set(bid, platform, game, state):
             time.monotonic() + _RUNTIME_CACHE_TTL,
             deepcopy(clean_state),
         )
+
+
+# Banco de perguntas do Quiz. Mantemos as perguntas no Core para que o comando
+# não dependa de arquivos externos nem de consultas ao PostgreSQL para cada rodada.
+QUIZ_QUESTIONS = {
+    "geral": (
+        ("Qual é o maior planeta do Sistema Solar?", "jupiter"),
+        ("Quantos lados tem um hexágono?", "6"),
+        ("Qual é a capital do Brasil?", "brasilia"),
+        ("Qual é o maior oceano da Terra?", "pacifico"),
+        ("Quantos continentes são tradicionalmente considerados no modelo de sete continentes?", "7"),
+    ),
+    "warzone": (
+        ("Qual é o objetivo principal de uma partida de Battle Royale em Warzone?", "sobreviver"),
+        ("Em Warzone, o que acontece quando o jogador fica fora da área segura por muito tempo?", "sofre dano"),
+        ("Qual equipamento é usado para recuperar placas de blindagem em Warzone?", "placas"),
+        ("Como é chamada a área que vai diminuindo e força os jogadores a se aproximarem em Warzone?", "gas"),
+        ("Em Warzone, qual recurso é usado como moeda para comprar itens nas estações de compra?", "dinheiro"),
+    ),
+    "cod": (
+        ("Qual é o nome da série de jogos à qual Warzone pertence?", "call of duty"),
+        ("Qual desenvolvedora é conhecida por criar a série Call of Duty: Black Ops?", "treyarch"),
+        ("Qual é o modo clássico de Call of Duty em que duas equipes disputam eliminações por pontuação?", "team deathmatch"),
+        ("Qual é o nome da franquia de zumbis presente em vários jogos Call of Duty?", "zombies"),
+        ("Qual é a sigla normalmente usada para a série Call of Duty?", "cod"),
+    ),
+    "futebol": (
+        ("Quantos jogadores cada equipe começa tendo em campo no futebol de 11?", "11"),
+        ("Quantos minutos tem o tempo regulamentar de uma partida de futebol, sem acréscimos?", "90"),
+        ("Qual cartão indica expulsão no futebol?", "vermelho"),
+        ("Qual posição pode usar as mãos dentro da própria área?", "goleiro"),
+        ("Quantos períodos formam uma partida de futebol?", "2"),
+    ),
+}
+
+QUIZ_THEME_ALIASES = {
+    "geral": "geral",
+    "aleatorio": "geral",
+    "aleatório": "geral",
+    "warzone": "warzone",
+    "wz": "warzone",
+    "cod": "cod",
+    "callofduty": "cod",
+    "call": "cod",
+    "futebol": "futebol",
+    "fut": "futebol",
+}
+
+def _normalize_quiz_answer(value):
+    """Normaliza respostas para comparação sem alterar o texto exibido."""
+    import unicodedata
+    text = str(value or "").strip().lower()
+    text = "".join(
+        char for char in unicodedata.normalize("NFD", text)
+        if unicodedata.category(char) != "Mn"
+    )
+    return re.sub(r"[^a-z0-9]+", "", text)
+
+def quiz_start(bid, theme=None, platform="kick"):
+    """Abre um quiz persistido por canal/plataforma."""
+    if not _game_allowed(bid, platform, "quiz"):
+        return {"ok": False, "error": "🧠 O Quiz está desativado nesta plataforma."}
+
+    requested = _normalize_quiz_answer(theme or "geral")
+    selected_theme = QUIZ_THEME_ALIASES.get(requested)
+    if not selected_theme:
+        available = " • ".join(("geral", "warzone", "cod", "futebol"))
+        return {
+            "ok": False,
+            "error": f"🧠 Tema não encontrado. Temas: {available}. Ex.: !quiz warzone",
+        }
+
+    state = _runtime_get(bid, platform, "quiz", {})
+    if state.get("open"):
+        current = state.get("theme", "geral")
+        return {
+            "ok": False,
+            "error": f"🧠 Já existe um quiz aberto ({current}). Responda com !resposta antes de iniciar outro.",
+        }
+
+    question, answer = random.choice(QUIZ_QUESTIONS[selected_theme])
+    state = {
+        "open": True,
+        "theme": selected_theme,
+        "question": question,
+        "answer": _normalize_quiz_answer(answer),
+        "started_at": time.time(),
+    }
+    _runtime_set(bid, platform, "quiz", state)
+    return {"ok": True, "state": state}
+
+def quiz_answer(bid, username, answer, platform="kick", user_id=None, prize=300):
+    """Confere a resposta do quiz persistido e encerra a rodada ao acertar."""
+    state = _runtime_get(bid, platform, "quiz", {})
+    if not state.get("open"):
+        return {"ok": False, "error": "🧠 Não há quiz aberto."}
+
+    normalized = _normalize_quiz_answer(answer)
+    if not normalized:
+        return {"ok": False, "error": "🧠 Use !resposta <sua resposta>."}
+
+    if normalized == state.get("answer"):
+        _adjust_points(bid, username, prize, platform, user_id)
+        state["open"] = False
+        _runtime_set(bid, platform, "quiz", state)
+        return {
+            "ok": True,
+            "correct": True,
+            "points": prize,
+            "theme": state.get("theme", "geral"),
+        }
+
+    return {
+        "ok": True,
+        "correct": False,
+        "theme": state.get("theme", "geral"),
+    }
 
 def start_poll(bid,username,question,options,platform="kick"):
     if not _game_allowed(bid,platform,"polls"): return {"ok":False,"error":"📊 Enquetes estão desativadas nesta plataforma."}

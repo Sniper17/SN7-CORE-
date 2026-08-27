@@ -21,7 +21,7 @@ SYSTEM = {
     "poll": ("!enquete", "Cria uma enquete. Use pergunta | opção 1 | opção 2.", "minigames", "📊 $(poll_result)"),
     "vote": ("!votar", "Vota na enquete aberta.", "minigames", "📊 $(vote_result)"),
     "poll_close": ("!fecharenquete", "Fecha a enquete atual.", "admin", "📊 $(poll_result)"),
-    "quiz": ("!quiz", "Inicia um quiz rápido.", "minigames", "🧠 $(quiz_result)"),
+    "quiz": ("!quiz", "Inicia um quiz. Use !quiz warzone, !quiz futebol, !quiz cod ou !quiz geral.", "minigames", "🧠 $(quiz_result)"),
     "quiz_answer": ("!resposta", "Responde ao quiz atual.", "minigames", "🧠 $(quiz_result)"),
     "race": ("!corrida", "Entra na corrida da live.", "minigames", "🏃 $(race_result)"),
     "race_finish": ("!finalizacorrida", "Finaliza a corrida atual.", "admin", "🏁 $(race_result)"),

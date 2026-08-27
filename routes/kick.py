@@ -1537,15 +1537,43 @@ def _process_chat(payload, send_chat=None):
             st=result["state"]; counts=result["counts"]; send_chat(bid,"📊 Resultado: " + " • ".join(f"{o}: {counts[i]}" for i,o in enumerate(st["options"]))); return
 
         if key in {"quiz","quiz_answer"}:
-            questions=[("Qual é o maior planeta do Sistema Solar?", "jupiter"),("Quantos lados tem um hexágono?", "6"),("Qual é a capital do Brasil?", "brasilia")]
-            state=_runtime_get(bid,platform,"quiz",{})
-            if key=="quiz":
-                q,a=random.choice(questions); state={"open":True,"question":q,"answer":a}; _runtime_set(bid,platform,"quiz",state); send_chat(bid,f"🧠 QUIZ: {q} Use {find_command(bid,'!resposta')['command'] if find_command(bid,'!resposta') else '!resposta'} sua resposta!"); return
-            if not state.get("open"): send_chat(bid,"🧠 Não há quiz aberto."); return
-            answer=" ".join(args).strip().lower().replace("á","a").replace("ã","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u").replace(" ","")
-            if answer==state.get("answer"):
-                _adjust_points(bid,user,300,platform,uid); state["open"]=False; _runtime_set(bid,platform,"quiz",state); send_chat(bid,f"🧠 🎉 {_mention(user)} acertou e ganhou 300 {currency}!");
-            else: send_chat(bid,f"🧠 {_mention(user)} errou. Tente novamente!")
+            from core.minigames import quiz_start, quiz_answer
+
+            if key == "quiz":
+                theme = " ".join(args).strip() or "geral"
+                result = quiz_start(bid, theme, platform)
+                if not result.get("ok"):
+                    send_chat(bid, result.get("error", "🧠 Não foi possível iniciar o quiz."))
+                    return
+
+                state = result["state"]
+                answer_command = find_command(bid, "!resposta")
+                answer_cmd = answer_command["command"] if answer_command else "!resposta"
+                send_chat(
+                    bid,
+                    f"🧠 QUIZ {state.get('theme', 'geral').upper()}: {state['question']} "
+                    f"Use {answer_cmd} sua resposta!",
+                )
+                return
+
+            result = quiz_answer(
+                bid,
+                user,
+                " ".join(args),
+                platform,
+                uid,
+            )
+            if not result.get("ok"):
+                send_chat(bid, result.get("error", "🧠 Não foi possível processar a resposta."))
+                return
+
+            if result.get("correct"):
+                send_chat(
+                    bid,
+                    f"🧠 🎉 {_mention(user)} acertou e ganhou {result.get('points', 300)} {currency}!",
+                )
+            else:
+                send_chat(bid, f"🧠 {_mention(user)} errou. Tente novamente!")
             return
 
         if key == "race":
@@ -1933,7 +1961,6 @@ def _process_chat(payload, send_chat=None):
                                 "Nenhum ponto foi removido."
                             )
                         else:
-                            import random
                             winner = challenger if random.choice([True, False]) else defender
                             loser = defender if winner == challenger else challenger
 
