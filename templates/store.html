@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>Loja · SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.53-minigames-stable">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.57-loja-platform-stable">
 <style>
   .sn7-store-page{width:100%;max-width:1080px;margin:0 auto}
   .sn7-store-hero{position:relative;overflow:hidden;padding:34px;min-height:300px;display:flex;align-items:center;background:radial-gradient(700px 260px at 82% 0%,rgba(155,140,255,.14),transparent 62%),linear-gradient(145deg,#141923,#0e1219 75%);border:1px solid var(--border);border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.035)}
@@ -80,9 +80,19 @@
   @media(max-width:900px){.sn7-store-items-grid{grid-template-columns:1fr 1fr}}@media(max-width:700px){.sn7-store-items-grid{grid-template-columns:1fr}.sn7-store-login{align-items:flex-start;flex-wrap:wrap}.sn7-store-primary-link{margin-left:0}.sn7-shop-history-row{grid-template-columns:1fr 1fr}.sn7-store-wallet{margin-top:8px}}
   .sn7-store-upload-mini{display:block;margin-top:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.06);border-radius:9px;color:#8e98a8;font-size:9px;cursor:pointer;background:rgba(255,255,255,.02)}.sn7-store-upload-mini input{display:block;margin-top:5px;width:100%;font-size:9px}
 
+
+  .sn7-store-public-body{margin:0;min-height:100vh;background:radial-gradient(900px 420px at 50% -100px,rgba(126,87,255,.10),transparent 70%),#0b0d12;color:#eef0f6}
+  .sn7-store-public-body .sn7-store-page{max-width:980px;padding:28px 18px 42px;box-sizing:border-box}
+  .sn7-store-public-body .sn7-store-hero{min-height:220px;border-radius:22px}
+  .sn7-store-public-body .sn7-store-builder{margin-top:14px}
+  .sn7-store-login-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+  .sn7-store-secondary-link{background:rgba(255,255,255,.035)!important;border-color:rgba(255,255,255,.10)!important}
+  .sn7-store-public-body .sn7-store-safe{display:none}
+  @media(max-width:700px){.sn7-store-public-body .sn7-store-page{padding:14px 10px 28px}.sn7-store-public-body .sn7-store-hero{border-radius:18px}.sn7-store-login-options{grid-template-columns:1fr}}
 </style>
 </head>
-<body>
+<body class="{% if broadcaster_id %}sn7-store-admin-body{% else %}sn7-store-public-body{% endif %}">
+{% if broadcaster_id %}
 <div class="layout">
   <aside class="sidebar">
     <div class="brand"><span class="brand-mark">SN7</span><span class="brand-core">CORE</span></div>
@@ -140,7 +150,7 @@
     <div class="sn7-store-page">
       <section class="sn7-store-hero">
         <div class="sn7-store-copy">
-          <span class="sn7-store-badge">Loja SN7 Core</span>
+          <span class="sn7-store-badge">LOJA DO CANAL</span>
           <div class="sn7-store-title">
             <span class="sn7-store-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 9.5h16l-1 10H5l-1-10Z"/><path d="M7 9.5V7a5 5 0 0 1 10 0v2.5"/><path d="M8.5 13h.1M12 13h.1M15.5 13h.1"/></svg></span>
             <h2 id="store-title">Loja do canal</h2>
@@ -183,7 +193,15 @@
       <section class="sn7-store-builder" id="store-public" {% if broadcaster_id %}hidden{% endif %}>
         <div class="sn7-store-builder-head"><div><div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.2 10.2c.8-1.1 4.8-1.1 5.6.3.9 1.7-1.1 2.4-2.8 2.7-1.7.3-3.7.8-2.9 2.5.7 1.5 4.9 1.6 5.8.1"/></svg></div><div><strong>Recompensas disponíveis</strong><p>Use seus pontos neste canal para resgatar os itens.</p></div></div><div id="public-wallet" class="sn7-store-wallet">—</div></div>
         <div id="public-items" class="sn7-store-items-grid"></div>
-        <div id="public-login" class="sn7-store-login" hidden><strong>Quer resgatar?</strong><span>Entre com sua conta Kick para usar os seus pontos neste canal.</span><a id="store-login-link" class="sn7-store-primary-link" href="#">Entrar nesta Loja com Kick</a></div>
+        <div id="public-login" class="sn7-store-login" hidden>
+          <strong>Quer resgatar?</strong>
+          <span>Entre na plataforma em que você acompanha esta live para usar os pontos desse canal.</span>
+          <div class="sn7-store-login-options">
+            <a id="store-login-kick" class="sn7-store-primary-link" href="#">🟢 Entrar com Kick</a>
+            <a id="store-login-youtube" class="sn7-store-primary-link sn7-store-secondary-link" href="#">🔴 Entrar com YouTube</a>
+            <a id="store-login-twitch" class="sn7-store-primary-link sn7-store-secondary-link" href="#">🟣 Entrar com Twitch</a>
+          </div>
+        </div>
       </section>
 
       <section class="sn7-store-builder" id="store-history" {% if not broadcaster_id %}hidden{% endif %}>
@@ -192,8 +210,8 @@
       </section>
       <div class="sn7-store-safe"><strong>🔒 Carteiras separadas por canal:</strong> cada viewer mantém um saldo próprio em cada streamer. A Loja não cria nem substitui o sistema atual de pontos.</div>
     </div>
-
-</div>
+</main></div>
+{% endif %}
 
 <script>
 (function(){
@@ -216,10 +234,43 @@
       const d=await api(`/api/store/${encodeURIComponent(target)}/public`);
       $('store-title').textContent=`Loja de ${d.channel.username}`;
       $('store-subtitle').textContent='Recompensas da comunidade, resgatadas com os pontos conquistados na live.';
-      if(d.viewer){setViewerText(`Conta conectada: ${d.viewer.username}`); if($('public-wallet'))$('public-wallet').textContent=`✦ ${(d.wallet?.points||0).toLocaleString('pt-BR')} pontos`;}
-      else {setViewerText('Entre com sua conta Kick para resgatar recompensas.'); if($('public-login')){$('public-login').hidden=false;$('store-login-link').href=`/kick/store-login?channel=${encodeURIComponent(target)}`}}
+      if(d.viewer){
+        const platformLabel = ({kick:'Kick',youtube:'YouTube',twitch:'Twitch'}[d.viewer.platform] || 'plataforma');
+        setViewerText(`Conta conectada: ${d.viewer.username} · ${platformLabel}`);
+        if($('public-wallet'))$('public-wallet').textContent=`✦ ${(d.wallet?.points||0).toLocaleString('pt-BR')} pontos`;
+        if($('public-login'))$('public-login').hidden=true;
+      } else {
+        setViewerText('Entre com Kick, YouTube ou Twitch para resgatar recompensas.');
+        if($('public-wallet'))$('public-wallet').textContent='Entre para ver seus pontos';
+        if($('public-login')){
+          $('public-login').hidden=false;
+          const t=encodeURIComponent(target);
+          $('store-login-kick').href=`/kick/store-login?channel=${t}`;
+          $('store-login-youtube').href=`/youtube/login?store=1&channel=${t}`;
+          $('store-login-twitch').href=`/twitch/login?store=1&channel=${t}`;
+        }
+      }
       $('public-items').innerHTML=d.items.length?d.items.map(i=>itemCard(i,false)).join(''):'<div class="sn7-store-empty">Este canal ainda não adicionou recompensas.</div>';
-      $('public-items').querySelectorAll('[data-redeem]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await api(`/api/store/${encodeURIComponent(target)}/redeem/${b.dataset.redeem}`,{method:'POST',body:'{}'});alert(`Resgate realizado! Seu saldo agora é ${r.points.toLocaleString('pt-BR')} pontos.`);loadPublic()}catch(e){if(e.status===401){if($('public-login')){$('public-login').hidden=false;$('store-login-link').href=`/kick/store-login?channel=${encodeURIComponent(target)}`}}else alert(e.message);b.disabled=false}});
+      $('public-items').querySelectorAll('[data-redeem]').forEach(b=>b.onclick=async()=>{
+        b.disabled=true;
+        try{
+          const r=await api(`/api/store/${encodeURIComponent(target)}/redeem/${b.dataset.redeem}`,{method:'POST',body:'{}'});
+          setViewerText('Resgate realizado com sucesso!');
+          if($('public-wallet'))$('public-wallet').textContent=`✦ ${(r.points||0).toLocaleString('pt-BR')} pontos`;
+          await loadPublic();
+        }catch(e){
+          if(e.status===401){
+            if($('public-login')){
+              $('public-login').hidden=false;
+              const t=encodeURIComponent(target);
+              $('store-login-kick').href=`/kick/store-login?channel=${t}`;
+              $('store-login-youtube').href=`/youtube/login?store=1&channel=${t}`;
+              $('store-login-twitch').href=`/twitch/login?store=1&channel=${t}`;
+            }
+          } else alert(e.message);
+          b.disabled=false;
+        }
+      });
     }catch(e){setViewerText(e.message);$('public-items').innerHTML='<div class="sn7-store-empty">Não foi possível carregar esta loja.</div>'}
   }
   async function loadAdmin(){

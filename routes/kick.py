@@ -2905,7 +2905,10 @@ def callback():
             username = str(user.get("username") or user.get("slug") or user.get("channel_slug") or user.get("name") or user.get("display_name") or "Kick").strip()
             avatar = str(user.get("profile_picture") or user.get("profile_picture_url") or user.get("profile_pic") or user.get("avatar_url") or "").strip()
             session["sn7_store_viewer"] = {
-                "kick_user_id": kick_user_id, "username": username,
+                "platform": "kick",
+                "kick_user_id": kick_user_id,
+                "external_user_id": str(kick_user_id),
+                "username": username,
                 "profile_picture_url": avatar,
             }
             session.permanent = True

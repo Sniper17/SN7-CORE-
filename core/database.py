@@ -93,6 +93,12 @@ ON store_redemptions(broadcaster_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_store_redemptions_viewer
 ON store_redemptions(viewer_kick_user_id, broadcaster_user_id, created_at DESC);
 
+ALTER TABLE store_redemptions ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'kick';
+ALTER TABLE store_redemptions ADD COLUMN IF NOT EXISTS viewer_external_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE store_redemptions ALTER COLUMN viewer_kick_user_id DROP NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_store_redemptions_platform_viewer
+ON store_redemptions(broadcaster_user_id, platform, viewer_external_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS store_audio_queue (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT NOT NULL,
@@ -108,6 +114,12 @@ CREATE TABLE IF NOT EXISTS store_audio_queue (
 );
 CREATE INDEX IF NOT EXISTS idx_store_audio_queue_channel
 ON store_audio_queue(broadcaster_user_id, status, id);
+
+ALTER TABLE store_audio_queue ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'kick';
+ALTER TABLE store_audio_queue ADD COLUMN IF NOT EXISTS viewer_external_id TEXT NOT NULL DEFAULT '';
+ALTER TABLE store_audio_queue ALTER COLUMN viewer_kick_user_id DROP NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_store_audio_queue_platform
+ON store_audio_queue(broadcaster_user_id, platform, status, id);
 
 CREATE TABLE IF NOT EXISTS custom_commands (
     id BIGSERIAL PRIMARY KEY,

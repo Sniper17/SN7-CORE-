@@ -26,7 +26,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.56-loja-stable"
+SN7_VERSION = "1.9.57-loja-platform-stable"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 
@@ -183,9 +183,13 @@ def store_audio_player(target):
     if not channel:
         return jsonify({"ok": False, "error": "Loja/canal não encontrado."}), 404
     token = request.args.get("token", "")
-    if not validate_audio_player_token(token, channel["broadcaster_user_id"]):
-        return jsonify({"ok": False, "error": "Player de áudio não autorizado ou expirado."}), 401
-    return render_template("store_audio_player.html", broadcaster_id=int(channel["broadcaster_user_id"]))
+    authorized = validate_audio_player_token(token, channel["broadcaster_user_id"])
+    return render_template(
+        "store_audio_player.html",
+        broadcaster_id=int(channel["broadcaster_user_id"]),
+        player_authorized=bool(authorized),
+        player_channel=str(channel.get("username") or target),
+    ), (200 if authorized else 401)
 
 
 @app.get("/privacy")

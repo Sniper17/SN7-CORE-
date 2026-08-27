@@ -44,16 +44,82 @@ def _audio_access_ok(broadcaster_id):
         return validate_audio_player_token(request.args.get("token"), broadcaster_id)
 
 
+def _music_duck(broadcaster_id, duck_percent=0.18):
+    """Reduz temporariamente o volume da música enquanto um áudio da Loja toca.
+
+    Retorna o volume anterior e o volume aplicado. O player restaura somente
+    se o volume ainda estiver no valor aplicado, evitando sobrescrever uma
+    alteração manual feita pelo streamer durante o resgate.
+    """
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT volume, is_playing
+                  FROM music_player_state
+                 WHERE broadcaster_user_id=%s
+                 FOR UPDATE
+            """, (int(broadcaster_id),))
+            row = cur.fetchone()
+            if not row:
+                return {"active": False, "original_volume": None, "ducked_volume": None}
+            original = max(0, min(100, int(row[0] or 0)))
+            if not bool(row[1]):
+                return {"active": False, "original_volume": original, "ducked_volume": original}
+            ducked = max(0, min(100, int(round(original * float(duck_percent)))))
+            if ducked >= original and original > 0:
+                ducked = max(0, original - 1)
+            cur.execute("""
+                UPDATE music_player_state
+                   SET volume=%s, updated_at=NOW()
+                 WHERE broadcaster_user_id=%s
+            """, (ducked, int(broadcaster_id)))
+        conn.commit()
+        return {"active": True, "original_volume": original, "ducked_volume": ducked}
+    finally:
+        conn.close()
+
+
+def _music_restore(broadcaster_id, original_volume, ducked_volume):
+    try:
+        original = max(0, min(100, int(original_volume)))
+        ducked = max(0, min(100, int(ducked_volume)))
+    except (TypeError, ValueError):
+        return False
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE music_player_state
+                   SET volume=%s, updated_at=NOW()
+                 WHERE broadcaster_user_id=%s
+                   AND volume=%s
+            """, (original, int(broadcaster_id), ducked))
+            changed = cur.rowcount
+        conn.commit()
+        return bool(changed)
+    finally:
+        conn.close()
+
+
 def _viewer():
     raw = session.get("sn7_store_viewer")
     if not isinstance(raw, dict):
         return None
     try:
-        uid = int(raw.get("kick_user_id"))
+        uid = int(raw.get("kick_user_id")) if raw.get("kick_user_id") not in (None, "") else None
     except (TypeError, ValueError):
-        return None
-    return {"kick_user_id": uid, "username": str(raw.get("username") or "Kick"),
-            "profile_picture_url": str(raw.get("profile_picture_url") or "")}
+        uid = None
+    platform = str(raw.get("platform") or "kick").strip().lower()
+    if platform not in {"kick", "twitch", "youtube"}:
+        platform = "kick"
+    return {
+        "kick_user_id": uid,
+        "external_user_id": str(raw.get("external_user_id") or uid),
+        "platform": platform,
+        "username": str(raw.get("username") or platform.title()),
+        "profile_picture_url": str(raw.get("profile_picture_url") or ""),
+    }
 
 
 def _resolve_channel(target):
@@ -113,18 +179,25 @@ def _channel_items(bid, include_inactive=False):
 
 
 def _wallet(bid, viewer):
+    platform = str(viewer.get("platform") or "kick").lower()
+    username = str(viewer.get("username") or "").strip()
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT id,username,points
                   FROM players
-                 WHERE broadcaster_user_id=%s AND platform='kick' AND kick_user_id=%s
+                 WHERE broadcaster_user_id=%s
+                   AND platform=%s
+                   AND LOWER(username)=LOWER(%s)
+                 ORDER BY id DESC
                  LIMIT 1
-            """, (int(bid), int(viewer["kick_user_id"])))
+            """, (int(bid), platform, username))
             row = cur.fetchone()
-            return ({"player_id": int(row[0]), "username": str(row[1] or viewer["username"]), "points": int(row[2] or 0)}
-                    if row else {"player_id": None, "username": viewer["username"], "points": 0})
+            return (
+                {"player_id": int(row[0]), "username": str(row[1] or username), "points": int(row[2] or 0)}
+                if row else {"player_id": None, "username": username, "points": 0}
+            )
     finally:
         conn.close()
 
@@ -257,8 +330,10 @@ def redeem(target,item_id):
     channel=_resolve_channel(target)
     viewer=_viewer()
     if not channel: return jsonify({"ok":False,"error":"Loja/canal não encontrado."}),404
-    if not viewer: return jsonify({"ok":False,"error":"Faça login com sua conta Kick para resgatar."}),401
+    if not viewer: return jsonify({"ok":False,"error":"Faça login com uma plataforma para resgatar."}),401
     bid=channel["broadcaster_user_id"]
+    platform = str(viewer.get("platform") or "kick").lower()
+    username = str(viewer.get("username") or "").strip()
     conn=get_conn()
     try:
         with conn.cursor() as cur:
@@ -269,12 +344,15 @@ def redeem(target,item_id):
             price=int(item[6]); stock=item[7]
             if stock is not None and int(stock)<=0: return jsonify({"ok":False,"error":"Item esgotado."}),409
             cur.execute("""SELECT id,username,points FROM players
-                           WHERE broadcaster_user_id=%s AND platform='kick' AND kick_user_id=%s
-                           FOR UPDATE""",(int(bid),int(viewer["kick_user_id"])))
+                           WHERE broadcaster_user_id=%s AND platform=%s AND LOWER(username)=LOWER(%s)
+                           ORDER BY id DESC LIMIT 1
+                           FOR UPDATE""",(int(bid),platform,username))
             wallet=cur.fetchone()
             if not wallet:
+                kick_uid = viewer.get("kick_user_id") if platform == "kick" else None
                 cur.execute("""INSERT INTO players(broadcaster_user_id,platform,kick_user_id,username)
-                               VALUES(%s,'kick',%s,%s) RETURNING id,username,points FOR UPDATE""",(int(bid),int(viewer["kick_user_id"]),viewer["username"]))
+                               VALUES(%s,%s,%s,%s) RETURNING id,username,points FOR UPDATE""",
+                            (int(bid),platform,kick_uid,username))
                 wallet=cur.fetchone()
             points=int(wallet[2] or 0)
             if points<price: return jsonify({"ok":False,"error":f"Você precisa de {price} pontos. Saldo: {points}."}),409
@@ -283,12 +361,18 @@ def redeem(target,item_id):
             new_stock=stock
             if stock is not None:
                 cur.execute("UPDATE store_items SET stock=stock-1,updated_at=NOW() WHERE id=%s RETURNING stock",(int(item_id),)); new_stock=int(cur.fetchone()[0])
-            cur.execute("""INSERT INTO store_redemptions(broadcaster_user_id,item_id,viewer_kick_user_id,viewer_username,price,status)
-                           VALUES(%s,%s,%s,%s,%s,'queued') RETURNING id""",(int(bid),int(item_id),int(viewer["kick_user_id"]),viewer["username"],price))
+            cur.execute("""INSERT INTO store_redemptions
+                           (broadcaster_user_id,item_id,platform,viewer_external_id,viewer_kick_user_id,viewer_username,price,status)
+                           VALUES(%s,%s,%s,%s,%s,%s,%s,'queued') RETURNING id""",
+                        (int(bid),int(item_id),platform,str(viewer.get("external_user_id") or ""),
+                         viewer.get("kick_user_id") if platform == "kick" else None,username,price))
             redemption_id=int(cur.fetchone()[0])
             if item[1]=='audio':
-                cur.execute("""INSERT INTO store_audio_queue(broadcaster_user_id,redemption_id,item_id,viewer_kick_user_id,viewer_username,audio_url)
-                               VALUES(%s,%s,%s,%s,%s,%s)""",(int(bid),redemption_id,int(item_id),int(viewer["kick_user_id"]),viewer["username"],item[5]))
+                cur.execute("""INSERT INTO store_audio_queue
+                               (broadcaster_user_id,redemption_id,item_id,platform,viewer_external_id,viewer_kick_user_id,viewer_username,audio_url)
+                               VALUES(%s,%s,%s,%s,%s,%s,%s,%s)""",
+                            (int(bid),redemption_id,int(item_id),platform,str(viewer.get("external_user_id") or ""),
+                             viewer.get("kick_user_id") if platform == "kick" else None,username,item[5]))
         conn.commit()
     finally: conn.close()
     return jsonify({"ok":True,"redemption_id":redemption_id,"points":new_points,"stock":new_stock,"item_id":int(item_id)})
@@ -301,12 +385,18 @@ def redemptions(broadcaster_id):
     conn=get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("""SELECT r.id,r.item_id,i.name,i.item_type,r.viewer_kick_user_id,r.viewer_username,r.price,r.status,r.created_at
+            cur.execute("""SELECT r.id,r.item_id,i.name,i.item_type,r.platform,r.viewer_external_id,r.viewer_kick_user_id,r.viewer_username,r.price,r.status,r.created_at
                             FROM store_redemptions r JOIN store_items i ON i.id=r.item_id
                            WHERE r.broadcaster_user_id=%s ORDER BY r.id DESC LIMIT %s""",(int(broadcaster_id),limit))
             rows=cur.fetchall()
     finally: conn.close()
-    return jsonify({"ok":True,"redemptions":[{"id":int(r[0]),"item_id":int(r[1]),"name":r[2],"item_type":r[3],"viewer_kick_user_id":int(r[4]),"viewer_username":r[5],"price":int(r[6]),"status":r[7],"created_at":r[8].isoformat()} for r in rows]})
+    return jsonify({"ok":True,"redemptions":[
+        {"id":int(r[0]),"item_id":int(r[1]),"name":r[2],"item_type":r[3],
+         "platform":str(r[4] or "kick"),"viewer_external_id":str(r[5] or ""),
+         "viewer_kick_user_id":(int(r[6]) if r[6] is not None else None),
+         "viewer_username":r[7],"price":int(r[8]),"status":r[9],"created_at":r[10].isoformat()}
+        for r in rows
+    ]})
 
 
 @store_bp.get("/<int:broadcaster_id>/audio/player-token")
@@ -321,6 +411,27 @@ def audio_player_token(broadcaster_id):
     from urllib.parse import quote
     player_url = f"{public_url}/loja/{quote(target, safe='')}/audio-player?token={quote(token, safe='')}"
     return jsonify({"ok": True, "token": token, "player_url": player_url, "expires_in": 30 * 24 * 60 * 60})
+
+
+@store_bp.post("/<int:broadcaster_id>/audio/duck")
+def audio_duck(broadcaster_id):
+    if not _audio_access_ok(broadcaster_id):
+        return jsonify({"ok": False, "error": "Player de áudio não autorizado."}), 401
+    try:
+        result = _music_duck(broadcaster_id)
+        return jsonify({"ok": True, **result})
+    except Exception as exc:
+        print(f"[STORE-AUDIO] duck falhou: {exc}", flush=True)
+        return jsonify({"ok": False, "error": "Não foi possível reduzir a música agora."}), 503
+
+
+@store_bp.post("/<int:broadcaster_id>/audio/restore")
+def audio_restore(broadcaster_id):
+    if not _audio_access_ok(broadcaster_id):
+        return jsonify({"ok": False, "error": "Player de áudio não autorizado."}), 401
+    data = request.get_json(silent=True) or {}
+    restored = _music_restore(broadcaster_id, data.get("original_volume"), data.get("ducked_volume"))
+    return jsonify({"ok": True, "restored": restored})
 
 
 @store_bp.get("/<int:broadcaster_id>/audio/next")

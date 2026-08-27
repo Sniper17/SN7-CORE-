@@ -169,15 +169,22 @@ def login():
     if not _configured():
         return _oauth_error("YOUTUBE_BOT_CLIENT_ID/YOUTUBE_BOT_CLIENT_SECRET não configurados no Render.", 503, "/?profile=1")
     state = secrets.token_urlsafe(32)
+    store_channel = str(request.args.get("channel") or "").strip()
+    store_viewer = bool(request.args.get("store") == "1" and store_channel)
     session["youtube_bot_oauth"] = {
         "state": state,
         "broadcaster_id": int(bid) if bid is not None else None,
         "created_at": int(time.time()),
+        "purpose": "store_viewer" if store_viewer else "profile",
+        "return_to": f"/loja/{store_channel}" if store_viewer else "/?profile=1",
     }
     params = {
         "client_id": _bot_credentials()[0], "redirect_uri": _redirect_uri(),
-        "response_type": "code", "scope": "https://www.googleapis.com/auth/youtube.force-ssl",
-        "access_type": "offline", "include_granted_scopes": "true", "prompt": "consent", "state": state,
+        "response_type": "code",
+        "scope": ("https://www.googleapis.com/auth/youtube.readonly"
+                  if store_viewer else "https://www.googleapis.com/auth/youtube.force-ssl"),
+        "access_type": "offline", "include_granted_scopes": "true",
+        "prompt": "consent", "state": state,
     }
     return redirect(f"{AUTH_URL}?{urlencode(params)}")
 
@@ -202,6 +209,19 @@ def callback():
         if response.status_code >= 400 or not token.get("access_token"):
             raise RuntimeError(token.get("error_description") or token.get("error") or "OAuth YouTube recusado.")
         profile = _youtube_profile(token["access_token"])
+
+        if state_data.get("purpose") == "store_viewer":
+            store_channel = str(state_data.get("return_to") or "/loja").strip()
+            if not store_channel.startswith("/loja/"):
+                store_channel = "/loja"
+            session["sn7_store_viewer"] = {
+                "platform": "youtube",
+                "external_user_id": str(profile.get("id") or ""),
+                "username": str((profile.get("snippet") or {}).get("title") or "YouTube").strip(),
+                "profile_picture_url": str(((profile.get("snippet") or {}).get("thumbnails") or {}).get("default", {}).get("url") or "").strip(),
+            }
+            session.permanent = True
+            return redirect(store_channel)
 
         bid = state_data.get("broadcaster_id")
         if bid is None:

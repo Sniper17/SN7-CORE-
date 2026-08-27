@@ -545,19 +545,21 @@ def login():
         )
 
     state = secrets.token_urlsafe(32)
+    store_channel = str(request.args.get("channel") or "").strip()
+    store_viewer = bool(request.args.get("store") == "1" and store_channel)
     session["twitch_oauth"] = {
         "state": state,
         "broadcaster_id": int(bid) if bid is not None else None,
         "created_at": int(time.time()),
+        "purpose": "store_viewer" if store_viewer else "profile",
+        "return_to": f"/loja/{store_channel}" if store_viewer else "/dashboard?profile=1",
     }
 
     params = {
         "client_id": cid,
         "redirect_uri": _redirect_uri(),
         "response_type": "code",
-        # Chat via EventSub Webhook: a criação da subscription usa APP
-        # access token, mas a conta precisa autorizar user:bot e channel:bot.
-        "scope": "user:read:chat user:write:chat user:bot channel:bot",
+        "scope": "user:read" if store_viewer else "user:read:chat user:write:chat user:bot channel:bot",
         "state": state,
     }
     return redirect(f"{TWITCH_OAUTH}/authorize?{urlencode(params)}")
@@ -589,6 +591,19 @@ def callback():
     try:
         token = _token_exchange(request.args.get("code"))
         user = _user(token["access_token"])
+
+        if oauth.get("purpose") == "store_viewer":
+            store_channel = str(oauth.get("return_to") or "/loja").strip()
+            if not store_channel.startswith("/loja/"):
+                store_channel = "/loja"
+            session["sn7_store_viewer"] = {
+                "platform": "twitch",
+                "external_user_id": str(user.get("id") or ""),
+                "username": str(user.get("login") or user.get("display_name") or "Twitch").strip(),
+                "profile_picture_url": str(user.get("profile_image_url") or "").strip(),
+            }
+            session.permanent = True
+            return redirect(store_channel)
 
         bid = oauth.get("broadcaster_id")
         if bid is None:
