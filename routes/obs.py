@@ -17,6 +17,13 @@ _overlay_rate = {}
 _OVERLAY_RATE_WINDOW = 10.0
 _OVERLAY_RATE_LIMIT = 80
 
+# O token do overlay é validado repetidamente enquanto o OBS está aberto.
+# Cache curtíssimo evita uma consulta ao PostgreSQL a cada polling sem deixar
+# uma conexão revogada válida por muito tempo.
+_overlay_token_lock = Lock()
+_overlay_token_cache = {}
+_OVERLAY_TOKEN_TTL = 10.0
+
 
 def _public_base_url():
     configured = request.headers.get('X-Forwarded-Proto')
@@ -62,6 +69,9 @@ def _save_connection(broadcaster_id, token):
         conn.commit()
     finally:
         conn.close()
+    with _overlay_token_lock:
+        # O token antigo pode ter sido substituído durante uma reconexão.
+        _overlay_token_cache.pop(str(token), None)
 
 
 def _allow_overlay_request(token):
@@ -86,6 +96,15 @@ def _find_by_token(token):
     token = str(token or '').strip()
     if not token or len(token) > 200:
         return None
+
+    now = time.monotonic()
+    with _overlay_token_lock:
+        cached = _overlay_token_cache.get(token)
+        if cached and cached[0] > now:
+            return dict(cached[1]) if cached[1] else None
+        if cached:
+            _overlay_token_cache.pop(token, None)
+
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -96,13 +115,25 @@ def _find_by_token(token):
             row = cur.fetchone()
     finally:
         conn.close()
-    if not row:
-        return None
-    return {
-        'broadcaster_user_id': int(row[0]),
-        'access_token': row[1],
-        'label': row[2] or 'SN7 Core',
-    }
+
+    value = None
+    if row:
+        value = {
+            'broadcaster_user_id': int(row[0]),
+            'access_token': row[1],
+            'label': row[2] or 'SN7 Core',
+        }
+
+    with _overlay_token_lock:
+        _overlay_token_cache[token] = (
+            now + _OVERLAY_TOKEN_TTL,
+            dict(value) if value else None,
+        )
+        if len(_overlay_token_cache) > 2048:
+            expired = [key for key, item in _overlay_token_cache.items() if item[0] <= now]
+            for key in expired[:256]:
+                _overlay_token_cache.pop(key, None)
+    return value
 
 
 def _snapshot_for_obs(broadcaster_id):

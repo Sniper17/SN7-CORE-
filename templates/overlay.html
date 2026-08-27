@@ -35,7 +35,8 @@
     spotifyReady:false, spotifyPlayer:null, spotifyDeviceId:null,
     spotifyState:null, spotifyInitPromise:null, spotifyToken:null,
     audio:null, audioUrl:null, lastEndedId:null, loadError:false,
-    lastSeekRevision:0, progressBusy:false, lastProgressSent:0, loadingCurrent:false
+    lastSeekRevision:0, progressBusy:false, lastProgressSent:0, loadingCurrent:false,
+    clockPosition:0, clockDuration:0, clockAt:0, clockRunning:false
   };
   const $ = id => document.getElementById(id);
   const fmt = value => {
@@ -52,6 +53,21 @@
       :"";
   }
 
+  function setClock(position, duration, playing){
+    state.clockPosition=Math.max(0,Number(position)||0);
+    state.clockDuration=Math.max(0,Number(duration)||0);
+    state.clockAt=performance.now();
+    state.clockRunning=!!playing && state.clockDuration>0;
+  }
+
+  function tickClock(){
+    if(!state.clockRunning || !state.clockDuration)return;
+    const elapsed=Math.max(0,performance.now()-state.clockAt);
+    const position=Math.min(state.clockDuration,state.clockPosition+elapsed);
+    renderProgress(position,state.clockDuration);
+    if(position>=state.clockDuration-900)finishCurrent();
+  }
+
   function render(snapshot){
     state.lastSnapshot=snapshot;
     const remoteVolume=Number(snapshot.state?.volume ?? 80);
@@ -59,7 +75,8 @@
     state.volume=remoteVolume;
     const current=snapshot.current;
     const playing=!!snapshot.state?.is_playing;
-    state.lastSeekRevision=Number(snapshot.state?.seek_revision ?? 0);
+    const remoteSeekRevision=Number(snapshot.state?.seek_revision ?? 0);
+    const seekChanged=remoteSeekRevision!==state.lastSeekRevision;
 
     $("title").textContent=current?.title||"Aguardando música";
     $("artist").textContent=current?.artist||"A fila está pronta.";
@@ -89,13 +106,22 @@
         state.playing=playing;
         syncPlaying(playing).catch(()=>{});
       }
-      applySeekIfNeeded(snapshot).catch(()=>{});
       const p=Number(snapshot.state?.position_ms||0);
       const d=Number(snapshot.state?.duration_ms||0);
-      if(d){
-        $("bar").style.width=`${Math.min(100,p/d*100)}%`;
-        $("elapsed").textContent=fmt(p/1000);
-        $("duration").textContent=fmt(d/1000);
+      applySeekIfNeeded(snapshot).catch(()=>{});
+      // O snapshot do PostgreSQL é usado como sincronização, não como relógio.
+      // A barra avança localmente entre os snapshots para ficar realmente em
+      // tempo real e não "pular" para trás a cada consulta do backend.
+      if(!playing){
+        setClock(p,d,false);
+        renderProgress(p,d);
+      }else if(seekChanged || !state.clockRunning || Math.abs(
+        p-(state.clockPosition+Math.max(0,performance.now()-state.clockAt))
+      )>2500){
+        setClock(p,d,true);
+        renderProgress(p,d);
+      }else if(d && d!==state.clockDuration){
+        setClock(Math.min(p,d),d,true);
       }
     }
   }
@@ -112,7 +138,8 @@
     if(state.spotifyPlayer){try{state.spotifyPlayer.pause()}catch(_){}}
     if(state.audio){try{state.audio.pause();state.audio.removeAttribute("src");state.audio.load()}catch(_){}}
     state.currentId=null; state.provider=null; state.audioUrl=null; state.loadError=false;
-    state.playing=false; state.lastSeekRevision=0;
+    state.playing=false; state.lastSeekRevision=0; state.clockRunning=false;
+    state.clockPosition=0; state.clockDuration=0; state.clockAt=0;
   }
 
   function getYouTubeId(url){
@@ -249,6 +276,7 @@
         const duration=Number(track?.duration_ms||ps.duration||0);
         const position=Number(ps.position||0);
         updatePlaying(!ps.paused);
+        setClock(position,duration,!ps.paused);
         renderProgress(position,duration);
         syncProgress(position,duration);
       });
@@ -281,9 +309,17 @@
             if(state.lastSnapshot?.state?.is_playing)e.target.playVideo();
           },
           onStateChange:e=>{
-            if(e.data===0)finishCurrent();
-            if(e.data===1)updatePlaying(true);
-            if(e.data===2)updatePlaying(false);
+            if(e.data===0){state.clockRunning=false;finishCurrent();}
+            if(e.data===1){
+              const d=Number(state.yt.getDuration())*1000||state.clockDuration;
+              const c=Number(state.yt.getCurrentTime())*1000||state.clockPosition;
+              setClock(c,d,true); updatePlaying(true);
+            }
+            if(e.data===2){
+              const d=Number(state.yt.getDuration())*1000||state.clockDuration;
+              const c=Number(state.yt.getCurrentTime())*1000||state.clockPosition;
+              setClock(c,d,false); renderProgress(c,d); updatePlaying(false);
+            }
           }
         }
       });
@@ -328,7 +364,7 @@
     state.lastSeekRevision=Number(state.lastSnapshot?.state?.seek_revision||0);
     const p=Number(state.lastSnapshot?.state?.position_ms||0);
     const d=Number(state.lastSnapshot?.state?.duration_ms||0);
-    if(d)renderProgress(p,d);
+    if(d){setClock(p,d,playing);renderProgress(p,d);}
   }
 
   function stopOtherMedia(provider){
@@ -376,7 +412,7 @@
 
   async function syncProgress(position,duration){
     const now=Date.now();
-    if(state.progressBusy||now-state.lastProgressSent<900)return;
+    if(state.progressBusy||now-state.lastProgressSent<1500)return;
     state.progressBusy=true;
     state.lastProgressSent=now;
     try{
@@ -433,6 +469,7 @@
   if(state.audio){
     state.audio.addEventListener("timeupdate",()=>{
       const d=state.audio.duration||0,c=state.audio.currentTime||0;
+      setClock(c*1000,d*1000,!state.audio.paused);
       renderProgress(c*1000,d*1000); syncProgress(c*1000,d*1000);
     });
     state.audio.addEventListener("ended",finishCurrent);
@@ -446,17 +483,22 @@
   const ytScript=document.createElement("script");
   ytScript.src="https://www.youtube.com/iframe_api";ytScript.async=true;document.head.appendChild(ytScript);
 
-  setInterval(()=>{
-    if(state.yt&&state.provider==="youtube"){
-      try{
-        const d=Number(state.yt.getDuration())*1000||0,c=Number(state.yt.getCurrentTime())*1000||0;
-        renderProgress(c,d);syncProgress(c,d);
-        if(d>0&&c>=d-900)finishCurrent();
-      }catch(_){}
-    }
-  },500);
+  // Relógio visual local: não depende de consultas ao PostgreSQL.
+  function animationTick(){
+    try{
+      if(state.yt&&state.provider==="youtube"){
+        const d=Number(state.yt.getDuration())*1000||state.clockDuration;
+        const c=Number(state.yt.getCurrentTime())*1000||0;
+        if(d>0 && Math.abs(c-state.clockPosition)>1200) setClock(c,d,state.playing);
+      }
+      tickClock();
+    }catch(_){}
+    requestAnimationFrame(animationTick);
+  }
+  requestAnimationFrame(animationTick);
 
-  setInterval(()=>poll().catch(()=>{}),500);
+  // O backend sincroniza fila/estado; o relógio acima permanece local e suave.
+  setInterval(()=>poll().catch(()=>{}),1200);
   setInterval(()=>heartbeat(),2000);
   heartbeat();
   poll().catch(showError);

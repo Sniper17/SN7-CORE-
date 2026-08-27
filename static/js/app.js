@@ -2505,7 +2505,7 @@ function startMusicQueuePolling() {
       return;
     }
     loadMusicQueueOnly().catch(() => {});
-  }, 700);
+  }, 1000);
   loadMusicQueueOnly().catch(() => {});
 }
 
