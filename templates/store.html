@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>Loja · SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.57-loja-platform-stable">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.58-loja-public-fix">
 <style>
   .sn7-store-page{width:100%;max-width:1080px;margin:0 auto}
   .sn7-store-hero{position:relative;overflow:hidden;padding:34px;min-height:300px;display:flex;align-items:center;background:radial-gradient(700px 260px at 82% 0%,rgba(155,140,255,.14),transparent 62%),linear-gradient(145deg,#141923,#0e1219 75%);border:1px solid var(--border);border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.035)}
@@ -211,6 +211,40 @@
       <div class="sn7-store-safe"><strong>🔒 Carteiras separadas por canal:</strong> cada viewer mantém um saldo próprio em cada streamer. A Loja não cria nem substitui o sistema atual de pontos.</div>
     </div>
 </main></div>
+{% else %}
+<div class="sn7-store-page">
+  <section class="sn7-store-hero">
+    <div class="sn7-store-copy">
+      <span class="sn7-store-badge">LOJA DO CANAL</span>
+      <div class="sn7-store-title">
+        <span class="sn7-store-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 9.5h16l-1 10H5l-1-10Z"/><path d="M7 9.5V7a5 5 0 0 1 10 0v2.5"/><path d="M8.5 13h.1M12 13h.1M15.5 13h.1"/></svg></span>
+        <h2 id="store-title">Loja do canal</h2>
+      </div>
+      <p id="store-subtitle">Recompensas da comunidade, resgatadas com os pontos conquistados na live.</p>
+      <div class="sn7-store-status" id="store-viewer-box"><i></i><span id="store-viewer-text">Carregando loja...</span></div>
+    </div>
+  </section>
+
+  <section class="sn7-store-builder" id="store-public" aria-label="Loja pública">
+    <div class="sn7-store-builder-head">
+      <div>
+        <div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.2 10.2c.8-1.1 4.8-1.1 5.6.3.9 1.7-1.1 2.4-2.8 2.7-1.7.3-3.7.8-2.9 2.5.7 1.5 4.9 1.6 5.8.1"/></svg></div>
+        <div><strong>Recompensas disponíveis</strong><p>Use seus pontos neste canal para resgatar os itens.</p></div>
+      </div>
+      <div id="public-wallet" class="sn7-store-wallet">—</div>
+    </div>
+    <div id="public-items" class="sn7-store-items-grid"></div>
+    <div id="public-login" class="sn7-store-login" hidden>
+      <strong>Quer resgatar?</strong>
+      <span>Entre na plataforma em que você acompanha esta live para usar os pontos desse canal.</span>
+      <div class="sn7-store-login-options">
+        <a id="store-login-kick" class="sn7-store-primary-link" href="#">🟢 Entrar com Kick</a>
+        <a id="store-login-youtube" class="sn7-store-primary-link sn7-store-secondary-link" href="#">🔴 Entrar com YouTube</a>
+        <a id="store-login-twitch" class="sn7-store-primary-link sn7-store-secondary-link" href="#">🟣 Entrar com Twitch</a>
+      </div>
+    </div>
+  </section>
+</div>
 {% endif %}
 
 <script>

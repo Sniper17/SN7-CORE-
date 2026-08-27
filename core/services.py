@@ -193,13 +193,31 @@ def ensure_player(broadcaster_id, username, kick_user_id=None, platform="kick"):
                         INSERT INTO players
                             (broadcaster_user_id, platform, kick_user_id, username)
                         VALUES (%s,%s,%s,%s)
-                        ON CONFLICT (broadcaster_user_id, platform, username)
-                        DO UPDATE SET
-                            kick_user_id=COALESCE(EXCLUDED.kick_user_id, players.kick_user_id),
-                            updated_at=NOW()
+                        ON CONFLICT DO NOTHING
+                        RETURNING id, kick_user_id, username
                         """,
                         (bid, platform, uid, name),
                     )
+                    inserted = cur.fetchone()
+                    if not inserted:
+                        # Compatível com índices/constraints antigos e com duas
+                        # mensagens simultâneas tentando cadastrar o mesmo viewer.
+                        cur.execute(
+                            """
+                            SELECT id, kick_user_id, username
+                              FROM players
+                             WHERE broadcaster_user_id=%s AND platform=%s AND username=%s
+                             LIMIT 1
+                            FOR UPDATE
+                            """,
+                            (bid, platform, name),
+                        )
+                        existing = cur.fetchone()
+                        if existing and uid is not None and existing[1] != uid:
+                            cur.execute(
+                                "UPDATE players SET kick_user_id=%s, updated_at=NOW() WHERE id=%s",
+                                (uid, existing[0]),
+                            )
         conn.commit()
     finally:
         conn.close()

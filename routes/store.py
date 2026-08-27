@@ -351,9 +351,17 @@ def redeem(target,item_id):
             if not wallet:
                 kick_uid = viewer.get("kick_user_id") if platform == "kick" else None
                 cur.execute("""INSERT INTO players(broadcaster_user_id,platform,kick_user_id,username)
-                               VALUES(%s,%s,%s,%s) RETURNING id,username,points FOR UPDATE""",
+                               VALUES(%s,%s,%s,%s)
+                               ON CONFLICT DO NOTHING
+                               RETURNING id,username,points""",
                             (int(bid),platform,kick_uid,username))
                 wallet=cur.fetchone()
+                if not wallet:
+                    cur.execute("""SELECT id,username,points FROM players
+                                   WHERE broadcaster_user_id=%s AND platform=%s AND LOWER(username)=LOWER(%s)
+                                   ORDER BY id DESC LIMIT 1 FOR UPDATE""",
+                                (int(bid),platform,username))
+                    wallet=cur.fetchone()
             points=int(wallet[2] or 0)
             if points<price: return jsonify({"ok":False,"error":f"Você precisa de {price} pontos. Saldo: {points}."}),409
             cur.execute("UPDATE players SET points=points-%s,updated_at=NOW() WHERE id=%s RETURNING points",(price,int(wallet[0])))
