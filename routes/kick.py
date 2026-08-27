@@ -39,7 +39,7 @@ _RACE_JOIN_TIMERS = {}
 _SURVIVAL_JOIN_TIMERS = {}
 _STORY_TIMER_LOCK = RLock()
 STORY_CHAPTER_DELAY_SECONDS = 4
-JOIN_WINDOW_SECONDS = 20
+JOIN_WINDOW_SECONDS = 90
 
 def _cancel_story_timer(store, bid, platform):
     key = (int(bid), str(platform or "kick").lower())
@@ -144,7 +144,7 @@ def _start_race_after_join_window(bid, platform):
         _send_chat(bid, f"🏁🏎️ Inscrições encerradas! {count} corredores. A corrida começou! 3 capítulos e o resultado final!")
         _schedule_race_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
     elif begun.get("empty"):
-        _send_chat(bid, "🏁 Corrida encerrada: ninguém entrou nos 20 segundos.")
+        _send_chat(bid, "🏁 Corrida encerrada: ninguém entrou nos 90 segundos.")
 
 def _start_survival_after_join_window(bid, platform):
     from core.minigames import survival_begin
@@ -1256,18 +1256,15 @@ def _process_chat(payload, send_chat=None):
     if not content.startswith("!"):
         return
 
-    ensure_channel(
-        bid,
-        str(broadcaster.get("username") or broadcaster.get("channel_slug") or ""),
-    )
-    ensure_player(bid, user, uid, platform)
-
+    # Parseia o comando antes de cadastrar/atualizar o participante. Os controles
+    # da corrida não precisam de ensure_player, então evitamos uma ida ao banco
+    # no caminho crítico de !corrida/!fimcrr/!finalizacorrida.
     pieces = content.split()
     cmd = pieces[0].lower()
     args = pieces[1:]
 
     # Corrida: !car1 até !car100 são comandos dinâmicos e não precisam existir
-    # como 100 registros separados no painel. A janela de entrada é de 20s.
+    # como 100 registros separados no painel. A janela de entrada é de 90s.
     car_match = re.fullmatch(r"!car(\d{1,3})", cmd)
     if car_match:
         try:
@@ -1309,12 +1306,21 @@ def _process_chat(payload, send_chat=None):
                 send_chat(bid, f"🎮 O Mini Game {cfg.get('command') or cmd} está desativado nesta live.")
             return
 
+        key = cfg["command_key"]
+        # !corrida e os controles administrativos não precisam cadastrar o
+        # usuário antes de responder. Isso reduz consultas no caminho crítico.
+        if key not in {"race", "race_finish", "race_reset"}:
+            ensure_channel(
+                bid,
+                str(broadcaster.get("username") or broadcaster.get("channel_slug") or ""),
+            )
+            ensure_player(bid, user, uid, platform)
+
         # Mini Games têm um interruptor global. Isso evita que um comando
         # seja reativado isoladamente enquanto o recurso inteiro está desligado.
-        key = cfg["command_key"]
         ismod = _is_moderator(sender, bid)
 
-        if cfg["category"] == "minigames":
+        if cfg["category"] == "minigames" and key != "race":
             try:
                 from core.minigames import get_settings
                 mini_settings = get_settings(bid, platform)
@@ -1335,10 +1341,10 @@ def _process_chat(payload, send_chat=None):
         # Todos os Mini Games compartilham estas funções. O import fica fora
         # dos blocos individuais para que !roubar, !sobreviver, !corrida etc.
         # nunca dependam de outro comando ter sido executado antes.
-        if cfg.get("category") == "minigames" or key in {"poll_close", "race_finish", "survival_on", "survival_finish"}:
+        if cfg.get("category") == "minigames" or key in {"poll_close", "race_finish", "race_reset", "survival_on", "survival_finish"}:
             from core.minigames import (
                 play_coinflip, start_poll, vote_poll, close_poll,
-                race_start, race_join_car, race_begin, race_finish, target_guess, secret_guess,
+                race_start, race_join_car, race_begin, race_finish, race_reset, target_guess, secret_guess,
                 survival_start, survival_join, survival_finish,
                 survival_begin, survival_tick,
                 register_survival_timer, clear_survival_timer,
@@ -1496,8 +1502,8 @@ def _process_chat(payload, send_chat=None):
                 return
             send_chat(
                 bid,
-                "🏁🏎️ CORRIDA ABERTA! Você tem 20s para entrar. Digite !car1 até !car100 para escolher seu carro. "
-                "Depois dos 20s, quem entrou entrou: começam 3 capítulos e o resultado!",
+                "🏁🏎️ CORRIDA ABERTA! Você tem 90s para entrar. Digite !car1 até !car100 para escolher seu carro. "
+                "Depois dos 90s, quem entrou entrou: começam 3 capítulos e o resultado!",
             )
             _schedule_join_timer(_RACE_JOIN_TIMERS, bid, platform, _start_race_after_join_window, "RACE-JOIN")
             return
@@ -1512,6 +1518,19 @@ def _process_chat(payload, send_chat=None):
                 send_chat(bid,result["error"]); return
             winners=result.get("winners") or []
             send_chat(bid,"🏁 FIM DA CORRIDA! " + (" • ".join(f"{i+1}º {_mention(u)} +{prize} {currency}" for i,(u,prize) in enumerate(winners)) if winners else "Ninguém chegou ao final."))
+            return
+        if key == "race_reset":
+            if not ismod:
+                send_chat(bid, "⛔ Apenas streamer/mod pode resetar a corrida.")
+                return
+            result = race_reset(bid, platform)
+            _cancel_story_timer(_RACE_JOIN_TIMERS, bid, platform)
+            _cancel_story_timer(_RACE_STORY_TIMERS, bid, platform)
+            if not result.get("ok"):
+                send_chat(bid, result["error"])
+                return
+            count = len(result.get("players") or [])
+            send_chat(bid, f"🛑 Corrida resetada! {count} participante(s) foram removidos. Use !corrida para iniciar outra.")
             return
         if key == "target":
             result=target_guess(bid,user,args[0] if args else "",platform)
@@ -1532,7 +1551,7 @@ def _process_chat(payload, send_chat=None):
             send_chat(
                 bid,
                 "🧟 SOBREVIVÊNCIA ABERTA! Você tem 20s para entrar. Digite !sobreviver. "
-                "Depois dos 20s, quem entrou entrou: começam 3 capítulos e o resultado!",
+                "Depois dos 90s, quem entrou entrou: começam 3 capítulos e o resultado!",
             )
             _schedule_join_timer(_SURVIVAL_JOIN_TIMERS, bid, platform, _start_survival_after_join_window, "SURVIVAL-JOIN")
             return
@@ -1933,7 +1952,7 @@ def _process_chat(payload, send_chat=None):
                 )
             return
 
-        if key in {"addcmd", "addpoint", "settpoint", "delcmd", "poll_close", "race_finish", "survival_on", "survival_finish"} and not ismod:
+        if key in {"addcmd", "addpoint", "settpoint", "delcmd", "poll_close", "race_finish", "race_reset", "survival_on", "survival_finish"} and not ismod:
             send_chat(bid, "⛔ Apenas streamer/mod pode usar este comando.")
             return
 
@@ -2080,7 +2099,7 @@ def _process_chat(payload, send_chat=None):
     except Exception as exc:
         print(f"[KICK-CHAT] erro processando {content!r}: {exc}", flush=True)
         try:
-            if cfg and (cfg.get("category") == "minigames" or key in {"poll_close", "race_finish", "survival_on", "survival_finish"}):
+            if cfg and (cfg.get("category") == "minigames" or key in {"poll_close", "race_finish", "race_reset", "survival_on", "survival_finish"}):
                 send_chat(bid, "🎮 Não consegui processar esse Mini Game agora. Tente novamente em alguns segundos.")
         except Exception:
             pass

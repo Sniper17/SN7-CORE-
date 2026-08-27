@@ -25,6 +25,7 @@ SYSTEM = {
     "quiz_answer": ("!resposta", "Responde ao quiz atual.", "minigames", "🧠 $(quiz_result)"),
     "race": ("!corrida", "Entra na corrida da live.", "minigames", "🏃 $(race_result)"),
     "race_finish": ("!finalizacorrida", "Finaliza a corrida atual.", "admin", "🏁 $(race_result)"),
+    "race_reset": ("!fimcrr", "Cancela e reseta a corrida atual sem distribuir prêmios.", "admin", "🛑 $(race_result)"),
     "target": ("!alvo", "Tenta acertar o número do alvo.", "minigames", "🎯 $(target_result)"),
     "secret": ("!numero", "Tenta descobrir o número secreto.", "minigames", "🔢 $(secret_result)"),
     "survival": ("!sobreviver", "Entra na rodada de sobrevivência.", "minigames", "🧟 $(survival_result)"),
@@ -192,6 +193,23 @@ def ensure_command_defaults(bid):
                             "INSERT INTO command_aliases(broadcaster_user_id,command_id,alias) VALUES(%s,%s,%s)",
                             (bid, row_cmd[0], alias),
                         )
+
+            # Atalho para destravar uma corrida presa sem distribuir prêmios.
+            cur.execute(
+                "SELECT id FROM command_configs WHERE broadcaster_user_id=%s AND command_key=%s",
+                (bid, "race_reset"),
+            )
+            race_reset_row = cur.fetchone()
+            if race_reset_row:
+                cur.execute(
+                    "SELECT 1 FROM command_aliases WHERE broadcaster_user_id=%s AND command_id=%s AND alias=%s",
+                    (bid, race_reset_row[0], "!fimcorrida"),
+                )
+                if not cur.fetchone():
+                    cur.execute(
+                        "INSERT INTO command_aliases(broadcaster_user_id,command_id,alias) VALUES(%s,%s,%s)",
+                        (bid, race_reset_row[0], "!fimcorrida"),
+                    )
 
             # Organização do painel: categorias antigas são migradas sem alterar
             # a palavra de ativação nem a permissão real do comando.

@@ -571,7 +571,7 @@ def _start_or_join_runtime(bid,username,platform,game,ttl=45):
 _RACE_TIMER_LOCK = RLock()
 _RACE_TIMERS = {}
 
-RACE_JOIN_WINDOW_SECONDS = 20
+RACE_JOIN_WINDOW_SECONDS = 90
 RACE_STORY_CHAPTERS = 3
 
 def _race_car_number(value):
@@ -582,12 +582,18 @@ def _race_car_number(value):
     return n if 1 <= n <= 100 else None
 
 def race_start(bid, username, platform="kick"):
-    """Abre uma corrida e deixa 20 segundos para os participantes entrarem."""
+    """Abre uma corrida e deixa 90 segundos para os participantes entrarem."""
     if not _game_allowed(bid, platform, "race"):
         return {"ok": False, "error": "🏎️ Corrida está desativada nesta plataforma."}
     current = _runtime_get(bid, platform, "race", {})
+    # Recupera uma corrida que ficou presa após o processo/redeploy cair no meio
+    # da narrativa. Se os 3 capítulos já foram concluídos, ela não deve bloquear
+    # uma nova rodada.
+    if current.get("open") and current.get("started") and int(current.get("story_chapter") or 0) >= RACE_STORY_CHAPTERS:
+        race_finish(bid, platform)
+        current = _runtime_get(bid, platform, "race", {})
     if current.get("open"):
-        return {"ok": False, "error": "🏁 Já existe uma corrida aberta! Escolha seu carro com !car1 até !car100."}
+        return {"ok": False, "error": "🏁 Já existe uma corrida aberta! Use !fimcrr para resetar a corrida atual."}
     now = time.time()
     state = {
         "open": True,
@@ -727,6 +733,26 @@ def race_tick(bid, platform="kick"):
         "state": state, "chapter": chapter,
     }
 
+def race_reset(bid, platform="kick"):
+    """Cancela e limpa a corrida atual sem distribuir prêmios."""
+    state = _runtime_get(bid, platform, "race", {})
+    if not state.get("open"):
+        return {"ok": False, "error": "🏁 Não há corrida aberta para resetar."}
+    players = list(state.get("players") or [])
+    state["open"] = False
+    state["started"] = False
+    state["finished_at"] = time.time()
+    state["cancelled"] = True
+    state["players"] = []
+    state["cars"] = {}
+    state["events"] = []
+    _runtime_set(bid, platform, "race", state)
+    with _RACE_TIMER_LOCK:
+        timer = _RACE_TIMERS.pop((int(bid), _platform(platform)), None)
+        if timer:
+            timer.cancel()
+    return {"ok": True, "players": players}
+
 def race_finish(bid, platform="kick"):
     state = _runtime_get(bid, platform, "race", {})
     if not state.get("open"):
@@ -784,7 +810,7 @@ SURVIVAL_JOIN_WINDOW_SECONDS = 20
 SURVIVAL_STORY_CHAPTERS = 3
 
 def survival_start(bid, username, platform="kick"):
-    """Abre uma rodada e deixa 20 segundos para os participantes entrarem."""
+    """Abre uma rodada e deixa 90 segundos para os participantes entrarem."""
     if not _game_allowed(bid, platform, "survival"):
         return {"ok": False, "error": "🧟 A Sobrevivência está desativada nesta plataforma."}
     settings = get_settings(bid, platform)
