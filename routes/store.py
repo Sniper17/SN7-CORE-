@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import os
 import re
+import threading
 import time
 from flask import Blueprint, jsonify, request, session
 from core.auth import get_session_broadcaster_id, require_session_broadcaster
@@ -101,6 +102,55 @@ def _music_restore(broadcaster_id, original_volume, ducked_volume):
     finally:
         conn.close()
 
+
+
+def _announce_purchase(platform, broadcaster_id, username, item_name, price):
+    """Anuncia um resgate no chat da plataforma usada pelo viewer.
+
+    Falha no anúncio nunca desfaz uma compra já confirmada. Cada integração
+    usa a conexão oficial do streamer e, quando disponível, seu token renovável.
+    """
+    message = f"🛍️ {str(username or 'Alguém').strip()} comprou {str(item_name or 'uma recompensa').strip()}, por {int(price):,} pontos!".replace(",", ".")
+    try:
+        platform = str(platform or "kick").strip().lower()
+        bid = int(broadcaster_id)
+        if platform == "kick":
+            from routes.kick import _valid_connection, _send_chat
+            conn = _valid_connection(bid)
+            if not conn:
+                return False
+            native_bid = int(conn.get("broadcaster_user_id") or bid)
+            return bool(_send_chat(native_bid, message))
+        if platform == "twitch":
+            from routes.twitch import _conn, _refresh, _send_chat
+            conn = _refresh(_conn(bid))
+            if not conn or not conn.get("bot_active"):
+                return False
+            _send_chat(conn, message)
+            return True
+        from routes.youtube import _conn, _refresh, _get_live_chat_id, _send
+        conn = _refresh(_conn(bid), bid)
+        if not conn or not conn.get("bot_active"):
+            return False
+        chat_id, _ = _get_live_chat_id(bid, conn)
+        if not chat_id:
+            return False
+        conn = dict(conn)
+        conn["_chat_id"] = chat_id
+        _send(conn, message)
+        return True
+    except Exception as exc:
+        print(f"[STORE-CHAT] anúncio de compra falhou: {exc}", flush=True)
+        return False
+
+
+def _announce_purchase_async(platform, broadcaster_id, username, item_name, price):
+    threading.Thread(
+        target=_announce_purchase,
+        args=(platform, broadcaster_id, username, item_name, price),
+        name="sn7-store-chat",
+        daemon=True,
+    ).start()
 
 def _viewer():
     raw = session.get("sn7_store_viewer")
@@ -412,6 +462,9 @@ def redeem(target,item_id):
                              viewer.get("kick_user_id") if platform == "kick" else None,username,item[5]))
         conn.commit()
     finally: conn.close()
+    # O resgate já foi confirmado no banco; o aviso de chat é assíncrono para
+    # nunca atrasar nem impedir a compra caso uma plataforma esteja lenta.
+    _announce_purchase_async(platform, bid, username, item[2], price)
     return jsonify({"ok":True,"redemption_id":redemption_id,"points":new_points,"stock":new_stock,"item_id":int(item_id)})
 
 

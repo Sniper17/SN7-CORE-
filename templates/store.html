@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>Loja · SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.58-loja-public-fix">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.60-loja-public-polish">
 <style>
   .sn7-store-page{width:100%;max-width:1080px;margin:0 auto}
   .sn7-store-hero{position:relative;overflow:hidden;padding:34px;min-height:300px;display:flex;align-items:center;background:radial-gradient(700px 260px at 82% 0%,rgba(155,140,255,.14),transparent 62%),linear-gradient(145deg,#141923,#0e1219 75%);border:1px solid var(--border);border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.035)}
@@ -89,9 +89,30 @@
   .sn7-store-secondary-link{background:rgba(255,255,255,.035)!important;border-color:rgba(255,255,255,.10)!important}
   .sn7-store-public-body .sn7-store-safe{display:none}
   @media(max-width:700px){.sn7-store-public-body .sn7-store-page{padding:14px 10px 28px}.sn7-store-public-body .sn7-store-hero{border-radius:18px}.sn7-store-login-options{grid-template-columns:1fr}}
+
+  /* 1.9.60 — Loja pública: mesma linguagem visual do painel. */
+  .sn7-store-boot-loader,.sn7-store-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-store-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-store-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-store-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-store-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7StoreLoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-store-operation-loader .sn7-store-loader-spinner{width:26px;height:26px}@keyframes sn7StoreLoaderSpin{to{transform:rotate(360deg)}}
+  .sn7-store-public-topbar{position:fixed;top:14px;right:14px;z-index:1000;display:flex;align-items:center;gap:8px}.sn7-store-login-trigger{appearance:none;border:1px solid #2a303c;background:#11151d;color:#dfe3ec;border-radius:11px;min-width:76px;min-height:38px;padding:8px 12px;font:inherit;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.28);transition:transform .12s cubic-bezier(.22,.8,.24,1),background .16s ease,border-color .16s ease,box-shadow .16s ease}.sn7-store-login-trigger:hover{background:#1b202a;border-color:#394253;color:#fff}.sn7-store-login-trigger:active{transform:translateY(1px) scale(.985)}
+  .sn7-store-public-body .sn7-store-page{padding-top:72px}
+  .sn7-store-account-badge{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(167,139,250,.2);background:rgba(167,139,250,.07);color:#c9c1ff;border-radius:11px;min-height:38px;padding:7px 11px;font-size:10px;font-weight:800;max-width:190px}.sn7-store-account-dot{width:7px;height:7px;border-radius:50%;background:#a78bfa;box-shadow:0 0 9px rgba(167,139,250,.55);flex:0 0 7px}
+  .sn7-store-modal[hidden],.sn7-store-confirm-modal[hidden]{display:none!important}
+  .sn7-store-modal{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(3,5,9,.76);backdrop-filter:blur(7px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s cubic-bezier(.22,.8,.24,1),visibility 0s linear .16s;box-sizing:border-box}.sn7-store-modal.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .16s cubic-bezier(.22,.8,.24,1)}.sn7-store-modal.closing{opacity:0;visibility:hidden;pointer-events:none}.sn7-store-modal-card{position:relative;width:min(430px,100%);padding:28px 24px 22px;background:#11151d;border:1px solid #2a303c;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.5);transform:translateY(8px) scale(.985);opacity:.98;transition:transform .18s cubic-bezier(.22,.8,.24,1),opacity .18s cubic-bezier(.22,.8,.24,1);box-sizing:border-box}.sn7-store-modal.open .sn7-store-modal-card{transform:translateY(0) scale(1);opacity:1}.sn7-store-modal-close{position:absolute;top:10px;right:11px;width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:#8f98a8;font-size:25px;line-height:1;cursor:pointer}.sn7-store-modal-close:hover{background:#1b202a;color:#fff}.sn7-store-modal-icon{width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:#1b202a;color:#b7abff;font-size:22px;margin-bottom:16px}.sn7-store-modal-card h3{margin:0 0 8px;font-size:21px;letter-spacing:-.25px}.sn7-store-modal-card>p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}.sn7-store-modal-status{margin-top:16px;padding:11px 12px;border-radius:10px;background:#0d1016;border:1px solid var(--border);color:#aeb6c5;font-size:11px;line-height:1.5}.sn7-store-platform-list{display:grid;grid-template-columns:1fr;gap:9px;margin-top:18px}.sn7-store-platform-btn{appearance:none;display:flex;align-items:center;gap:11px;width:100%;min-height:46px;padding:10px 13px;border:1px solid #2a303c;border-radius:10px;background:#151a22;color:#e9ecf3;font:inherit;font-size:11px;font-weight:800;text-decoration:none;cursor:pointer;box-sizing:border-box;transition:transform .12s cubic-bezier(.22,.8,.24,1),background .16s ease,border-color .16s ease,opacity .16s ease}.sn7-store-platform-btn:hover{background:#1b202a;border-color:#394253}.sn7-store-platform-btn:active{transform:translateY(1px) scale(.985)}.sn7-store-platform-btn.kick{border-color:rgba(83,252,24,.18)}.sn7-store-platform-btn.youtube{border-color:rgba(255,0,0,.18)}.sn7-store-platform-btn.twitch{border-color:rgba(145,70,255,.22)}.sn7-store-platform-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:8px;font-size:13px;font-weight:900;flex:0 0 28px}.sn7-store-platform-icon.kick{background:rgba(83,252,24,.10);color:#53fc18}.sn7-store-platform-icon.youtube{background:rgba(255,0,0,.10);color:#ff6b6b}.sn7-store-platform-icon.twitch{background:rgba(145,70,255,.12);color:#b995ff}.sn7-store-platform-btn small{display:block;margin-left:auto;color:#7f8998;font-size:9px;font-weight:700}.sn7-store-modal-action{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap;margin-top:20px}.sn7-store-modal-action button{min-height:42px;border-radius:9px;padding:10px 14px;font:inherit;font-size:11px;font-weight:800;cursor:pointer;transition:transform .12s cubic-bezier(.22,.8,.24,1),background .16s ease,border-color .16s ease,opacity .16s ease}.sn7-store-cancel{border:1px solid var(--border);background:transparent;color:var(--muted)}.sn7-store-confirm{border:0;background:#fff;color:#111}.sn7-store-danger{border:0;background:#ef4444;color:#fff}.sn7-store-modal-action button:active{transform:translateY(1px) scale(.985)}
+  .sn7-store-confirm-card{width:min(440px,100%);background:#11151d;border:1px solid #2a303c;border-radius:18px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.5);box-sizing:border-box}.sn7-store-confirm-card h3{margin:0 0 8px;font-size:19px}.sn7-store-confirm-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}.sn7-store-confirm-modal{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(3,5,9,.76);backdrop-filter:blur(7px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s cubic-bezier(.22,.8,.24,1),visibility 0s linear .16s}.sn7-store-confirm-modal.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .16s cubic-bezier(.22,.8,.24,1)}.sn7-store-confirm-modal.closing{opacity:0;visibility:hidden;pointer-events:none}.sn7-store-confirm-modal .sn7-store-confirm-card{transform:translateY(8px) scale(.985);opacity:.98;transition:transform .18s cubic-bezier(.22,.8,.24,1),opacity .18s cubic-bezier(.22,.8,.24,1)}.sn7-store-confirm-modal.open .sn7-store-confirm-card{transform:translateY(0) scale(1);opacity:1}
+  .sn7-shop-item{position:relative;transition:transform .16s cubic-bezier(.22,.8,.24,1),border-color .16s ease,box-shadow .16s ease}.sn7-shop-item:hover{transform:translateY(-1px);border-color:#394253;box-shadow:0 16px 36px rgba(0,0,0,.16)}.sn7-shop-item.sn7-store-card-loading{pointer-events:none}.sn7-shop-item.sn7-store-card-loading::after{content:"";position:absolute;inset:0;z-index:30;background:rgba(11,13,18,.46);backdrop-filter:blur(2px);border-radius:inherit}.sn7-shop-item.sn7-store-card-loading::before{content:"";position:absolute;left:50%;top:50%;width:27px;height:27px;margin:-13.5px 0 0 -13.5px;z-index:31;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7StoreCardSpin .72s linear infinite;box-sizing:border-box}@keyframes sn7StoreCardSpin{to{transform:rotate(360deg)}}
+  .sn7-store-logged-status{margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid rgba(167,139,250,.16);border-radius:11px;background:rgba(167,139,250,.045);color:#aeb6c5;font-size:10px}.sn7-store-logged-status strong{color:#dfe3ec}.sn7-store-logged-status button{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025);color:#aeb6c5;border-radius:9px;padding:7px 10px;font:inherit;font-size:9px;font-weight:800;cursor:pointer}.sn7-store-logged-status button:hover{background:#1b202a;color:#fff}
+  @media(max-width:700px){.sn7-store-public-topbar{top:10px;right:10px}.sn7-store-public-body .sn7-store-page{padding-top:62px}.sn7-store-login-trigger{min-width:68px}.sn7-store-account-badge{max-width:155px}.sn7-store-modal{align-items:flex-start;padding:10px}.sn7-store-modal-card{margin:auto 0;padding:22px 18px calc(20px + env(safe-area-inset-bottom));max-height:calc(100svh - 20px);overflow:auto}.sn7-store-modal-action{flex-direction:column}.sn7-store-modal-action button{width:100%}.sn7-store-confirm-modal{align-items:flex-start;padding:10px}.sn7-store-confirm-card{margin:auto 0}.sn7-store-logged-status{align-items:flex-start;flex-direction:column}.sn7-store-logged-status button{width:100%}}
+  @media(prefers-reduced-motion:reduce){.sn7-store-loader-spinner,.sn7-shop-item.sn7-store-card-loading::before{animation:none}.sn7-store-modal,.sn7-store-modal-card,.sn7-store-confirm-modal,.sn7-store-confirm-modal .sn7-store-confirm-card,.sn7-store-login-trigger,.sn7-store-platform-btn,.sn7-store-modal-action button,.sn7-shop-item{transition:none}}
+
 </style>
 </head>
 <body class="{% if broadcaster_id %}sn7-store-admin-body{% else %}sn7-store-public-body{% endif %}">
+<div id="sn7StoreBootLoader" class="sn7-store-boot-loader" aria-hidden="true"><span class="sn7-store-loader-spinner"></span></div>
+<div id="sn7StoreOperationLoader" class="sn7-store-operation-loader" aria-hidden="true"><span class="sn7-store-loader-spinner"></span></div>
+{% if not broadcaster_id %}
+<div class="sn7-store-public-topbar">
+  <button type="button" id="sn7StoreLoginTrigger" class="sn7-store-login-trigger">Login</button>
+</div>
+{% endif %}
 {% if broadcaster_id %}
 <div class="layout">
   <aside class="sidebar">
@@ -247,11 +268,44 @@
 </div>
 {% endif %}
 
+
+<div id="sn7StoreLoginModal" class="sn7-store-modal" hidden role="dialog" aria-modal="true" aria-labelledby="sn7StoreLoginTitle">
+  <div class="sn7-store-modal-card">
+    <button type="button" class="sn7-store-modal-close" id="sn7StoreLoginClose" aria-label="Fechar">×</button>
+    <div class="sn7-store-modal-icon">✦</div>
+    <h3 id="sn7StoreLoginTitle">Entrar na Loja</h3>
+    <p>Escolha a plataforma em que você acompanha esta live para usar seus pontos.</p>
+    <div class="sn7-store-platform-list">
+      <a id="store-login-kick" class="sn7-store-platform-btn kick" href="#"><span class="sn7-store-platform-icon kick">K</span><span>Entrar com Kick</span><small>pontos da Kick</small></a>
+      <a id="store-login-youtube" class="sn7-store-platform-btn youtube" href="#"><span class="sn7-store-platform-icon youtube">▶</span><span>Entrar com YouTube</span><small>pontos do YouTube</small></a>
+      <a id="store-login-twitch" class="sn7-store-platform-btn twitch" href="#"><span class="sn7-store-platform-icon twitch">T</span><span>Entrar com Twitch</span><small>pontos da Twitch</small></a>
+    </div>
+  </div>
+</div>
+<div id="sn7StoreAccountModal" class="sn7-store-modal" hidden role="dialog" aria-modal="true" aria-labelledby="sn7StoreAccountTitle">
+  <div class="sn7-store-modal-card">
+    <button type="button" class="sn7-store-modal-close" id="sn7StoreAccountClose" aria-label="Fechar">×</button>
+    <div class="sn7-store-modal-icon">◉</div>
+    <h3 id="sn7StoreAccountTitle">Sua conta</h3>
+    <p id="sn7StoreAccountText">Conta conectada.</p>
+    <div class="sn7-store-modal-status" id="sn7StoreAccountStatus">Seu saldo e seus resgates pertencem à plataforma escolhida.</div>
+    <div class="sn7-store-modal-action"><button type="button" class="sn7-store-cancel" id="sn7StoreAccountCloseBtn">Fechar</button><button type="button" class="sn7-store-danger" id="sn7StoreLogoutBtn">Sair da conta</button></div>
+  </div>
+</div>
+<div id="sn7StorePurchaseModal" class="sn7-store-confirm-modal" hidden role="dialog" aria-modal="true" aria-labelledby="sn7StorePurchaseTitle">
+  <div class="sn7-store-confirm-card">
+    <h3 id="sn7StorePurchaseTitle">Confirmar resgate</h3>
+    <p id="sn7StorePurchaseText">Deseja resgatar este item?</p>
+    <div class="sn7-store-modal-action"><button type="button" class="sn7-store-cancel" id="sn7StorePurchaseCancel">Cancelar</button><button type="button" class="sn7-store-confirm" id="sn7StorePurchaseConfirm">Resgatar</button></div>
+  </div>
+</div>
+
 <script>
 (function(){
   const bid={{ broadcaster_id|tojson }};
   const target={{ store_target|tojson }};
   const viewer={{ store_viewer|tojson }};
+  let currentViewer=viewer;
   const admin=!!bid;
   const $=id=>document.getElementById(id);
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -262,18 +316,28 @@
     const stock=i.stock===null?'Ilimitado':`${i.stock} disponíveis`;
     return `<article class="sn7-shop-item ${i.active?'':'is-off'}"><div class="sn7-shop-item-image">${img}</div><div class="sn7-shop-item-body"><div class="sn7-shop-item-top"><span class="sn7-shop-item-type">${i.item_type==='audio'?'🔊 Áudio':'🎁 Recompensa'}</span><span class="sn7-shop-price">✦ ${i.price.toLocaleString('pt-BR')}</span></div><h3>${esc(i.name)}</h3><p>${esc(i.description||'Sem descrição.')}</p><small>${stock}${i.active?'':' · desativado'}</small><div class="sn7-shop-actions">${adminMode?`<button data-toggle="${i.id}">${i.active?'Desativar':'Ativar'}</button><button class="danger" data-delete="${i.id}">Excluir</button>`:`<button class="sn7-store-redeem" data-redeem="${i.id}" ${!i.active||i.stock===0?'disabled':''}>Resgatar</button>`}</div></div></article>`;
   }
+  function setStoreBootDone(){const l=$('sn7StoreBootLoader');if(!l)return;l.classList.add('done');setTimeout(()=>l.remove(),220)}
+  function setStoreOperationLoading(open){const l=$('sn7StoreOperationLoader');if(!l)return;l.classList.toggle('open',!!open)}
+  function storeModal(id,open){const m=$(id);if(!m)return;if(open){m.hidden=false;requestAnimationFrame(()=>m.classList.add('open'));}else{m.classList.remove('open');setTimeout(()=>{m.hidden=true},180)}}
+  function openStoreLogin(){const t=encodeURIComponent(target||'');if($('store-login-kick'))$('store-login-kick').href=`/kick/store-login?channel=${t}`;if($('store-login-youtube'))$('store-login-youtube').href=`/youtube/login?store=1&channel=${t}`;if($('store-login-twitch'))$('store-login-twitch').href=`/twitch/login?store=1&channel=${t}`;storeModal('sn7StoreLoginModal',true)}
+  function storeNotice(message){const m=$('sn7StorePurchaseModal');if(!m)return;const title=$('sn7StorePurchaseTitle'),text=$('sn7StorePurchaseText'),ok=$('sn7StorePurchaseConfirm'),cancel=$('sn7StorePurchaseCancel');if(title)title.textContent='Aviso';if(text)text.textContent=String(message||'Não foi possível concluir a operação.');if(ok)ok.hidden=true;if(cancel)cancel.textContent='Fechar';storeModal('sn7StorePurchaseModal',true);const close=()=>{storeModal('sn7StorePurchaseModal',false);if(ok)ok.hidden=false;if(cancel)cancel.textContent='Cancelar'};cancel.onclick=close;}
+  function storeConfirm(title,message,confirmText){return new Promise(resolve=>{const m=$('sn7StorePurchaseModal');if(!m){resolve(false);return}const h=$('sn7StorePurchaseTitle'),p=$('sn7StorePurchaseText'),ok=$('sn7StorePurchaseConfirm'),cancel=$('sn7StorePurchaseCancel');h.textContent=title;p.textContent=message;ok.textContent=confirmText||'Continuar';ok.hidden=false;cancel.textContent='Cancelar';storeModal('sn7StorePurchaseModal',true);const finish=v=>{storeModal('sn7StorePurchaseModal',false);ok.onclick=null;cancel.onclick=null;resolve(v)};ok.onclick=()=>finish(true);cancel.onclick=()=>finish(false);m.onclick=e=>{if(e.target===m)finish(false)}})}
+  function setAccountUi(v){currentViewer=v||null;const trigger=$('sn7StoreLoginTrigger');if(!trigger)return;if(v){trigger.textContent='Conta';trigger.classList.add('is-connected');trigger.title=`${v.username||'Conta'} · ${v.platform||''}`;const p=({kick:'Kick',youtube:'YouTube',twitch:'Twitch'}[v.platform]||v.platform||'Plataforma');$('sn7StoreAccountText').textContent=`${v.username||'Conta'} · ${p}`;}else{trigger.textContent='Login';trigger.classList.remove('is-connected');trigger.title='Entrar';}}
+  async function logoutStoreViewer(){const yes=await storeConfirm('Sair da conta','Deseja sair da conta conectada nesta Loja?','Sair');if(!yes)return;setStoreOperationLoading(true);try{await api('/api/store/viewer/logout',{method:'POST',body:'{}'});storeModal('sn7StoreAccountModal',false);setAccountUi(null);await loadPublic();}catch(e){storeNotice(e.message)}finally{setStoreOperationLoading(false)}}
   async function loadPublic(){
-    if(!target)return setViewerText('Escolha uma loja de um canal para começar.');
+    if(!target){setViewerText('Escolha uma loja de um canal para começar.');setStoreBootDone();return;}
     try{
       const d=await api(`/api/store/${encodeURIComponent(target)}/public`);
       $('store-title').textContent=`Loja de ${d.channel.username}`;
       $('store-subtitle').textContent='Recompensas da comunidade, resgatadas com os pontos conquistados na live.';
       if(d.viewer){
+        setAccountUi(d.viewer);
         const platformLabel = ({kick:'Kick',youtube:'YouTube',twitch:'Twitch'}[d.viewer.platform] || 'plataforma');
         setViewerText(`Conta conectada: ${d.viewer.username} · ${platformLabel}`);
         if($('public-wallet'))$('public-wallet').textContent=`✦ ${(d.wallet?.points||0).toLocaleString('pt-BR')} pontos`;
         if($('public-login'))$('public-login').hidden=true;
       } else {
+        setAccountUi(null);
         setViewerText('Entre com Kick, YouTube ou Twitch para resgatar recompensas.');
         if($('public-wallet'))$('public-wallet').textContent='Entre para ver seus pontos';
         if($('public-login')){
@@ -286,7 +350,14 @@
       }
       $('public-items').innerHTML=d.items.length?d.items.map(i=>itemCard(i,false)).join(''):'<div class="sn7-store-empty">Este canal ainda não adicionou recompensas.</div>';
       $('public-items').querySelectorAll('[data-redeem]').forEach(b=>b.onclick=async()=>{
+        const card=b.closest('.sn7-shop-item');
+        const itemName=card?.querySelector('h3')?.textContent?.trim() || 'este item';
+        const priceText=card?.querySelector('.sn7-shop-price')?.textContent?.trim() || '';
+        const confirmed=await storeConfirm('Confirmar resgate',`Deseja resgatar ${itemName} por ${priceText.replace(/^✦\s*/,'')} pontos?`,'Resgatar');
+        if(!confirmed)return;
         b.disabled=true;
+        card?.classList.add('sn7-store-card-loading');
+        card?.setAttribute('aria-busy','true');
         try{
           const r=await api(`/api/store/${encodeURIComponent(target)}/redeem/${b.dataset.redeem}`,{method:'POST',body:'{}'});
           setViewerText('Resgate realizado com sucesso!');
@@ -294,24 +365,32 @@
           await loadPublic();
         }catch(e){
           if(e.status===401){
-            if($('public-login')){
-              $('public-login').hidden=false;
-              const t=encodeURIComponent(target);
-              $('store-login-kick').href=`/kick/store-login?channel=${t}`;
-              $('store-login-youtube').href=`/youtube/login?store=1&channel=${t}`;
-              $('store-login-twitch').href=`/twitch/login?store=1&channel=${t}`;
-            }
-          } else alert(e.message);
+            openStoreLogin();
+          } else storeNotice(e.message);
+        }finally{
           b.disabled=false;
+          card?.classList.remove('sn7-store-card-loading');
+          card?.setAttribute('aria-busy','false');
         }
       });
-    }catch(e){setViewerText(e.message);$('public-items').innerHTML='<div class="sn7-store-empty">Não foi possível carregar esta loja.</div>'}
+    }catch(e){setViewerText(e.message);$('public-items').innerHTML='<div class="sn7-store-empty">Não foi possível carregar esta loja.</div>'}finally{setStoreBootDone()}
   }
   async function loadAdmin(){
     if(!bid)return;
     try{const d=await api(`/api/store/${bid}/admin`);$('admin-items').innerHTML=d.items.length?d.items.map(i=>itemCard(i,true)).join(''):'<div class="sn7-store-empty">Nenhum item criado ainda. Clique em “Novo item”.</div>';}
     catch(e){$('admin-items').innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`}
     try{const d=await api(`/api/store/${bid}/redemptions?limit=30`);$('admin-redemptions').innerHTML=d.redemptions.length?d.redemptions.map(r=>`<div class="sn7-shop-history-row"><strong>${esc(r.viewer_username)}</strong><span>${esc(r.name)}</span><b>✦ ${r.price.toLocaleString('pt-BR')}</b><small>${r.status}</small></div>`).join(''):'<div class="sn7-store-empty">Nenhum resgate ainda.</div>';}catch(e){$('admin-redemptions').innerHTML='<div class="sn7-store-empty">Histórico indisponível.</div>'}
+    finally{setStoreBootDone()}
+  }
+  if(!admin){
+    $('sn7StoreLoginTrigger')?.addEventListener('click',()=>{if(currentViewer){storeModal('sn7StoreAccountModal',true)}else openStoreLogin()});
+    $('sn7StoreLoginClose')?.addEventListener('click',()=>storeModal('sn7StoreLoginModal',false));
+    $('sn7StoreAccountClose')?.addEventListener('click',()=>storeModal('sn7StoreAccountModal',false));
+    $('sn7StoreAccountCloseBtn')?.addEventListener('click',()=>storeModal('sn7StoreAccountModal',false));
+    $('sn7StoreLogoutBtn')?.addEventListener('click',logoutStoreViewer);
+    $('sn7StoreLoginModal')?.addEventListener('click',e=>{if(e.target.id==='sn7StoreLoginModal')storeModal('sn7StoreLoginModal',false)});
+    $('sn7StoreAccountModal')?.addEventListener('click',e=>{if(e.target.id==='sn7StoreAccountModal')storeModal('sn7StoreAccountModal',false)});
+    document.querySelectorAll('.sn7-store-platform-btn').forEach(a=>a.addEventListener('click',()=>setStoreOperationLoading(true)));
   }
   if(admin){
     setViewerText('Modo administrador · somente o dono deste canal pode editar a Loja.');
@@ -320,11 +399,11 @@
     const update=()=>{count.textContent=desc.value.length;audio.parentElement.hidden=type.value!=='audio';save.disabled=!(name.value.trim()&&Number(price.value)>0&&desc.value.trim()&&(type.value!=='audio'||audio.value.trim()))};
     const reset=()=>{[name,price,stock,audio,desc].forEach(x=>x.value='');type.value='reward';file.value='';if(audioFile)audioFile.value='';img.hidden=true;img.removeAttribute('src');ptext.hidden=false;update()};
     open.onclick=()=>toggleForm(true);close.onclick=()=>toggleForm(false);cancel.onclick=()=>{reset();toggleForm(false)};
-    playerBtn.onclick=async()=>{playerBtn.disabled=true;try{const d=await api(`/api/store/${bid}/audio/player-token`);window.open(d.player_url,'_blank','noopener');}catch(e){alert(e.message)}finally{playerBtn.disabled=false}};
+    playerBtn.onclick=async()=>{playerBtn.disabled=true;setStoreOperationLoading(true);try{const d=await api(`/api/store/${bid}/audio/player-token`);window.open(d.player_url,'_blank','noopener');}catch(e){storeNotice(e.message)}finally{playerBtn.disabled=false;setStoreOperationLoading(false)}};
     [type,name,price,stock,audio,desc].forEach(x=>x.addEventListener('input',update));
     file.onchange=()=>{const f=file.files?.[0];if(!f)return;if(f.size>2*1024*1024){alert('A imagem deve ter no máximo 2 MB.');file.value='';return}const r=new FileReader();r.onload=e=>{img.src=e.target.result;img.hidden=false;ptext.hidden=true};r.readAsDataURL(f)};
-    save.onclick=async()=>{save.disabled=true;try{let image='';if(file.files?.[0])image=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file.files[0])});let audioData=audio.value.trim();if(audioFile?.files?.[0]){if(audioFile.files[0].size>4*1024*1024)throw new Error('O áudio deve ter no máximo 4 MB.');audioData=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(audioFile.files[0])})}const d=await api(`/api/store/${bid}/items`,{method:'POST',body:JSON.stringify({item_type:type.value,name:name.value.trim(),price:Number(price.value),stock:stock.value===''?null:Number(stock.value),description:desc.value.trim(),image_url:image,audio_url:audioData})});if(!d.ok)throw new Error(d.error||'Não foi possível salvar');reset();toggleForm(false);await loadAdmin()}catch(e){alert(e.message)}finally{update()}};
-    $('admin-items').addEventListener('click',async e=>{const t=e.target.closest('[data-toggle]'),del=e.target.closest('[data-delete]');try{if(t){await api(`/api/store/${bid}/items/${t.dataset.toggle}`,{method:'PATCH',body:JSON.stringify({active:t.textContent.includes('Desativar')?false:true})});loadAdmin()}if(del&&confirm('Excluir este item e seus resgates?')){await api(`/api/store/${bid}/items/${del.dataset.delete}`,{method:'DELETE'});loadAdmin()}}catch(x){alert(x.message)}});
+    save.onclick=async()=>{save.disabled=true;setStoreOperationLoading(true);try{let image='';if(file.files?.[0])image=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file.files[0])});let audioData=audio.value.trim();if(audioFile?.files?.[0]){if(audioFile.files[0].size>4*1024*1024)throw new Error('O áudio deve ter no máximo 4 MB.');audioData=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(audioFile.files[0])})}const d=await api(`/api/store/${bid}/items`,{method:'POST',body:JSON.stringify({item_type:type.value,name:name.value.trim(),price:Number(price.value),stock:stock.value===''?null:Number(stock.value),description:desc.value.trim(),image_url:image,audio_url:audioData})});if(!d.ok)throw new Error(d.error||'Não foi possível salvar');reset();toggleForm(false);await loadAdmin()}catch(e){storeNotice(e.message)}finally{update();setStoreOperationLoading(false)}};
+    $('admin-items').addEventListener('click',async e=>{const t=e.target.closest('[data-toggle]'),del=e.target.closest('[data-delete]');try{if(t){setStoreOperationLoading(true);await api(`/api/store/${bid}/items/${t.dataset.toggle}`,{method:'PATCH',body:JSON.stringify({active:t.textContent.includes('Desativar')?false:true})});await loadAdmin();setStoreOperationLoading(false)}if(del&&await storeConfirm('Excluir item','Deseja excluir este item? O histórico de resgates será preservado e, se já houver resgates, o item precisará ser desativado.','Excluir')){setStoreOperationLoading(true);await api(`/api/store/${bid}/items/${del.dataset.delete}`,{method:'DELETE'});await loadAdmin();setStoreOperationLoading(false)}}catch(x){setStoreOperationLoading(false);storeNotice(x.message)}});
     update();loadAdmin();
   }else loadPublic();
 })();
