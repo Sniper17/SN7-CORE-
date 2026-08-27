@@ -713,6 +713,7 @@ def race_start(bid, username, platform="kick"):
         "events": [],
         "story_chapter": 0,
         "location": location,
+        "story_thread": random.choice(_RACE_STORY_THREADS),
     }
     _runtime_set(bid, platform, "race", state)
     return {"ok": True, "state": state, "join_seconds": RACE_JOIN_WINDOW_SECONDS, "location": location}
@@ -785,6 +786,8 @@ def _race_story_event(state, chapter, accident_victim=None):
 
     location = state.get("location") or "🏁 Autódromo"
     scene = _RACE_LOCATIONS.get(location) or _RACE_LOCATIONS["🏁 Autódromo"]
+    thread = state.get("story_thread") or _RACE_STORY_THREADS[0]
+    bridge = thread[min(chapter - 1, 2)]
 
     # Sempre há 2 ações e 1 acidente/incidente por capítulo.
     action_pool = list(active)
@@ -813,7 +816,7 @@ def _race_story_event(state, chapter, accident_victim=None):
         state.setdefault("eliminated", {})[victim] = True
 
     return (
-        f"{location} • 📖 CAPÍTULO {chapter}/3: "
+        f"{location} • 📖 CAPÍTULO {chapter}/3: {bridge}. "
         f"⚡ {a1} "
         f"🔥 {a2} "
         f"💥 {accident}"
@@ -1156,6 +1159,7 @@ def survival_start(bid, username, platform="kick"):
         "duration_seconds": 0, "prize": prize,
         "players": [], "alive": {}, "events": [], "story_chapter": 0,
         "location": location,
+        "story_thread": random.choice(_SURVIVAL_STORY_THREADS),
     }
     _runtime_set(bid, platform, "survival", state)
     return {
@@ -1210,6 +1214,8 @@ def _survival_story_event(state, chapter):
     alive = [u for u in players if state.get("alive", {}).get(u, False)]
     location = state.get("location") or "🌲 Floresta"
     scene = _SURVIVAL_LOCATIONS.get(location) or _SURVIVAL_LOCATIONS["🌲 Floresta"]
+    thread = state.get("story_thread") or _SURVIVAL_STORY_THREADS[0]
+    bridge = thread[min(chapter - 1, 2)]
 
     # Em cada capítulo: proteção + ação + exatamente uma morte quando há
     # pelo menos dois vivos. Com dois, um elimina o outro.
@@ -1254,7 +1260,7 @@ def _survival_story_event(state, chapter):
     )
 
     return (
-        f"{location} • 📖 CAPÍTULO {chapter}/3: "
+        f"{location} • 📖 CAPÍTULO {chapter}/3: {bridge}. "
         f"🛡️ {protection} "
         f"⚡ {action} "
         f"💀 {death_text}{remaining_text}"

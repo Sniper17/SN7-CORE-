@@ -1543,7 +1543,7 @@ def _process_chat(payload, send_chat=None):
                 bid,
                 f"🏁🏎️ CORRIDA ABERTA em {result.get('location', 'um local desconhecido')}! "
                 "Você tem 90s para entrar. Digite !car1 até !car100 para escolher seu carro. "
-                "Depois dos 90s, quem entrou entrou: 3 capítulos com 2 ações e 1 acidente por capítulo, depois o pódio!",
+                "Depois dos 90s, quem entrou entrou! Serão 3 capítulos e o resultado final!",
             )
             _schedule_join_timer(_RACE_JOIN_TIMERS, bid, platform, _start_race_after_join_window, "RACE-JOIN")
             return
@@ -1592,7 +1592,7 @@ def _process_chat(payload, send_chat=None):
                 bid,
                 f"🧟 SOBREVIVÊNCIA ABERTA em {result.get('location', 'um local desconhecido')}! "
                 "Você tem 90s para entrar. Digite !sobreviver. "
-                "Depois dos 90s, quem entrou entrou: 3 capítulos, 2 ações e 1 morte por capítulo!",
+                "Depois dos 90s, quem entrou entrou! Serão 3 capítulos e o resultado final!",
             )
             _schedule_join_timer(_SURVIVAL_JOIN_TIMERS, bid, platform, _start_survival_after_join_window, "SURVIVAL-JOIN")
             return
