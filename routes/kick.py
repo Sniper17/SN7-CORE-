@@ -1365,6 +1365,40 @@ def _process_chat(payload, send_chat=None):
             return
 
         key = cfg["command_key"]
+
+        # !loja é um comando público e não deve criar/alterar o saldo do
+        # usuário. Ele apenas publica o endereço da Loja específica deste
+        # canal. O login usado dentro da Loja passa por /kick/store-login,
+        # separado da sessão administrativa do streamer.
+        if key == "store":
+            channel_name = str(
+                broadcaster.get("username")
+                or broadcaster.get("channel_slug")
+                or ""
+            ).strip()
+            if not channel_name:
+                try:
+                    channel = get_channel(bid)
+                    channel_name = str((channel or {}).get("username") or "").strip()
+                except Exception as exc:
+                    print(f"[STORE] não foi possível resolver o canal: {exc}", flush=True)
+            if not channel_name or not re.fullmatch(r"[A-Za-z0-9_-]+", channel_name):
+                send_chat(bid, "🛍️ A Loja deste canal ainda não está disponível.")
+                return
+            public_url = os.environ.get("SN7_PUBLIC_URL", "https://sn7core.com").strip().rstrip("/")
+            if "sn7-core.onrender.com" in public_url:
+                public_url = "https://sn7core.com"
+            store_url = f"{public_url}/loja/{quote(channel_name, safe='')}"
+            send_chat(
+                bid,
+                _render_response(cfg.get("response") or "🛍️ Loja da live: $(store_url)", {
+                    "store_url": store_url,
+                    "store": store_url,
+                    "channel": channel_name,
+                })
+            )
+            return
+
         # !corrida e os controles administrativos não precisam cadastrar o
         # usuário antes de responder. Isso reduz consultas no caminho crítico.
         if key not in {"race", "race_finish", "race_reset"}:

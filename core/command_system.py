@@ -10,6 +10,7 @@ DEFAULT_APOSTA_RESPONSE = "$(user) está apostando $(amount) $(currency) contra 
 
 SYSTEM = {
     "points": ("!pontos", "Consulta seu saldo de pontos.", "public", DEFAULT_POINTS_RESPONSE),
+    "store": ("!loja", "Mostra o link público da Loja deste canal.", "public", "🛍️ Loja da live: $(store_url)"),
     "ranking": ("!ranking", "Mostra o ranking do canal.", "public", "$(ranking)"),
     "duel": ("!aposta", "Inicia uma aposta contra outro usuário.", "minigames", DEFAULT_APOSTA_RESPONSE),
     "slots": ("!slots", "Aposta pontos no cassino virtual da live.", "minigames", "🎰 $(user) apostou $(amount) $(currency): $(slots_result). Saldo: $(new_points) $(currency)."),
