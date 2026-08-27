@@ -54,7 +54,7 @@ def response_headers(response):
     # Assets recebem cache longo porque o dashboard usa versões na URL.
     if request.path.startswith("/static/"):
         response.headers.setdefault("Cache-Control", SN7_STATIC_CACHE)
-    elif request.path in {"/", "/dashboard", "/perfil"}:
+    elif request.path in {"/", "/dashboard", "/perfil", "/loja"}:
         # O HTML do painel nunca deve ficar preso no cache do navegador/proxy.
         # Os assets continuam com cache longo porque usam ?v=SN7_VERSION.
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
@@ -93,7 +93,7 @@ def database_bootstrap():
     # O webhook da Kick precisa responder em poucos segundos. O PostgreSQL
     # é inicializado no worker de processamento, nunca no request HTTP da Kick.
     # Isso evita WORKER TIMEOUT durante cold start/migração do banco.
-    if request.path in {"/", "/dashboard", "/perfil", "/kick/login", "/kick/webhook"} or request.path.startswith("/static/"):
+    if request.path in {"/", "/dashboard", "/perfil", "/loja", "/kick/login", "/kick/webhook"} or request.path.startswith("/static/"):
         return None
     if os.environ.get("DATABASE_URL"):
         init_db()
@@ -143,6 +143,33 @@ def dashboard():
 @app.get("/perfil")
 def profile():
     return redirect("/?profile=1")
+
+
+@app.get("/loja")
+def store():
+    """Página inicial da Loja.
+
+    A primeira versão é apenas visual e não consulta o PostgreSQL.
+    A implementação de itens, resgates e áudio será adicionada em módulos
+    próprios, preservando o sistema atual de pontos, comandos e autenticação.
+    """
+    current = get_session_broadcaster_id(validate=False)
+    broadcaster_id = str(current) if current is not None else None
+    profile = None
+    if current is not None:
+        raw = session.get("kick_profile")
+        if isinstance(raw, dict) and int(raw.get("id") or 0) == int(current):
+            profile = {
+                "id": int(current),
+                "username": str(raw.get("username") or "").strip(),
+                "profile_picture_url": str(raw.get("profile_picture_url") or "").strip(),
+            }
+    return render_template(
+        "store.html",
+        broadcaster_id=broadcaster_id,
+        public_mode=broadcaster_id is None,
+        kick_profile=profile,
+    )
 
 
 @app.get("/privacy")

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<title>Loja · SN7 Core</title>
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.53-minigames-stable">
+<style>
+  .sn7-store-page{width:100%;max-width:1080px;margin:0 auto}
+  .sn7-store-hero{position:relative;overflow:hidden;padding:34px;min-height:300px;display:flex;align-items:center;background:radial-gradient(700px 260px at 82% 0%,rgba(155,140,255,.14),transparent 62%),linear-gradient(145deg,#141923,#0e1219 75%);border:1px solid var(--border);border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.035)}
+  .sn7-store-hero:after{content:"";position:absolute;width:310px;height:310px;right:-90px;bottom:-190px;border-radius:50%;background:radial-gradient(circle,rgba(103,232,249,.08),transparent 68%);pointer-events:none}
+  .sn7-store-copy{position:relative;z-index:1;max-width:700px}
+  .sn7-store-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:rgba(155,140,255,.10);border:1px solid rgba(155,140,255,.18);color:#bdb5ff;font-size:10px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase}
+  .sn7-store-title{display:flex;align-items:center;gap:13px;margin:18px 0 10px}
+  .sn7-store-title-icon{width:48px;height:48px;flex:0 0 48px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,rgba(155,140,255,.20),rgba(155,140,255,.06));border:1px solid rgba(155,140,255,.20);box-shadow:0 10px 30px rgba(0,0,0,.18)}
+  .sn7-store-title-icon svg{width:26px;height:26px;fill:none;stroke:#c7c0ff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .sn7-store-title h2{margin:0;font-size:clamp(27px,4vw,38px);letter-spacing:-.8px}
+  .sn7-store-copy>p{margin:0;color:#9ca6b7;line-height:1.65;font-size:14px;max-width:650px}
+  .sn7-store-status{display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:10px 12px;border-radius:11px;background:rgba(8,11,17,.56);border:1px solid rgba(255,255,255,.07);color:#aeb6c5;font-size:11px}
+  .sn7-store-status i{width:7px;height:7px;border-radius:50%;background:#a78bfa;box-shadow:0 0 10px rgba(167,139,250,.55)}
+  .sn7-store-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
+  .sn7-store-card{min-height:150px;padding:20px;background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)),var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:0 14px 35px rgba(0,0,0,.14)}
+  .sn7-store-card-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:#1b202a;color:#b7abff;margin-bottom:15px}
+  .sn7-store-card-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .sn7-store-card strong{display:block;font-size:14px;margin-bottom:5px}.sn7-store-card p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+  .sn7-store-safe{margin-top:14px;padding:14px 16px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:rgba(10,13,18,.48);color:#8993a4;font-size:11px;line-height:1.6}
+  .sn7-store-safe strong{color:#cbd2de}
+  .sn7-store-nav-active{background:linear-gradient(145deg,rgba(155,140,255,.18),rgba(155,140,255,.055))!important;border-color:rgba(155,140,255,.23)!important;color:#eef0f6!important;box-shadow:0 9px 22px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05)!important}
+  .sn7-store-nav-active .sn7-nav-icon{color:#c7c0ff!important}
+  @media(max-width:900px){.sn7-store-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:700px){.sn7-store-page{max-width:none}.sn7-store-hero{padding:25px 20px;min-height:0;border-radius:20px}.sn7-store-title{gap:10px}.sn7-store-title-icon{width:43px;height:43px;flex-basis:43px;border-radius:13px}.sn7-store-title h2{font-size:28px}.sn7-store-copy>p{font-size:12px}.sn7-store-grid{grid-template-columns:1fr}.sn7-store-card{min-height:0}.sn7-store-safe{margin-bottom:4px}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">SN7</span><span class="brand-core">CORE</span></div>
+    <div class="channel-card">
+      <div class="channel-avatar">{{ (kick_profile.username[:1] if kick_profile and kick_profile.username else 'S')|upper }}</div>
+      <div><strong>{{ kick_profile.username if kick_profile and kick_profile.username else 'Minha live' }}</strong><small>{{ 'Canal conectado' if kick_profile else 'Conecte sua conta no Perfil' }}</small></div>
+    </div>
+    <nav aria-label="Navegação principal">
+      <button type="button" aria-label="Início" onclick="window.location.href='/'">
+        <span class="sn7-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M3.5 10.6 12 3.5l8.5 7.1"/><path d="M5.5 9.7v9.8a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.7"/><path d="M9.5 20.5v-5.8h5v5.8"/></svg></span><span class="sn7-nav-label">Início</span>
+      </button>
+      <button type="button" aria-label="Pontos" onclick="try{localStorage.setItem('sn7-core-active-tab','economy')}catch(_){};window.location.href='/'">
+        <span class="sn7-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="7.8"/><path d="M12 8v8M9.2 10.2c.8-1.1 4.8-1.1 5.6.3.9 1.7-1.1 2.4-2.8 2.7-1.7.3-3.7.8-2.9 2.5.7 1.5 4.9 1.6 5.8.1"/></svg></span><span class="sn7-nav-label">Pontos</span>
+      </button>
+      <button type="button" aria-label="Ranking" onclick="try{localStorage.setItem('sn7-core-active-tab','ranking')}catch(_){};window.location.href='/'">
+        <span class="sn7-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M7 20V10h4v10M13 20V4h4v16M3 20h18"/></svg></span><span class="sn7-nav-label">Ranking</span>
+      </button>
+      <button type="button" class="sn7-store-nav-active" aria-label="Loja" aria-current="page">
+        <span class="sn7-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 9.5h16l-1 10H5l-1-10Z"/><path d="M7 9.5V7a5 5 0 0 1 10 0v2.5"/><path d="M8.5 13h.1M12 13h.1M15.5 13h.1"/></svg></span><span class="sn7-nav-label">Loja</span>
+      </button>
+      <button type="button" aria-label="Música" onclick="try{localStorage.setItem('sn7-core-active-tab','music')}catch(_){};window.location.href='/'">
+        <span class="sn7-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="3"/><circle cx="16.5" cy="16" r="3"/></svg></span><span class="sn7-nav-label">Música</span>
+      </button>
+      <button type="button" aria-label="Mini Games" onclick="try{localStorage.setItem('sn7-core-active-tab','minigames')}catch(_){};window.location.href='/'">
+        <span class="sn7-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m7.5 8.5 2-2h5l2 2"/><path d="M7.5 8.5h9a4.2 4.2 0 0 1 3.9 5.7l-1.2 3.1a2.4 2.4 0 0 1-4.3.3L14 16h-4l-2.9 1.6a2.4 2.4 0 0 1-4.3-.3l-1.2-3.1a4.2 4.2 0 0 1 3.9-5.7Z"/></svg></span><span class="sn7-nav-label">Mini Games</span>
+      </button>
+      <button type="button" aria-label="Automação" onclick="try{localStorage.setItem('sn7-core-active-tab','automations')}catch(_){};window.location.href='/'">
+        <span class="sn7-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="5" y="7" width="14" height="12" rx="3"/><path d="M9 7V5.5M15 7V5.5M12 3.5v2"/></svg></span><span class="sn7-nav-label">Automação</span>
+      </button>
+      <button type="button" aria-label="Comandos" onclick="try{localStorage.setItem('sn7-core-active-tab','commands')}catch(_){};window.location.href='/'">
+        <span class="sn7-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="m8 8 4 4-4 4M13 16h4"/><rect x="3.5" y="4" width="17" height="16" rx="3"/></svg></span><span class="sn7-nav-label">Comandos</span>
+      </button>
+      <button type="button" aria-label="Perfil" onclick="window.location.href='/?profile=1'">
+        <span class="sn7-nav-icon sn7-nav-profile-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="8.2" r="3.2"/><path d="M5.2 20a6.8 6.8 0 0 1 13.6 0"/></svg></span><span class="sn7-nav-label">Perfil</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">SN7 CORE <span>v1.9.54</span></div>
+  </aside>
+
+  <main>
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">PAINEL DO CANAL</div>
+        <h1 id="title"><span class="sn7-page-title-icon" aria-hidden="true"><svg class="sn7-page-title-svg" viewBox="0 0 24 24" focusable="false"><path d="M4 9.5h16l-1 10H5l-1-10Z"/><path d="M7 9.5V7a5 5 0 0 1 10 0v2.5"/><path d="M8.5 13h.1M12 13h.1M15.5 13h.1"/></svg></span><span class="sn7-page-title-text">Loja</span></h1>
+        <p>Recompensas e experiências para a sua comunidade.</p>
+      </div>
+      <div class="sn7-topbar-actions">
+        <span class="status"><i></i> ONLINE</span>
+        <button type="button" class="sn7-desktop-profile" aria-label="Perfil" onclick="window.location.href='/?profile=1'">
+          <span class="sn7-nav-profile-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="8.2" r="3.2"/><path d="M5.2 20a6.8 6.8 0 0 1 13.6 0"/></svg></span><span>Perfil</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="sn7-store-page">
+      <section class="sn7-store-hero">
+        <div class="sn7-store-copy">
+          <span class="sn7-store-badge">Nova área do SN7 Core</span>
+          <div class="sn7-store-title">
+            <span class="sn7-store-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 9.5h16l-1 10H5l-1-10Z"/><path d="M7 9.5V7a5 5 0 0 1 10 0v2.5"/><path d="M8.5 13h.1M12 13h.1M15.5 13h.1"/></svg></span>
+            <h2>Loja do canal</h2>
+          </div>
+          <p>Estamos preparando um sistema completo para o streamer criar recompensas, usar os pontos da comunidade e transformar resgates em experiências durante a live.</p>
+          <div class="sn7-store-status"><i></i><span><strong>Em desenvolvimento</strong> · a estrutura inicial já está preparada</span></div>
+        </div>
+      </section>
+
+      <section class="sn7-store-grid" aria-label="Recursos planejados">
+        <article class="sn7-store-card">
+          <div class="sn7-store-card-icon"><svg viewBox="0 0 24 24"><path d="M12 3.5 14.5 9l6 .5-4.6 3.9 1.4 5.9-5.3-3.1-5.3 3.1 1.4-5.9L3.5 9.5l6-.5L12 3.5Z"/></svg></div>
+          <strong>Itens e recompensas</strong><p>O streamer poderá criar itens com preço em pontos, descrição, estoque e limites de resgate.</p>
+        </article>
+        <article class="sn7-store-card">
+          <div class="sn7-store-card-icon"><svg viewBox="0 0 24 24"><path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="3"/><circle cx="16.5" cy="16" r="3"/></svg></div>
+          <strong>Áudios para a live</strong><p>Uma área própria para cadastrar áudios que poderão entrar em uma fila de reprodução.</p>
+        </article>
+        <article class="sn7-store-card">
+          <div class="sn7-store-card-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></div>
+          <strong>Fila e cooldown</strong><p>Resgates poderão respeitar cooldowns, limites e uma fila para evitar spam durante a transmissão.</p>
+        </article>
+      </section>
+
+      <div class="sn7-store-safe"><strong>🔒 Sem alterar o que já funciona:</strong> a Loja será construída separadamente e integrada ao sistema atual de pontos. Nenhum ponto, comando, configuração do canal ou conexão existente será recriado ou resetado.</div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
