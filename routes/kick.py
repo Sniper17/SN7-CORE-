@@ -202,7 +202,7 @@ _profile_cache_ttl = 8
 # Cache curto da conexão usada para enviar respostas. O caminho anterior
 # consultava o PostgreSQL em praticamente toda mensagem enviada.
 _connection_cache = {}
-_connection_cache_ttl = 300
+_connection_cache_ttl = 15
 _connection_cache_lock = RLock()
 
 # Cobre duplicações entregues por mais de uma assinatura/webhook durante
@@ -210,26 +210,6 @@ _connection_cache_lock = RLock()
 _recent_chat_events = {}
 _recent_chat_events_ttl = 2.0
 _recent_chat_events_lock = RLock()
-
-# Deduplicação rápida do webhook de chat. Não gravamos cada mensagem de chat
-# no PostgreSQL antes de executar o comando: isso adicionava uma transação ao
-# caminho crítico e podia transformar um comando simples em vários segundos.
-_RECENT_WEBHOOK_IDS = {}
-_RECENT_WEBHOOK_IDS_TTL = 120.0
-_RECENT_WEBHOOK_IDS_LOCK = RLock()
-
-def _remember_webhook_id_fast(message_id):
-    if not message_id:
-        return True
-    now = time.monotonic()
-    with _RECENT_WEBHOOK_IDS_LOCK:
-        for old_id, expires in list(_RECENT_WEBHOOK_IDS.items()):
-            if expires <= now:
-                _RECENT_WEBHOOK_IDS.pop(old_id, None)
-        if message_id in _RECENT_WEBHOOK_IDS:
-            return False
-        _RECENT_WEBHOOK_IDS[message_id] = now + _RECENT_WEBHOOK_IDS_TTL
-        return True
 
 # Participantes vistos recentemente no chat. Usado pelo !addpoint sem exigir
 # uma lista externa de espectadores (a Kick não fornece "quem está online").
@@ -2298,9 +2278,15 @@ def _remember_recent_chat(payload):
 def _process_webhook(payload, event_type):
     print(f"[KICK-WEBHOOK] evento recebido para processamento: {event_type}", flush=True)
 
-    # Chat não precisa executar migração/bootstrap a cada mensagem. O app já
-    # inicializa o schema no boot/primeira API; manter isso fora do caminho
-    # crítico reduz a latência do comando.
+    # Bootstrap/migration acontece fora do request HTTP. A Kick recebe 200
+    # imediatamente, enquanto este worker prepara o PostgreSQL para o comando.
+    try:
+        init_db()
+        from core.minigames import ensure_minigame_table
+        ensure_minigame_table()
+    except Exception as exc:
+        print(f"[KICK-WEBHOOK] falha no bootstrap do banco: {exc}", flush=True)
+        return
     if event_type == "chat.message.sent":
         print("[KICK-WEBHOOK] processando chat.message.sent", flush=True)
         # A chegada de um chat.message.sent é uma prova direta de que o bot
@@ -2333,16 +2319,6 @@ def _process_webhook(payload, event_type):
         except (TypeError, ValueError):
             pass
         _process_chat(payload)
-        return
-
-    # Eventos não relacionados ao chat ainda garantem o schema antes de
-    # atualizar economia/inscrições/etc.
-    try:
-        init_db()
-        from core.minigames import ensure_minigame_table
-        ensure_minigame_table()
-    except Exception as exc:
-        print(f"[KICK-WEBHOOK] falha no bootstrap do banco: {exc}", flush=True)
         return
 
     broadcaster = payload.get("broadcaster") or {}
@@ -2914,12 +2890,7 @@ def webhook():
         return jsonify({"ok": False, "error": "assinatura Kick inválida"}), 401
 
     try:
-        # Chat é o caminho de maior frequência. A deduplicação em memória é
-        # suficiente para retries imediatos e remove uma escrita SQL por mensagem.
-        if event_type == "chat.message.sent":
-            if not _remember_webhook_id_fast(message_id):
-                return jsonify({"ok": True, "duplicate": True})
-        elif not _remember_event(message_id):
+        if not _remember_event(message_id):
             return jsonify({"ok": True, "duplicate": True})
         payload = request.get_json(silent=True) or {}
         # Responde rápido para a Kick; o processamento da economia/comando ocorre

@@ -98,9 +98,13 @@ def _send(platform,bid,message):
     conn=dict(conn); conn['_chat_id']=chat; _send(conn,message); return True
 
 def _worker():
+    try:
+        ensure_table()
+    except Exception as exc:
+        print(f'[AUTOMATION] initial table setup failed: {exc}', flush=True)
     while True:
         try:
-            ensure_table(); conn=get_conn()
+            conn=get_conn()
             due=[]
             try:
                 with conn.cursor() as cur:

@@ -1,7 +1,13 @@
 import hashlib
+import time
+import threading
 
 from flask import g, session
 from core.database import get_conn
+
+_AUTH_CACHE_TTL = 20.0
+_auth_cache = {}
+_auth_cache_lock = threading.RLock()
 
 
 def stable_channel_id(provider, external_user_id):
@@ -40,6 +46,14 @@ def get_session_broadcaster_id(validate=True):
         g.sn7_session_broadcaster_id_validated = None
         return None
 
+    cache_key = int(broadcaster_id)
+    now = time.monotonic()
+    with _auth_cache_lock:
+        cached_at = _auth_cache.get(cache_key)
+        if cached_at and now - cached_at < _AUTH_CACHE_TTL:
+            g.sn7_session_broadcaster_id_validated = broadcaster_id
+            return broadcaster_id
+
     try:
         conn = get_conn()
         try:
@@ -66,6 +80,8 @@ def get_session_broadcaster_id(validate=True):
         g.sn7_session_broadcaster_id_validated = None
         return None
 
+    with _auth_cache_lock:
+        _auth_cache[cache_key] = now
     g.sn7_session_broadcaster_id_validated = broadcaster_id
     return broadcaster_id
 

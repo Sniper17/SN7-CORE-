@@ -2,7 +2,7 @@ import os
 import psycopg
 try:
     from psycopg_pool import ConnectionPool
-except ImportError:  # fallback para ambientes antigos durante a atualização
+except ImportError:
     ConnectionPool = None
 from threading import Lock
 
@@ -299,12 +299,11 @@ ALTER TABLE music_settings
 """
 
 def get_conn():
-    """Obtém uma conexão reutilizável para evitar handshake TCP/TLS por comando.
+    """Retorna uma conexão reutilizável, reduzindo handshake e contenção no banco.
 
-    O SN7 recebe muitos comandos curtos. Criar uma conexão PostgreSQL nova para
-    cada mensagem adiciona latência desnecessária, especialmente quando o banco
-    está em outra região. O pool mantém algumas conexões aquecidas e devolve a
-    conexão ao pool quando o chamador executa conn.close().
+    O pool é pequeno de propósito para não consumir todas as conexões do
+    PostgreSQL em workers de background. Se psycopg_pool não estiver disponível,
+    mantém fallback compatível para psycopg.connect().
     """
     global _db_pool
     url = os.environ.get("DATABASE_URL")
@@ -312,18 +311,35 @@ def get_conn():
         raise RuntimeError("DATABASE_URL não configurado.")
     if ConnectionPool is None:
         return psycopg.connect(url)
-    if _db_pool is None:
-        with _db_pool_lock:
-            if _db_pool is None:
-                _db_pool = ConnectionPool(
-                    conninfo=url,
-                    min_size=1,
-                    max_size=5,
-                    timeout=4,
-                    max_idle=300,
-                    open=True,
-                )
-    return _db_pool.getconn()
+    with _db_pool_lock:
+        if _db_pool is None:
+            _db_pool = ConnectionPool(
+                conninfo=url,
+                min_size=1,
+                max_size=8,
+                timeout=8,
+                max_idle=60,
+                max_lifetime=900,
+                open=True,
+            )
+    return _PooledConnection(_db_pool, _db_pool.getconn())
+
+
+class _PooledConnection:
+    """Compatibilidade com o código legado que chama conn.close()."""
+    def __init__(self, pool, conn):
+        self._pool = pool
+        self._conn = conn
+        self._returned = False
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+    def close(self):
+        if not self._returned:
+            self._returned = True
+            self._pool.putconn(self._conn)
+
 
 def init_db():
     global _db_initialized, _point_rewards_ready
