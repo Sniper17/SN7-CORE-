@@ -15,7 +15,7 @@ from routes.music import music_bp
 from routes.obs import obs_bp
 from routes.twitch import twitch_bp
 from routes.youtube import youtube_bp
-from routes.store import store_bp
+from routes.store import store_bp, validate_audio_player_token, _resolve_channel
 import os
 import re
 
@@ -26,7 +26,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.55-loja-command"
+SN7_VERSION = "1.9.56-loja-stable"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 
@@ -173,6 +173,19 @@ def public_store_page(target):
     # A página é pública: o login do viewer é opcional até o momento do resgate.
     return render_template("store.html", broadcaster_id=None, public_mode=True, kick_profile=None,
                            store_target=str(target), store_viewer=session.get("sn7_store_viewer"))
+
+
+@app.get("/loja/<target>/audio-player")
+def store_audio_player(target):
+    # Player destinado ao Browser Source/OBS. O token é específico do canal e
+    # não concede acesso ao painel administrativo nem aos pontos.
+    channel = _resolve_channel(target)
+    if not channel:
+        return jsonify({"ok": False, "error": "Loja/canal não encontrado."}), 404
+    token = request.args.get("token", "")
+    if not validate_audio_player_token(token, channel["broadcaster_user_id"]):
+        return jsonify({"ok": False, "error": "Player de áudio não autorizado ou expirado."}), 401
+    return render_template("store_audio_player.html", broadcaster_id=int(channel["broadcaster_user_id"]))
 
 
 @app.get("/privacy")

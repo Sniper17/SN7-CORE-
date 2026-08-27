@@ -1,10 +1,47 @@
 import base64
+import hashlib
+import hmac
+import os
 import re
+import time
 from flask import Blueprint, jsonify, request, session
 from core.auth import get_session_broadcaster_id, require_session_broadcaster
 from core.database import get_conn
 
 store_bp = Blueprint("store", __name__)
+
+
+def _store_signing_secret():
+    return (os.environ.get("FLASK_SECRET_KEY") or os.environ.get("KICK_CLIENT_SECRET") or "sn7-store-secret").encode("utf-8")
+
+
+def make_audio_player_token(broadcaster_id, ttl=30 * 24 * 60 * 60):
+    payload = f"{int(broadcaster_id)}:{int(time.time()) + int(ttl)}".encode("utf-8")
+    body = base64.urlsafe_b64encode(payload).rstrip(b"=").decode("ascii")
+    sig = hmac.new(_store_signing_secret(), body.encode("ascii"), hashlib.sha256).digest()
+    return body + "." + base64.urlsafe_b64encode(sig).rstrip(b"=").decode("ascii")
+
+
+def validate_audio_player_token(token, broadcaster_id):
+    try:
+        body, sig = str(token or "").split(".", 1)
+        expected = hmac.new(_store_signing_secret(), body.encode("ascii"), hashlib.sha256).digest()
+        supplied = base64.urlsafe_b64decode(sig + "=" * (-len(sig) % 4))
+        if not hmac.compare_digest(supplied, expected):
+            return False
+        payload = base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)).decode("utf-8")
+        bid, exp = payload.split(":", 1)
+        return int(bid) == int(broadcaster_id) and int(exp) >= int(time.time())
+    except Exception:
+        return False
+
+
+def _audio_access_ok(broadcaster_id):
+    try:
+        require_session_broadcaster(broadcaster_id)
+        return True
+    except PermissionError:
+        return validate_audio_player_token(request.args.get("token"), broadcaster_id)
 
 
 def _viewer():
@@ -272,9 +309,24 @@ def redemptions(broadcaster_id):
     return jsonify({"ok":True,"redemptions":[{"id":int(r[0]),"item_id":int(r[1]),"name":r[2],"item_type":r[3],"viewer_kick_user_id":int(r[4]),"viewer_username":r[5],"price":int(r[6]),"status":r[7],"created_at":r[8].isoformat()} for r in rows]})
 
 
+@store_bp.get("/<int:broadcaster_id>/audio/player-token")
+def audio_player_token(broadcaster_id):
+    require_session_broadcaster(broadcaster_id)
+    token = make_audio_player_token(broadcaster_id)
+    public_url = os.environ.get("SN7_PUBLIC_URL", "https://sn7core.com").strip().rstrip("/")
+    if "sn7-core.onrender.com" in public_url:
+        public_url = "https://sn7core.com"
+    channel = _resolve_channel(str(broadcaster_id)) or {"username": str(broadcaster_id)}
+    target = str(channel.get("username") or broadcaster_id)
+    from urllib.parse import quote
+    player_url = f"{public_url}/loja/{quote(target, safe='')}/audio-player?token={quote(token, safe='')}"
+    return jsonify({"ok": True, "token": token, "player_url": player_url, "expires_in": 30 * 24 * 60 * 60})
+
+
 @store_bp.get("/<int:broadcaster_id>/audio/next")
 def audio_next(broadcaster_id):
-    require_session_broadcaster(broadcaster_id)
+    if not _audio_access_ok(broadcaster_id):
+        return jsonify({"ok": False, "error": "Player de áudio não autorizado."}), 401
     conn=get_conn()
     try:
         with conn.cursor() as cur:
@@ -290,7 +342,8 @@ def audio_next(broadcaster_id):
 
 @store_bp.post("/<int:broadcaster_id>/audio/<int:queue_id>/complete")
 def audio_complete(broadcaster_id,queue_id):
-    require_session_broadcaster(broadcaster_id)
+    if not _audio_access_ok(broadcaster_id):
+        return jsonify({"ok": False, "error": "Player de áudio não autorizado."}), 401
     conn=get_conn()
     try:
         with conn.cursor() as cur:

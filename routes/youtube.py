@@ -18,6 +18,8 @@ _worker_started = False
 _reward_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="sn7-youtube-reward")
 _chat_executors = {}
 _chat_executors_lock = threading.RLock()
+_channel_poll_locks = {}
+_channel_poll_locks_guard = threading.RLock()
 
 def _chat_executor(bid):
     bid = int(bid)

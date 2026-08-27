@@ -1,3 +1,4 @@
+import os
 import base64
 import hashlib
 import hmac
@@ -1382,21 +1383,53 @@ def _process_chat(payload, send_chat=None):
                     channel_name = str((channel or {}).get("username") or "").strip()
                 except Exception as exc:
                     print(f"[STORE] não foi possível resolver o canal: {exc}", flush=True)
+
             if not channel_name or not re.fullmatch(r"[A-Za-z0-9_-]+", channel_name):
-                send_chat(bid, "🛍️ A Loja deste canal ainda não está disponível.")
+                send_chat(bid, "🛍️ Loja indisponível: canal não identificado.")
                 return
+
+            # !loja é público: consulta somente os itens ativos deste canal.
+            # Não cria player, não altera pontos e não usa a sessão administrativa.
+            available_items = []
+            try:
+                conn = get_conn()
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            """
+                            SELECT name
+                              FROM store_items
+                             WHERE broadcaster_user_id=%s
+                               AND active=TRUE
+                               AND (stock IS NULL OR stock > 0)
+                             ORDER BY id ASC
+                             LIMIT 12
+                            """,
+                            (int(bid),),
+                        )
+                        available_items = [
+                            str(row[0]).strip()
+                            for row in cur.fetchall()
+                            if row[0]
+                        ]
+                finally:
+                    conn.close()
+            except Exception as exc:
+                # Se o banco estiver momentaneamente indisponível, ainda enviamos
+                # o link da loja em vez de quebrar o processamento do chat.
+                print(f"[STORE] não foi possível consultar os itens: {exc}", flush=True)
+
             public_url = os.environ.get("SN7_PUBLIC_URL", "https://sn7core.com").strip().rstrip("/")
             if "sn7-core.onrender.com" in public_url:
                 public_url = "https://sn7core.com"
             store_url = f"{public_url}/loja/{quote(channel_name, safe='')}"
-            send_chat(
-                bid,
-                _render_response(cfg.get("response") or "🛍️ Loja da live: $(store_url)", {
-                    "store_url": store_url,
-                    "store": store_url,
-                    "channel": channel_name,
-                })
-            )
+
+            if available_items:
+                message = f"🛍️ Itens disponíveis: {' / '.join(available_items)} / 🔗 {store_url}"
+            else:
+                message = f"🛍️ Itens indisponíveis / 🔗 {store_url}"
+
+            send_chat(bid, message)
             return
 
         # !corrida e os controles administrativos não precisam cadastrar o

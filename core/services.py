@@ -193,6 +193,10 @@ def ensure_player(broadcaster_id, username, kick_user_id=None, platform="kick"):
                         INSERT INTO players
                             (broadcaster_user_id, platform, kick_user_id, username)
                         VALUES (%s,%s,%s,%s)
+                        ON CONFLICT (broadcaster_user_id, platform, username)
+                        DO UPDATE SET
+                            kick_user_id=COALESCE(EXCLUDED.kick_user_id, players.kick_user_id),
+                            updated_at=NOW()
                         """,
                         (bid, platform, uid, name),
                     )
