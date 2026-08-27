@@ -76,9 +76,15 @@ def get_session_broadcaster_id(validate=True):
                     return None
         finally:
             conn.close()
-    except Exception:
-        g.sn7_session_broadcaster_id_validated = None
-        return None
+    except Exception as exc:
+        # A sessão Flask é assinada pelo FLASK_SECRET_KEY. Uma falha
+        # transitória do PostgreSQL não deve transformar uma sessão válida em
+        # "deslogada" nem produzir 403 falsos no painel.
+        print(f"[AUTH] validação do canal adiada por falha no banco: {exc}", flush=True)
+        with _auth_cache_lock:
+            _auth_cache[cache_key] = now
+        g.sn7_session_broadcaster_id_validated = broadcaster_id
+        return broadcaster_id
 
     with _auth_cache_lock:
         _auth_cache[cache_key] = now

@@ -10,3 +10,4 @@
 - Confirmação de redefinição do painel passa para uma camada modal absoluta acima de todos os editores.
 - Unifica a versão/cache dos assets do dashboard em `1.9.53-minigames-stable`.
 - Validação executada: Python `compileall` e JavaScript `node --check`.
+\n\n## SN7 1.9.54 — estabilidade de banco/autenticação\n- Removido o pool PostgreSQL local compartilhado; o Core usa o pooler do Neon diretamente por operação.\n- Polling do YouTube não mantém conexão PostgreSQL presa durante chamadas externas.\n- Falhas transitórias do PostgreSQL não invalidam uma sessão Flask já assinada.\n- `/kick/login` não executa bootstrap do banco antes de iniciar o OAuth.\n

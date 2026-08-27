@@ -25,7 +25,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.53-minigames-stable"
+SN7_VERSION = "1.9.54-db-stable"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 
@@ -93,7 +93,7 @@ def database_bootstrap():
     # O webhook da Kick precisa responder em poucos segundos. O PostgreSQL
     # é inicializado no worker de processamento, nunca no request HTTP da Kick.
     # Isso evita WORKER TIMEOUT durante cold start/migração do banco.
-    if request.path in {"/", "/dashboard", "/perfil", "/kick/webhook"} or request.path.startswith("/static/"):
+    if request.path in {"/", "/dashboard", "/perfil", "/kick/login", "/kick/webhook"} or request.path.startswith("/static/"):
         return None
     if os.environ.get("DATABASE_URL"):
         init_db()

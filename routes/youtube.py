@@ -545,23 +545,21 @@ def _worker():
             finally:
                 db.close()
             for bid in bids:
-                lock = get_conn(); acquired = False
+                # Um lock em memória evita concorrência no mesmo canal sem
+                # prender uma conexão PostgreSQL durante o polling do YouTube.
+                with _channel_poll_locks_guard:
+                    poll_lock = _channel_poll_locks.setdefault(int(bid), threading.Lock())
+                if not poll_lock.acquire(blocking=False):
+                    continue
                 try:
-                    with lock.cursor() as cur:
-                        cur.execute("SELECT pg_try_advisory_lock(hashtextextended(%s,0))", (f"sn7_youtube_{bid}",))
-                        acquired = bool(cur.fetchone()[0])
-                    if not acquired:
-                        continue
                     conn = _refresh(_conn(bid), bid)
                     if conn:
                         try:
                             delay = min(delay, _poll_once(bid, conn))
                         except Exception as exc:
                             print(f"[YOUTUBE-CHAT] {bid}: {exc}", flush=True)
-                    with lock.cursor() as cur:
-                        cur.execute("SELECT pg_advisory_unlock(hashtextextended(%s,0))", (f"sn7_youtube_{bid}",))
                 finally:
-                    lock.close()
+                    poll_lock.release()
         except Exception as exc:
             print("[YOUTUBE-CHAT] worker", exc, flush=True)
         time.sleep(max(1, delay))

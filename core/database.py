@@ -9,8 +9,6 @@ from threading import Lock
 _db_initialized = False
 _db_init_lock = Lock()
 _point_rewards_ready = False
-_db_pool = None
-_db_pool_lock = Lock()
 
 DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)"
 
@@ -299,46 +297,21 @@ ALTER TABLE music_settings
 """
 
 def get_conn():
-    """Retorna uma conexão reutilizável, reduzindo handshake e contenção no banco.
+    """Abre uma conexão PostgreSQL por operação.
 
-    O pool é pequeno de propósito para não consumir todas as conexões do
-    PostgreSQL em workers de background. Se psycopg_pool não estiver disponível,
-    mantém fallback compatível para psycopg.connect().
+    O DATABASE_URL do SN7 aponta para o pooler do Neon. Um segundo pool local
+    dentro do processo criava uma fila artificial: os workers de YouTube e
+    automações podiam ocupar todas as conexões locais e os requests HTTP
+    falhavam com "couldn't get a connection after ... sec".
     """
-    global _db_pool
     url = os.environ.get("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL não configurado.")
-    if ConnectionPool is None:
-        return psycopg.connect(url)
-    with _db_pool_lock:
-        if _db_pool is None:
-            _db_pool = ConnectionPool(
-                conninfo=url,
-                min_size=1,
-                max_size=8,
-                timeout=8,
-                max_idle=60,
-                max_lifetime=900,
-                open=True,
-            )
-    return _PooledConnection(_db_pool, _db_pool.getconn())
-
-
-class _PooledConnection:
-    """Compatibilidade com o código legado que chama conn.close()."""
-    def __init__(self, pool, conn):
-        self._pool = pool
-        self._conn = conn
-        self._returned = False
-
-    def __getattr__(self, name):
-        return getattr(self._conn, name)
-
-    def close(self):
-        if not self._returned:
-            self._returned = True
-            self._pool.putconn(self._conn)
+    return psycopg.connect(
+        url,
+        connect_timeout=int(os.environ.get("SN7_DB_CONNECT_TIMEOUT", "10")),
+        application_name="SN7-Core",
+    )
 
 
 def init_db():
