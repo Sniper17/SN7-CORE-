@@ -376,12 +376,14 @@ def _oauth_signing_secret():
     return secret.encode("utf-8") if secret else b"sn7-kick-oauth"
 
 
-def _make_kick_oauth_state(broadcaster_id):
+def _make_kick_oauth_state(broadcaster_id=None, purpose="profile", return_to="/dashboard?profile=1"):
     payload = {
         "v": 1,
         "iat": int(time.time()),
         "nonce": secrets.token_urlsafe(18),
         "broadcaster_id": int(broadcaster_id) if broadcaster_id is not None else None,
+        "purpose": str(purpose or "profile"),
+        "return_to": str(return_to or "/dashboard?profile=1"),
         "next": "profile",
     }
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
@@ -2789,6 +2791,28 @@ def login():
     return redirect(f"{KICK_ID}/oauth/authorize?{urlencode(params)}")
 
 
+@kick_bp.get("/store-login")
+def store_login():
+    """Login da conta Kick do viewer, sem substituir a sessão do streamer."""
+    if not _client_id() or not _client_secret():
+        return jsonify({"ok": False, "error": "KICK_CLIENT_ID/KICK_CLIENT_SECRET não configurados no Render."}), 503
+    target = str(request.args.get("channel") or "").strip()
+    if not target or len(target) > 120 or not re.fullmatch(r"[A-Za-z0-9_-]+", target):
+        return jsonify({"ok": False, "error": "Canal da loja inválido."}), 400
+    # O state é assinado e carrega apenas um caminho de retorno criado pelo
+    # servidor; nenhuma conta do streamer é alterada durante o login do viewer.
+    return_to = f"/loja/{target}"
+    state = _make_kick_oauth_state(None, purpose="store_viewer", return_to=return_to)
+    verifier = _kick_pkce_verifier(state)
+    params = {
+        "response_type": "code", "client_id": _client_id(),
+        "redirect_uri": _redirect_uri(), "scope": "user:read",
+        "code_challenge": _pkce_challenge(verifier),
+        "code_challenge_method": "S256", "state": state, "browser": "true",
+    }
+    return redirect(f"{KICK_ID}/oauth/authorize?{urlencode(params)}")
+
+
 @kick_bp.route("/callback", methods=["GET", "POST"])
 def callback():
     params = request.args if request.method == "GET" else request.form
@@ -2806,6 +2830,25 @@ def callback():
     if not state_data:
         return jsonify({"ok": False, "error": "OAuth state inválido ou expirado."}), 400
     verifier = _kick_pkce_verifier(state)
+    if state_data.get("purpose") == "store_viewer":
+        try:
+            token_data = _exchange_code(params.get("code", ""), verifier)
+            user = _kick_user(token_data["access_token"])
+            kick_user_id = int(user.get("user_id"))
+            username = str(user.get("username") or user.get("slug") or user.get("channel_slug") or user.get("name") or user.get("display_name") or "Kick").strip()
+            avatar = str(user.get("profile_picture") or user.get("profile_picture_url") or user.get("profile_pic") or user.get("avatar_url") or "").strip()
+            session["sn7_store_viewer"] = {
+                "kick_user_id": kick_user_id, "username": username,
+                "profile_picture_url": avatar,
+            }
+            session.permanent = True
+            target = str(state_data.get("return_to") or "/loja")
+            if not target.startswith("/loja/"):
+                target = "/loja"
+            return redirect(target)
+        except Exception as exc:
+            print(f"[STORE-OAUTH] callback falhou: {exc}", flush=True)
+            return jsonify({"ok": False, "error": "Não foi possível autenticar a conta Kick para a Loja."}), 500
     try:
         token_data = _exchange_code(params.get("code", ""), verifier)
         user = _kick_user(token_data["access_token"])

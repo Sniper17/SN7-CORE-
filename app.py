@@ -15,6 +15,7 @@ from routes.music import music_bp
 from routes.obs import obs_bp
 from routes.twitch import twitch_bp
 from routes.youtube import youtube_bp
+from routes.store import store_bp
 import os
 import re
 
@@ -47,6 +48,7 @@ app.register_blueprint(music_bp, url_prefix="/api/music")
 app.register_blueprint(obs_bp)
 app.register_blueprint(twitch_bp, url_prefix="/twitch")
 app.register_blueprint(youtube_bp, url_prefix="/youtube")
+app.register_blueprint(store_bp, url_prefix="/api/store")
 
 
 @app.after_request
@@ -54,7 +56,7 @@ def response_headers(response):
     # Assets recebem cache longo porque o dashboard usa versões na URL.
     if request.path.startswith("/static/"):
         response.headers.setdefault("Cache-Control", SN7_STATIC_CACHE)
-    elif request.path in {"/", "/dashboard", "/perfil", "/loja"}:
+    elif request.path in {"/", "/dashboard", "/perfil", "/loja"} or request.path.startswith("/loja/"):
         # O HTML do painel nunca deve ficar preso no cache do navegador/proxy.
         # Os assets continuam com cache longo porque usam ?v=SN7_VERSION.
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
@@ -97,6 +99,11 @@ def database_bootstrap():
         return None
     if os.environ.get("DATABASE_URL"):
         init_db()
+        # A Loja não precisa executar a migração dos Mini Games a cada request.
+        # Mantemos essa separação para que uma abertura/resgate da Loja não
+        # concorra com o bootstrap do schema dos jogos.
+        if request.path.startswith("/api/store/"):
+            return None
         # O banco é inicializado antes dos handlers de chat. Nunca marque o
         # schema dos minigames como pronto sem executar as migrações: bancos
         # antigos podem não ter colunas adicionadas em versões recentes.
@@ -147,29 +154,25 @@ def profile():
 
 @app.get("/loja")
 def store():
-    """Página inicial da Loja.
-
-    A primeira versão é apenas visual e não consulta o PostgreSQL.
-    A implementação de itens, resgates e áudio será adicionada em módulos
-    próprios, preservando o sistema atual de pontos, comandos e autenticação.
-    """
+    """Loja pública e área administrativa do canal logado."""
     current = get_session_broadcaster_id(validate=False)
     broadcaster_id = str(current) if current is not None else None
     profile = None
     if current is not None:
         raw = session.get("kick_profile")
         if isinstance(raw, dict) and int(raw.get("id") or 0) == int(current):
-            profile = {
-                "id": int(current),
-                "username": str(raw.get("username") or "").strip(),
-                "profile_picture_url": str(raw.get("profile_picture_url") or "").strip(),
-            }
-    return render_template(
-        "store.html",
-        broadcaster_id=broadcaster_id,
-        public_mode=broadcaster_id is None,
-        kick_profile=profile,
-    )
+            profile = {"id": int(current), "username": str(raw.get("username") or "").strip(),
+                       "profile_picture_url": str(raw.get("profile_picture_url") or "").strip()}
+    return render_template("store.html", broadcaster_id=broadcaster_id, public_mode=broadcaster_id is None,
+                           kick_profile=profile, store_target=(profile.get("username") if profile else None),
+                           store_viewer=session.get("sn7_store_viewer"))
+
+
+@app.get("/loja/<target>")
+def public_store_page(target):
+    # A página é pública: o login do viewer é opcional até o momento do resgate.
+    return render_template("store.html", broadcaster_id=None, public_mode=True, kick_profile=None,
+                           store_target=str(target), store_viewer=session.get("sn7_store_viewer"))
 
 
 @app.get("/privacy")

@@ -76,6 +76,10 @@
   .sn7-store-dev-note strong{color:#b7bfcc}
   @media(max-width:760px){.sn7-store-builder{padding:17px}.sn7-store-builder-head{align-items:flex-start}.sn7-store-builder-head>div:first-child{align-items:flex-start}.sn7-store-add-btn span:last-child{display:none}.sn7-store-form-grid{grid-template-columns:1fr;gap:18px}.sn7-store-fields{grid-template-columns:1fr}.sn7-store-field:nth-child(3){grid-column:1}.sn7-store-form-actions,.sn7-store-dev-note{grid-column:1}}
 
+  .sn7-store-items-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:18px}.sn7-shop-item{overflow:hidden;border:1px solid var(--border);border-radius:16px;background:rgba(8,11,17,.42);display:flex;flex-direction:column}.sn7-shop-item.is-off{opacity:.58}.sn7-shop-item-image{height:145px;background:#0a0e15;display:grid;place-items:center;overflow:hidden}.sn7-shop-item-image img{width:100%;height:100%;object-fit:cover}.sn7-shop-card-placeholder{font-size:28px;color:#a99cff}.sn7-shop-item-body{padding:15px}.sn7-shop-item-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.sn7-shop-item-type{font-size:9px;color:#929bad;text-transform:uppercase;font-weight:800;letter-spacing:.6px}.sn7-shop-price{font-size:11px;font-weight:900;color:#c4b9ff}.sn7-shop-item h3{font-size:14px;margin:9px 0 5px}.sn7-shop-item p{font-size:10px;line-height:1.5;color:#8f99a9;min-height:31px;margin:0 0 9px}.sn7-shop-item small{font-size:9px;color:#5f6979}.sn7-shop-actions{display:flex;gap:7px;margin-top:12px}.sn7-shop-actions button,.sn7-store-redeem{border:1px solid rgba(155,140,255,.2);border-radius:9px;background:rgba(155,140,255,.08);color:#c8c0ff;padding:8px 10px;font:inherit;font-size:10px;font-weight:800;cursor:pointer}.sn7-shop-actions button.danger{color:#ff9d9d;border-color:rgba(255,120,120,.16);background:rgba(255,80,80,.05)}.sn7-store-redeem{width:100%;background:linear-gradient(145deg,#7c55f4,#633bd5);color:#fff}.sn7-store-redeem:disabled{opacity:.4;cursor:not-allowed}.sn7-store-wallet{padding:9px 12px;border-radius:10px;border:1px solid rgba(155,140,255,.2);background:rgba(155,140,255,.07);font-size:11px;font-weight:900;color:#c9c1ff}.sn7-store-login{margin-top:15px;display:flex;align-items:center;gap:12px;padding:13px;border:1px solid rgba(155,140,255,.15);border-radius:13px;background:rgba(155,140,255,.045);font-size:10px;color:#8f99a9}.sn7-store-login strong{color:#dce0e8}.sn7-store-primary-link{margin-left:auto;text-decoration:none;padding:9px 12px;border-radius:9px;background:#7049df;color:#fff;font-weight:800}.sn7-store-history{margin-top:16px}.sn7-shop-history-row{display:grid;grid-template-columns:1fr 1.5fr .7fr .6fr;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:10px}.sn7-shop-history-row span,.sn7-shop-history-row small{color:#8d97a7}.sn7-store-empty{padding:20px;text-align:center;border:1px dashed rgba(255,255,255,.08);border-radius:13px;color:#687284;font-size:10px}.sn7-store-field select{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:#0b0f17;color:#e7eaf1;padding:11px 12px;font:inherit;font-size:11px}.sn7-store-field select:focus{outline:none;border-color:rgba(155,140,255,.5)}
+  @media(max-width:900px){.sn7-store-items-grid{grid-template-columns:1fr 1fr}}@media(max-width:700px){.sn7-store-items-grid{grid-template-columns:1fr}.sn7-store-login{align-items:flex-start;flex-wrap:wrap}.sn7-store-primary-link{margin-left:0}.sn7-shop-history-row{grid-template-columns:1fr 1fr}.sn7-store-wallet{margin-top:8px}}
+  .sn7-store-upload-mini{display:block;margin-top:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.06);border-radius:9px;color:#8e98a8;font-size:9px;cursor:pointer;background:rgba(255,255,255,.02)}.sn7-store-upload-mini input{display:block;margin-top:5px;width:100%;font-size:9px}
+
 </style>
 </head>
 <body>
@@ -136,147 +140,106 @@
     <div class="sn7-store-page">
       <section class="sn7-store-hero">
         <div class="sn7-store-copy">
-          <span class="sn7-store-badge">Nova área do SN7 Core</span>
+          <span class="sn7-store-badge">Loja SN7 Core</span>
           <div class="sn7-store-title">
             <span class="sn7-store-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 9.5h16l-1 10H5l-1-10Z"/><path d="M7 9.5V7a5 5 0 0 1 10 0v2.5"/><path d="M8.5 13h.1M12 13h.1M15.5 13h.1"/></svg></span>
-            <h2>Loja do canal</h2>
+            <h2 id="store-title">Loja do canal</h2>
           </div>
-          <p>Estamos preparando um sistema completo para o streamer criar recompensas, usar os pontos da comunidade e transformar resgates em experiências durante a live.</p>
-          <div class="sn7-store-status"><i></i><span><strong>Em desenvolvimento</strong> · a estrutura inicial já está preparada</span></div>
+          <p id="store-subtitle">Recompensas da comunidade, resgatadas com os pontos conquistados na live.</p>
+          <div class="sn7-store-status" id="store-viewer-box"><i></i><span id="store-viewer-text">Carregando loja...</span></div>
         </div>
       </section>
 
-      <section class="sn7-store-builder" aria-label="Itens e recompensas">
+      <section class="sn7-store-builder" id="store-admin" {% if not broadcaster_id %}hidden{% endif %} aria-label="Administração da loja">
         <div class="sn7-store-builder-head">
           <div>
-            <div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 14.5 9l6 .5-4.6 3.9 1.4 5.9-5.3-3.1-5.3 3.1 1.4-5.9L3.5 9.5l6-.5L12 3.5Z"/></svg></div>
-            <div>
-              <strong>Itens e recompensas</strong>
-              <p>Crie recompensas que a comunidade poderá resgatar usando os pontos.</p>
-            </div>
+            <div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 14.5 9l6 .5-4.6 3.9 1.4 5.9-5.3-3.1-5.3 3.1 1.4-5.9L3.5 9l6-.5L12 3.5Z"/></svg></div>
+            <div><strong>Itens e recompensas</strong><p>Crie e gerencie o que a comunidade pode resgatar.</p></div>
           </div>
-          <button type="button" class="sn7-store-add-btn" id="sn7-open-item-form" aria-expanded="false" aria-controls="sn7-item-form">
-            <span aria-hidden="true">+</span><span>Novo item</span>
-          </button>
+          <button type="button" class="sn7-store-add-btn" id="sn7-open-item-form"><span aria-hidden="true">+</span><span>Novo item</span></button>
         </div>
-
+        <div id="admin-items" class="sn7-store-items-grid"></div>
         <div class="sn7-store-item-form" id="sn7-item-form" hidden>
-          <div class="sn7-store-form-title">
-            <div>
-              <span class="sn7-store-form-kicker">CONFIGURAR RECOMPENSA</span>
-              <h3>Adicionar novo item</h3>
-              <p>Defina a imagem, o valor em pontos e o que a comunidade recebe.</p>
-            </div>
-            <button type="button" class="sn7-store-close-btn" id="sn7-close-item-form" aria-label="Fechar">×</button>
-          </div>
-
+          <div class="sn7-store-form-title"><div><span class="sn7-store-form-kicker">CONFIGURAR RECOMPENSA</span><h3>Adicionar novo item</h3><p>Defina o conteúdo que ficará disponível para a comunidade.</p></div><button type="button" class="sn7-store-close-btn" id="sn7-close-item-form" aria-label="Fechar">×</button></div>
           <div class="sn7-store-form-grid">
             <div class="sn7-store-image-col">
               <label class="sn7-store-label">Imagem do item</label>
-              <label class="sn7-store-upload" for="sn7-item-image">
-                <input id="sn7-item-image" type="file" accept="image/png,image/jpeg,image/webp">
-                <span class="sn7-store-upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M5 14v4.5a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5V14"/></svg></span>
-                <strong>Enviar imagem</strong>
-                <small>PNG, JPG ou WEBP · até 5 MB</small>
-              </label>
-              <div class="sn7-store-preview" id="sn7-item-preview">
-                <span class="sn7-store-preview-placeholder" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m5.5 17 4.2-4.2 2.8 2.8 2-2 4 4"/></svg></span>
-                <img id="sn7-item-preview-img" alt="Prévia da imagem do item" hidden>
-                <span id="sn7-item-preview-text">Prévia da imagem</span>
-              </div>
+              <label class="sn7-store-upload" for="sn7-item-image"><input id="sn7-item-image" type="file" accept="image/png,image/jpeg,image/webp"><span class="sn7-store-upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M5 14v4.5a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5V14"/></svg></span><strong>Enviar imagem</strong><small>PNG, JPG ou WEBP · até 2 MB</small></label>
+              <div class="sn7-store-preview" id="sn7-item-preview"><span class="sn7-store-preview-placeholder" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m5.5 17 4.2-4.2 2.8 2.8 2-2 4 4"/></svg></span><img id="sn7-item-preview-img" alt="Prévia" hidden><span id="sn7-item-preview-text">Prévia da imagem</span></div>
             </div>
-
             <div class="sn7-store-fields">
-              <div class="sn7-store-field">
-                <label class="sn7-store-label" for="sn7-item-name">Nome do item</label>
-                <input id="sn7-item-name" type="text" maxlength="80" placeholder="Ex.: Escolher próxima música">
-              </div>
-              <div class="sn7-store-field">
-                <label class="sn7-store-label" for="sn7-item-price">Valor em pontos</label>
-                <div class="sn7-store-input-prefix"><span>✦</span><input id="sn7-item-price" type="number" min="1" step="1" placeholder="1000"></div>
-              </div>
-              <div class="sn7-store-field">
-                <label class="sn7-store-label" for="sn7-item-description">Descrição</label>
-                <textarea id="sn7-item-description" maxlength="300" rows="6" placeholder="Explique o que o item faz ou como será entregue..."></textarea>
-                <small class="sn7-store-counter"><span id="sn7-item-description-count">0</span>/300</small>
-              </div>
-              <div class="sn7-store-form-actions">
-                <button type="button" class="sn7-store-secondary" id="sn7-cancel-item">Cancelar</button>
-                <button type="button" class="sn7-store-primary" id="sn7-save-item" disabled>Salvar item</button>
-              </div>
-              <div class="sn7-store-dev-note"><span></span><strong>Em desenvolvimento</strong> · nesta primeira versão o formulário é apenas visual.</div>
+              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-type">Tipo</label><select id="sn7-item-type"><option value="reward">🎁 Recompensa</option><option value="audio">🔊 Áudio</option></select></div>
+              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-name">Nome do item</label><input id="sn7-item-name" type="text" maxlength="80" placeholder="Ex.: Escolher próxima música"></div>
+              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-price">Valor em pontos</label><div class="sn7-store-input-prefix"><span>✦</span><input id="sn7-item-price" type="number" min="1" step="1" placeholder="1000"></div></div>
+              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-stock">Estoque <small>(opcional)</small></label><input id="sn7-item-stock" type="number" min="0" step="1" placeholder="Ilimitado"></div>
+              <div class="sn7-store-field sn7-audio-field" hidden><label class="sn7-store-label" for="sn7-item-audio-url">Áudio</label><input id="sn7-item-audio-url" type="url" maxlength="7000000" placeholder="https://.../audio.mp3"><label class="sn7-store-upload-mini" for="sn7-item-audio-file">ou enviar arquivo · até 4 MB<input id="sn7-item-audio-file" type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/webm"></label><small class="sn7-store-counter">O áudio entra na fila automaticamente após o resgate.</small></div>
+              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-description">Descrição</label><textarea id="sn7-item-description" maxlength="300" rows="6" placeholder="Explique o que o item faz ou como será entregue..."></textarea><small class="sn7-store-counter"><span id="sn7-item-description-count">0</span>/300</small></div>
+              <div class="sn7-store-form-actions"><button type="button" class="sn7-store-secondary" id="sn7-cancel-item">Cancelar</button><button type="button" class="sn7-store-primary" id="sn7-save-item" disabled>Salvar item</button></div>
             </div>
           </div>
         </div>
       </section>
 
-      <div class="sn7-store-safe"><strong>🔒 Sem alterar o que já funciona:</strong> esta etapa é somente a interface da Loja. Não altera pontos, comandos, configurações do canal ou conexões existentes.</div>
+      <section class="sn7-store-builder" id="store-public" {% if broadcaster_id %}hidden{% endif %}>
+        <div class="sn7-store-builder-head"><div><div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.2 10.2c.8-1.1 4.8-1.1 5.6.3.9 1.7-1.1 2.4-2.8 2.7-1.7.3-3.7.8-2.9 2.5.7 1.5 4.9 1.6 5.8.1"/></svg></div><div><strong>Recompensas disponíveis</strong><p>Use seus pontos neste canal para resgatar os itens.</p></div></div><div id="public-wallet" class="sn7-store-wallet">—</div></div>
+        <div id="public-items" class="sn7-store-items-grid"></div>
+        <div id="public-login" class="sn7-store-login" hidden><strong>Quer resgatar?</strong><span>Entre com sua conta Kick para usar os seus pontos neste canal.</span><a id="store-login-link" class="sn7-store-primary-link" href="#">Entrar com Kick</a></div>
+      </section>
+
+      <section class="sn7-store-builder" id="store-history" {% if not broadcaster_id %}hidden{% endif %}>
+        <div class="sn7-store-builder-head"><div><div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 5h12v15H6z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg></div><div><strong>Últimos resgates</strong><p>Acompanhe as recompensas solicitadas pela comunidade.</p></div></div></div>
+        <div id="admin-redemptions" class="sn7-store-history"></div>
+      </section>
+      <div class="sn7-store-safe"><strong>🔒 Carteiras separadas por canal:</strong> cada viewer mantém um saldo próprio em cada streamer. A Loja não cria nem substitui o sistema atual de pontos.</div>
     </div>
-  </main>
+
 </div>
 
 <script>
 (function(){
-  const openBtn=document.getElementById('sn7-open-item-form');
-  const closeBtn=document.getElementById('sn7-close-item-form');
-  const cancelBtn=document.getElementById('sn7-cancel-item');
-  const form=document.getElementById('sn7-item-form');
-  const file=document.getElementById('sn7-item-image');
-  const preview=document.getElementById('sn7-item-preview');
-  const previewImg=document.getElementById('sn7-item-preview-img');
-  const previewText=document.getElementById('sn7-item-preview-text');
-  const name=document.getElementById('sn7-item-name');
-  const price=document.getElementById('sn7-item-price');
-  const desc=document.getElementById('sn7-item-description');
-  const count=document.getElementById('sn7-item-description-count');
-  const save=document.getElementById('sn7-save-item');
-
-  if(!openBtn||!form) return;
-
-  function setOpen(open){
-    form.hidden=!open;
-    openBtn.setAttribute('aria-expanded',String(open));
-    if(open){
-      setTimeout(function(){name&&name.focus()},50);
-    }
+  const bid={{ broadcaster_id|tojson }};
+  const target={{ store_target|tojson }};
+  const viewer={{ store_viewer|tojson }};
+  const admin=!!bid;
+  const $=id=>document.getElementById(id);
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const api=(u,o)=>fetch(u,Object.assign({headers:{'Content-Type':'application/json'},credentials:'same-origin'},o||{})).then(async r=>{let d={};try{d=await r.json()}catch(_){};if(!r.ok)throw Object.assign(new Error(d.error||'Erro na Loja'),{status:r.status,data:d});return d});
+  function setViewerText(text){if($('store-viewer-text'))$('store-viewer-text').textContent=text}
+  function itemCard(i,adminMode){
+    const img=i.image_url?`<img src="${esc(i.image_url)}" alt="">`:'<span class="sn7-store-card-placeholder">✦</span>';
+    const stock=i.stock===null?'Ilimitado':`${i.stock} disponíveis`;
+    return `<article class="sn7-shop-item ${i.active?'':'is-off'}"><div class="sn7-shop-item-image">${img}</div><div class="sn7-shop-item-body"><div class="sn7-shop-item-top"><span class="sn7-shop-item-type">${i.item_type==='audio'?'🔊 Áudio':'🎁 Recompensa'}</span><span class="sn7-shop-price">✦ ${i.price.toLocaleString('pt-BR')}</span></div><h3>${esc(i.name)}</h3><p>${esc(i.description||'Sem descrição.')}</p><small>${stock}${i.active?'':' · desativado'}</small><div class="sn7-shop-actions">${adminMode?`<button data-toggle="${i.id}">${i.active?'Desativar':'Ativar'}</button><button class="danger" data-delete="${i.id}">Excluir</button>`:`<button class="sn7-store-redeem" data-redeem="${i.id}" ${!i.active||i.stock===0?'disabled':''}>Resgatar</button>`}</div></div></article>`;
   }
-  function update(){
-    if(count) count.textContent=desc.value.length;
-    if(save) save.disabled=!(name.value.trim() && Number(price.value)>0 && desc.value.trim());
+  async function loadPublic(){
+    if(!target)return setViewerText('Escolha uma loja de um canal para começar.');
+    try{
+      const d=await api(`/api/store/${encodeURIComponent(target)}/public`);
+      $('store-title').textContent=`Loja de ${d.channel.username}`;
+      $('store-subtitle').textContent='Recompensas da comunidade, resgatadas com os pontos conquistados na live.';
+      if(d.viewer){setViewerText(`Conta conectada: ${d.viewer.username}`); if($('public-wallet'))$('public-wallet').textContent=`✦ ${(d.wallet?.points||0).toLocaleString('pt-BR')} pontos`;}
+      else {setViewerText('Entre com sua conta Kick para resgatar recompensas.'); if($('public-login')){$('public-login').hidden=false;$('store-login-link').href=`/kick/store-login?channel=${encodeURIComponent(target)}`}}
+      $('public-items').innerHTML=d.items.length?d.items.map(i=>itemCard(i,false)).join(''):'<div class="sn7-store-empty">Este canal ainda não adicionou recompensas.</div>';
+      $('public-items').querySelectorAll('[data-redeem]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const r=await api(`/api/store/${encodeURIComponent(target)}/redeem/${b.dataset.redeem}`,{method:'POST',body:'{}'});alert(`Resgate realizado! Seu saldo agora é ${r.points.toLocaleString('pt-BR')} pontos.`);loadPublic()}catch(e){if(e.status===401){if($('public-login')){$('public-login').hidden=false;$('store-login-link').href=`/kick/store-login?channel=${encodeURIComponent(target)}`}}else alert(e.message);b.disabled=false}});
+    }catch(e){setViewerText(e.message);$('public-items').innerHTML='<div class="sn7-store-empty">Não foi possível carregar esta loja.</div>'}
   }
-  function reset(){
-    if(name) name.value='';
-    if(price) price.value='';
-    if(desc) desc.value='';
-    if(count) count.textContent='0';
-    if(file) file.value='';
-    if(previewImg){previewImg.hidden=true;previewImg.removeAttribute('src')}
-    if(previewText) previewText.hidden=false;
-    const ph=preview.querySelector('.sn7-store-preview-placeholder'); if(ph) ph.hidden=false;
-    update();
+  async function loadAdmin(){
+    if(!bid)return;
+    try{const d=await api(`/api/store/${bid}/admin`);$('admin-items').innerHTML=d.items.length?d.items.map(i=>itemCard(i,true)).join(''):'<div class="sn7-store-empty">Nenhum item criado ainda. Clique em “Novo item”.</div>';}
+    catch(e){$('admin-items').innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`}
+    try{const d=await api(`/api/store/${bid}/redemptions?limit=30`);$('admin-redemptions').innerHTML=d.redemptions.length?d.redemptions.map(r=>`<div class="sn7-shop-history-row"><strong>${esc(r.viewer_username)}</strong><span>${esc(r.name)}</span><b>✦ ${r.price.toLocaleString('pt-BR')}</b><small>${r.status}</small></div>`).join(''):'<div class="sn7-store-empty">Nenhum resgate ainda.</div>';}catch(e){$('admin-redemptions').innerHTML='<div class="sn7-store-empty">Histórico indisponível.</div>'}
   }
-
-  openBtn.addEventListener('click',function(){setOpen(true)});
-  if(closeBtn) closeBtn.addEventListener('click',function(){setOpen(false)});
-  if(cancelBtn) cancelBtn.addEventListener('click',function(){reset();setOpen(false)});
-  [name,price,desc].forEach(function(el){if(el) el.addEventListener('input',update)});
-  if(file) file.addEventListener('change',function(){
-    const selected=file.files&&file.files[0];
-    if(!selected) return;
-    if(selected.size>5*1024*1024){file.value='';alert('A imagem deve ter no máximo 5 MB.');return}
-    if(!selected.type.startsWith('image/')){file.value='';return}
-    const reader=new FileReader();
-    reader.onload=function(e){
-      if(previewImg){previewImg.src=e.target.result;previewImg.hidden=false}
-      if(previewText) previewText.hidden=true;
-      const ph=preview.querySelector('.sn7-store-preview-placeholder'); if(ph) ph.hidden=true;
-    };
-    reader.readAsDataURL(selected);
-  });
-  if(save) save.addEventListener('click',function(){
-    alert('A criação de itens estará disponível em uma próxima versão. Nada foi alterado no sistema atual.');
-  });
-  update();
+  if(admin){
+    setViewerText('Modo administrador · somente o dono deste canal pode editar a Loja.');
+    const open=$('sn7-open-item-form'), form=$('sn7-item-form'), close=$('sn7-close-item-form'), cancel=$('sn7-cancel-item'), file=$('sn7-item-image'), audioFile=$('sn7-item-audio-file'), img=$('sn7-item-preview-img'), ptext=$('sn7-item-preview-text'), type=$('sn7-item-type'), name=$('sn7-item-name'), price=$('sn7-item-price'), stock=$('sn7-item-stock'), audio=$('sn7-item-audio-url'), desc=$('sn7-item-description'), count=$('sn7-item-description-count'), save=$('sn7-save-item');
+    const toggleForm=v=>{form.hidden=!v;if(v)name.focus()};
+    const update=()=>{count.textContent=desc.value.length;audio.parentElement.hidden=type.value!=='audio';save.disabled=!(name.value.trim()&&Number(price.value)>0&&desc.value.trim()&&(type.value!=='audio'||audio.value.trim()))};
+    const reset=()=>{[name,price,stock,audio,desc].forEach(x=>x.value='');type.value='reward';file.value='';if(audioFile)audioFile.value='';img.hidden=true;img.removeAttribute('src');ptext.hidden=false;update()};
+    open.onclick=()=>toggleForm(true);close.onclick=()=>toggleForm(false);cancel.onclick=()=>{reset();toggleForm(false)};[type,name,price,stock,audio,desc].forEach(x=>x.addEventListener('input',update));
+    file.onchange=()=>{const f=file.files?.[0];if(!f)return;if(f.size>2*1024*1024){alert('A imagem deve ter no máximo 2 MB.');file.value='';return}const r=new FileReader();r.onload=e=>{img.src=e.target.result;img.hidden=false;ptext.hidden=true};r.readAsDataURL(f)};
+    save.onclick=async()=>{save.disabled=true;try{let image='';if(file.files?.[0])image=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file.files[0])});let audioData=audio.value.trim();if(audioFile?.files?.[0]){if(audioFile.files[0].size>4*1024*1024)throw new Error('O áudio deve ter no máximo 4 MB.');audioData=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(audioFile.files[0])})}const d=await api(`/api/store/${bid}/items`,{method:'POST',body:JSON.stringify({item_type:type.value,name:name.value.trim(),price:Number(price.value),stock:stock.value===''?null:Number(stock.value),description:desc.value.trim(),image_url:image,audio_url:audioData})});if(!d.ok)throw new Error(d.error||'Não foi possível salvar');reset();toggleForm(false);await loadAdmin()}catch(e){alert(e.message)}finally{update()}};
+    $('admin-items').addEventListener('click',async e=>{const t=e.target.closest('[data-toggle]'),del=e.target.closest('[data-delete]');try{if(t){await api(`/api/store/${bid}/items/${t.dataset.toggle}`,{method:'PATCH',body:JSON.stringify({active:t.textContent.includes('Desativar')?false:true})});loadAdmin()}if(del&&confirm('Excluir este item e seus resgates?')){await api(`/api/store/${bid}/items/${del.dataset.delete}`,{method:'DELETE'});loadAdmin()}}catch(x){alert(x.message)}});
+    update();loadAdmin();
+  }else loadPublic();
 })();
 </script>
 

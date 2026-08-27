@@ -59,6 +59,56 @@ CREATE INDEX IF NOT EXISTS idx_players_channel_kick_user
 ON players (broadcaster_user_id, kick_user_id)
 WHERE kick_user_id IS NOT NULL;
 
+CREATE TABLE IF NOT EXISTS store_items (
+    id BIGSERIAL PRIMARY KEY,
+    broadcaster_user_id BIGINT NOT NULL,
+    item_type TEXT NOT NULL DEFAULT 'reward',
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    image_url TEXT NOT NULL DEFAULT '',
+    audio_url TEXT NOT NULL DEFAULT '',
+    price BIGINT NOT NULL CHECK (price > 0),
+    stock BIGINT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CHECK (item_type IN ('reward','audio'))
+);
+CREATE INDEX IF NOT EXISTS idx_store_items_channel_active
+ON store_items(broadcaster_user_id, active, id DESC);
+
+CREATE TABLE IF NOT EXISTS store_redemptions (
+    id BIGSERIAL PRIMARY KEY,
+    broadcaster_user_id BIGINT NOT NULL,
+    item_id BIGINT NOT NULL REFERENCES store_items(id) ON DELETE CASCADE,
+    viewer_kick_user_id BIGINT NOT NULL,
+    viewer_username TEXT NOT NULL DEFAULT '',
+    price BIGINT NOT NULL CHECK (price > 0),
+    status TEXT NOT NULL DEFAULT 'queued',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    fulfilled_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_store_redemptions_channel
+ON store_redemptions(broadcaster_user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_store_redemptions_viewer
+ON store_redemptions(viewer_kick_user_id, broadcaster_user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS store_audio_queue (
+    id BIGSERIAL PRIMARY KEY,
+    broadcaster_user_id BIGINT NOT NULL,
+    redemption_id BIGINT NOT NULL REFERENCES store_redemptions(id) ON DELETE CASCADE,
+    item_id BIGINT NOT NULL REFERENCES store_items(id) ON DELETE CASCADE,
+    viewer_kick_user_id BIGINT NOT NULL,
+    viewer_username TEXT NOT NULL DEFAULT '',
+    audio_url TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'queued',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    finished_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_store_audio_queue_channel
+ON store_audio_queue(broadcaster_user_id, status, id);
+
 CREATE TABLE IF NOT EXISTS custom_commands (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT NOT NULL,
