@@ -26,7 +26,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.60-loja-public-polish"
+SN7_VERSION = "1.9.61-loja-public-clean"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 
