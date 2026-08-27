@@ -710,19 +710,31 @@ def race_tick(bid, platform="kick"):
     for u in active:
         progress[u] = min(100, int(progress.get(u, 0)) + random.randint(8, 20))
 
-    # Pequenos incidentes dão variedade sem impedir a corrida de continuar.
-    if len(active) >= 3 and random.random() < 0.28:
+    # Cada capítulo precisa ter pelo menos um acidente. Enquanto houver mais
+    # de 2 corredores ativos, alguns acidentes também podem eliminar alguém.
+    # Assim a narrativa nunca fica sem ação e ainda preserva pelo menos 2
+    # finalistas quando a corrida tem participantes suficientes.
+    chapter_no = chapter + 1
+    if len(active) >= 3 and random.random() < 0.70:
         victim = random.choice(active)
         state.setdefault("eliminated", {})[victim] = True
         active = _race_active_players(state)
         event = random.choice([
-            f"💥 CAPÍTULO {chapter + 1}/3: {_mention_name(victim)} perdeu o controle na curva e está FORA da corrida!",
-            f"🚧 CAPÍTULO {chapter + 1}/3: {_mention_name(victim)} rodou e bateu na barreira de proteção! Fim de prova para ele!",
-            f"🔧 CAPÍTULO {chapter + 1}/3: O carro de {_mention_name(victim)} sofreu uma pane e parou na pista! Está FORA!",
+            f"💥 CAPÍTULO {chapter_no}/3: {_mention_name(victim)} perdeu o controle na curva, bateu forte e está FORA da corrida!",
+            f"🚧 CAPÍTULO {chapter_no}/3: Acidente na pista! {_mention_name(victim)} rodou, acertou a barreira e abandonou a prova!",
+            f"🔧 CAPÍTULO {chapter_no}/3: O carro de {_mention_name(victim)} sofreu uma pane após um impacto e ficou parado! Está FORA!",
+            f"🚨 CAPÍTULO {chapter_no}/3: {_mention_name(victim)} tentou uma ultrapassagem arriscada, bateu e ficou FORA da corrida!",
         ])
     else:
         lead = max(active, key=lambda u: progress.get(u, 0)) if active else None
-        event = _race_story_event(active, [], chapter + 1) if lead else f"💥 CAPÍTULO {chapter + 1}/3: A pista ficou caótica e todos perderam tempo!"
+        if lead:
+            event = random.choice([
+                f"🚧 CAPÍTULO {chapter_no}/3: ACIDENTE na pista! {_mention_name(lead)} escapou por pouco enquanto dois carros se tocaram na curva!",
+                f"💥 CAPÍTULO {chapter_no}/3: Um carro rodou na pista e quase acertou {_mention_name(lead)}! O caos espalhou detritos pela curva!",
+                f"🛞 CAPÍTULO {chapter_no}/3: Um pneu estourou e provocou um acidente! {_mention_name(lead)} desviou no último segundo e seguiu na disputa!",
+            ])
+        else:
+            event = f"💥 CAPÍTULO {chapter_no}/3: Um acidente bloqueou a pista e a corrida terminou em meio ao caos!"
 
     chapter += 1
     state["story_chapter"] = chapter
@@ -806,7 +818,7 @@ def secret_guess(bid,username,guess,platform="kick"):
 _SURVIVAL_TIMER_LOCK = RLock()
 _SURVIVAL_TIMERS = {}
 
-SURVIVAL_JOIN_WINDOW_SECONDS = 20
+SURVIVAL_JOIN_WINDOW_SECONDS = 90
 SURVIVAL_STORY_CHAPTERS = 3
 
 def survival_start(bid, username, platform="kick"):
@@ -886,7 +898,7 @@ def _survival_dead_text(dead):
     return ", ".join(names[:-1]) + f" e {names[-1]} foram eliminados!"
 
 def _survival_story_event(dead, chapter, remaining_count):
-    dtext = _survival_dead_text(dead) if dead else "Ninguém foi eliminado nesta etapa."
+    dtext = _survival_dead_text(dead) if dead else "Todos escaparam por pouco da morte."
     suffix = f" Restam {remaining_count} sobreviventes."
     variants = {
         1: [
@@ -914,7 +926,7 @@ def _survival_story_event(dead, chapter, remaining_count):
     return random.choice(variants[chapter])
 
 def survival_tick(bid, platform="kick"):
-    """Publica exatamente 3 capítulos e força o resultado a terminar com 2 vivos quando possível."""
+    """Publica exatamente 3 capítulos, eliminando participantes sempre que houver mais de 2 vivos."""
     state = _runtime_get(bid, platform, "survival", {})
     if not state.get("open") or not state.get("started"):
         return {"ok": False, "done": False}

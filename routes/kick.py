@@ -155,7 +155,7 @@ def _start_survival_after_join_window(bid, platform):
         _send_chat(bid, f"🧟 Tempo encerrado! {count} participantes. A história começou! Serão 3 capítulos e o resultado final!")
         _schedule_survival_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
     elif begun.get("empty"):
-        _send_chat(bid, "🧟 Sobrevivência encerrada: ninguém entrou nos 20 segundos.")
+        _send_chat(bid, "🧟 Sobrevivência encerrada: ninguém entrou nos 90 segundos.")
 
 
 def _chat_executor(bid):
@@ -1550,7 +1550,7 @@ def _process_chat(payload, send_chat=None):
                 return
             send_chat(
                 bid,
-                "🧟 SOBREVIVÊNCIA ABERTA! Você tem 20s para entrar. Digite !sobreviver. "
+                "🧟 SOBREVIVÊNCIA ABERTA! Você tem 90s para entrar. Digite !sobreviver. "
                 "Depois dos 90s, quem entrou entrou: começam 3 capítulos e o resultado!",
             )
             _schedule_join_timer(_SURVIVAL_JOIN_TIMERS, bid, platform, _start_survival_after_join_window, "SURVIVAL-JOIN")
