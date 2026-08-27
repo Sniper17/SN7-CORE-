@@ -1502,8 +1502,9 @@ def _process_chat(payload, send_chat=None):
                 return
             send_chat(
                 bid,
-                "🏁🏎️ CORRIDA ABERTA! Você tem 90s para entrar. Digite !car1 até !car100 para escolher seu carro. "
-                "Depois dos 90s, quem entrou entrou: começam 3 capítulos e o resultado!",
+                f"🏁🏎️ CORRIDA ABERTA em {result.get('location', 'um local desconhecido')}! "
+                "Você tem 90s para entrar. Digite !car1 até !car100 para escolher seu carro. "
+                "Depois dos 90s, quem entrou entrou: 3 capítulos com 2 ações e 1 acidente por capítulo, depois o pódio!",
             )
             _schedule_join_timer(_RACE_JOIN_TIMERS, bid, platform, _start_race_after_join_window, "RACE-JOIN")
             return

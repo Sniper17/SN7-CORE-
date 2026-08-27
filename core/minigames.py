@@ -574,6 +574,109 @@ _RACE_TIMERS = {}
 RACE_JOIN_WINDOW_SECONDS = 90
 RACE_STORY_CHAPTERS = 3
 
+# Cada corrida recebe um cenário e os acontecimentos são escolhidos para
+# combinar com o local. O cenário anterior não é repetido imediatamente.
+_RACE_LOCATIONS = {
+    "🏙️ Cidade": {
+        "actions": [
+            "{p} aproveita o vácuo na avenida e ganha uma posição na reta!",
+            "{p} freia no limite antes de um túnel e mantém o carro sob controle.",
+            "{p} encontra uma abertura entre os carros e faz uma ultrapassagem limpa!",
+            "{p} acelera quando o semáforo abre e dispara na frente do pelotão!",
+        ],
+        "accidents": [
+            "{v} toca no meio-fio em uma curva fechada, roda e perde muito tempo!",
+            "Um carro atravessa a pista e {v} precisa desviar rapidamente, quase batendo no muro!",
+            "{v} perde o controle ao sair do túnel e acerta de leve a barreira!",
+            "Um congestionamento inesperado fecha a passagem e {v} se envolve em um acidente!",
+        ],
+    },
+    "🏜️ Deserto": {
+        "actions": [
+            "{p} encontra uma faixa de areia mais firme e acelera pelas dunas!",
+            "{p} usa o vácuo para ultrapassar na reta e assume uma posição!",
+            "{p} mantém o carro estável enquanto a areia cobre parte da pista!",
+            "{p} escolhe a linha mais rápida entre as dunas e ganha terreno!",
+        ],
+        "accidents": [
+            "{v} entra rápido demais numa duna, perde o controle e roda na areia!",
+            "Uma rajada de areia reduz a visibilidade e {v} sai da trajetória, sofrendo um acidente!",
+            "{v} passa por uma cratera escondida, quebra a suspensão e perde muito tempo!",
+            "A areia invade a pista; {v} derrapa e bate na proteção lateral!",
+        ],
+    },
+    "❄️ Neve": {
+        "actions": [
+            "{p} controla a derrapagem no gelo e consegue ganhar uma posição!",
+            "{p} encontra uma parte seca da pista e acelera para se aproximar do líder!",
+            "{p} freia antes da curva congelada e faz uma ultrapassagem segura!",
+            "{p} mantém a calma durante a nevasca e abre vantagem!",
+        ],
+        "accidents": [
+            "{v} derrapa no gelo, roda e bate na barreira de neve!",
+            "A nevasca reduz a visão e {v} sai da pista após perder aderência!",
+            "{v} pisa no gelo durante a curva e sofre um acidente!",
+            "O carro de {v} desliza na neve e toca forte na proteção lateral!",
+        ],
+    },
+    "🌲 Floresta": {
+        "actions": [
+            "{p} desvia de um galho caído e aproveita para ultrapassar!",
+            "{p} encontra uma trilha de terra mais rápida e ganha alguns metros!",
+            "{p} mantém o carro firme na lama e consegue avançar!",
+            "{p} passa por uma sequência de curvas estreitas sem perder velocidade!",
+        ],
+        "accidents": [
+            "{v} passa pela lama, perde aderência e bate em uma árvore!",
+            "Um galho cai na pista e {v} tenta desviar, rodando no caminho!",
+            "{v} entra rápido demais numa curva de terra e sai da pista!",
+            "A pista fica escorregadia e {v} perde o controle, acertando a proteção!",
+        ],
+    },
+    "🌊 Litoral": {
+        "actions": [
+            "{p} aproveita a reta junto ao mar e ganha velocidade!",
+            "{p} controla a aquaplanagem e faz uma ultrapassagem por fora!",
+            "{p} encontra uma faixa menos molhada e dispara na frente!",
+            "{p} segura o carro durante a chuva e se aproxima do líder!",
+        ],
+        "accidents": [
+            "{v} sofre aquaplanagem numa poça e bate na barreira!",
+            "Uma onda molha a pista e {v} perde aderência, rodando na curva!",
+            "{v} freia tarde demais na pista molhada e sofre um acidente!",
+            "A chuva aperta e {v} derrapa, acertando a proteção lateral!",
+        ],
+    },
+    "🏔️ Montanha": {
+        "actions": [
+            "{p} encara uma subida forte e ganha velocidade na reta!",
+            "{p} freia no limite antes do hairpin e ultrapassa por dentro!",
+            "{p} aproveita a descida para ganhar vários metros!",
+            "{p} mantém a trajetória perto do guard-rail e conquista uma posição!",
+        ],
+        "accidents": [
+            "{v} perde a traseira numa curva de montanha e bate no guard-rail!",
+            "Pedras caem na pista e {v} tenta desviar, saindo da trajetória!",
+            "{v} entra rápido demais na descida e sofre um acidente!",
+            "O carro de {v} derrapa no hairpin e fica atravessado na pista!",
+        ],
+    },
+    "🏁 Autódromo": {
+        "actions": [
+            "{p} pega o vácuo na reta principal e faz uma ultrapassagem!",
+            "{p} freia tarde na primeira curva e ganha uma posição!",
+            "{p} faz uma passagem rápida pelos boxes e volta forte para a pista!",
+            "{p} encontra espaço por dentro e completa uma ultrapassagem limpa!",
+        ],
+        "accidents": [
+            "{v} trava as rodas na primeira curva e bate na barreira de pneus!",
+            "{v} tenta uma ultrapassagem agressiva, toca no rival e roda!",
+            "Um pneu de {v} estoura na reta e provoca um acidente!",
+            "{v} perde o ponto de frenagem e sai forte para a área de escape!",
+        ],
+    },
+}
+
 def _race_car_number(value):
     try:
         n = int(str(value))
@@ -587,13 +690,17 @@ def race_start(bid, username, platform="kick"):
         return {"ok": False, "error": "🏎️ Corrida está desativada nesta plataforma."}
     current = _runtime_get(bid, platform, "race", {})
     # Recupera uma corrida que ficou presa após o processo/redeploy cair no meio
-    # da narrativa. Se os 3 capítulos já foram concluídos, ela não deve bloquear
+    # da narrativa. Se os 3 capítulos já foram concluídos, ela não bloqueia
     # uma nova rodada.
     if current.get("open") and current.get("started") and int(current.get("story_chapter") or 0) >= RACE_STORY_CHAPTERS:
         race_finish(bid, platform)
         current = _runtime_get(bid, platform, "race", {})
     if current.get("open"):
         return {"ok": False, "error": "🏁 Já existe uma corrida aberta! Use !fimcrr para resetar a corrida atual."}
+
+    previous_location = current.get("location")
+    locations = [name for name in _RACE_LOCATIONS if name != previous_location]
+    location = random.choice(locations or list(_RACE_LOCATIONS))
     now = time.time()
     state = {
         "open": True,
@@ -605,9 +712,10 @@ def race_start(bid, username, platform="kick"):
         "cars": {},
         "events": [],
         "story_chapter": 0,
+        "location": location,
     }
     _runtime_set(bid, platform, "race", state)
-    return {"ok": True, "state": state, "join_seconds": RACE_JOIN_WINDOW_SECONDS}
+    return {"ok": True, "state": state, "join_seconds": RACE_JOIN_WINDOW_SECONDS, "location": location}
 
 def race_join_car(bid, username, car, platform="kick"):
     if not _game_allowed(bid, platform, "race"):
@@ -669,34 +777,50 @@ def race_begin(bid, platform="kick"):
 def _race_active_players(state):
     return [u for u in state.get("players", []) if not state.get("eliminated", {}).get(u, False)]
 
-def _race_story_event(active, eliminated, chapter):
+def _race_story_event(state, chapter, accident_victim=None):
+    players = list(state.get("players") or [])
+    active = _race_active_players(state)
     if not active:
-        return f"💥 CAPÍTULO {chapter}/3: A pista virou um caos total e ninguém conseguiu chegar ao fim!"
-    lead = random.choice(active)
-    variants = {
-        1: [
-            f"🚦 CAPÍTULO 1/3: A largada foi insana! {_mention_name(lead)} assumiu a frente enquanto os carros brigavam por espaço na primeira curva!",
-            f"🔥 CAPÍTULO 1/3: Os motores rugiram e a pista ficou apertada! {_mention_name(lead)} ganhou velocidade e abriu alguns metros!",
-            f"🌧️ CAPÍTULO 1/3: Uma chuva pesada começou na pista! {_mention_name(lead)} arriscou tudo e saiu da curva na liderança!",
-            f"💨 CAPÍTULO 1/3: A reta virou um duelo de velocidade! {_mention_name(lead)} fez uma ultrapassagem por fora e tomou a ponta!",
-        ],
-        2: [
-            f"🌀 CAPÍTULO 2/3: Uma curva fechada quase acabou com a disputa! {_mention_name(lead)} escapou por pouco e voltou para a briga!",
-            f"🔧 CAPÍTULO 2/3: Um carro perdeu potência no pior momento! {_mention_name(lead)} aproveitou a confusão e ganhou posições!",
-            f"⚡ CAPÍTULO 2/3: A disputa ficou lado a lado na reta! {_mention_name(lead)} freou no limite e saiu na frente!",
-            f"🏁 CAPÍTULO 2/3: A bandeira amarela apareceu depois de um incidente na pista! {_mention_name(lead)} manteve a calma e continuou acelerando!",
-        ],
-        3: [
-            f"🏆 CAPÍTULO 3/3: Última volta! {_mention_name(lead)} pisou fundo e partiu para a decisão!",
-            f"🔥 CAPÍTULO 3/3: A reta final chegou! {_mention_name(lead)} fez a última tentativa de ultrapassagem antes da linha de chegada!",
-            f"🚨 CAPÍTULO 3/3: Tudo ou nada na última curva! {_mention_name(lead)} segurou o carro e disparou para a chegada!",
-            f"🏎️💨 CAPÍTULO 3/3: Os motores chegaram ao limite! {_mention_name(lead)} cruzou a última curva em busca da vitória!",
-        ],
-    }
-    return random.choice(variants[chapter])
+        return f"🏁 CAPÍTULO {chapter}/3: A pista virou um caos total e a corrida foi interrompida."
+
+    location = state.get("location") or "🏁 Autódromo"
+    scene = _RACE_LOCATIONS.get(location) or _RACE_LOCATIONS["🏁 Autódromo"]
+
+    # Sempre há 2 ações e 1 acidente/incidente por capítulo.
+    action_pool = list(active)
+    action_one = random.choice(action_pool)
+    action_two_pool = [u for u in active if u != action_one] or action_pool
+    action_two = random.choice(action_two_pool)
+
+    # Nunca eliminamos um piloto quando isso deixaria menos de 3 para o pódio.
+    victim = accident_victim
+    if victim is None and len(active) > 3:
+        victim = random.choice(active)
+        state.setdefault("eliminated", {})[victim] = True
+        accident_active = victim
+    elif victim is not None:
+        accident_active = victim
+    else:
+        accident_active = random.choice(active)
+
+    a1 = random.choice(scene["actions"]).format(p=_mention_name(action_one))
+    a2 = random.choice(scene["actions"]).format(p=_mention_name(action_two))
+    accident = random.choice(scene["accidents"]).format(v=_mention_name(accident_active))
+
+    if victim is not None and victim in active:
+        accident = accident.rstrip("!") + " Está FORA da corrida!"
+        # Remoção já feita acima somente para os casos com >3 ativos.
+        state.setdefault("eliminated", {})[victim] = True
+
+    return (
+        f"{location} • 📖 CAPÍTULO {chapter}/3: "
+        f"⚡ {a1} "
+        f"🔥 {a2} "
+        f"💥 {accident}"
+    )
 
 def race_tick(bid, platform="kick"):
-    """Gera exatamente 3 capítulos curtos da corrida."""
+    """Gera exatamente 3 capítulos curtos, com 2 ações e 1 acidente em cada."""
     state = _runtime_get(bid, platform, "race", {})
     if not state.get("open") or not state.get("started"):
         return {"ok": False, "done": False}
@@ -705,44 +829,28 @@ def race_tick(bid, platform="kick"):
     if chapter >= RACE_STORY_CHAPTERS:
         return {"ok": True, "done": True, "event": None, "state": state}
 
-    active = _race_active_players(state)
+    active_before = _race_active_players(state)
     progress = state.setdefault("progress", {})
-    for u in active:
+    for u in active_before:
         progress[u] = min(100, int(progress.get(u, 0)) + random.randint(8, 20))
 
-    # Cada capítulo precisa ter pelo menos um acidente. Enquanto houver mais
-    # de 2 corredores ativos, alguns acidentes também podem eliminar alguém.
-    # Assim a narrativa nunca fica sem ação e ainda preserva pelo menos 2
-    # finalistas quando a corrida tem participantes suficientes.
     chapter_no = chapter + 1
-    if len(active) >= 3 and random.random() < 0.70:
-        victim = random.choice(active)
-        state.setdefault("eliminated", {})[victim] = True
-        active = _race_active_players(state)
-        event = random.choice([
-            f"💥 CAPÍTULO {chapter_no}/3: {_mention_name(victim)} perdeu o controle na curva, bateu forte e está FORA da corrida!",
-            f"🚧 CAPÍTULO {chapter_no}/3: Acidente na pista! {_mention_name(victim)} rodou, acertou a barreira e abandonou a prova!",
-            f"🔧 CAPÍTULO {chapter_no}/3: O carro de {_mention_name(victim)} sofreu uma pane após um impacto e ficou parado! Está FORA!",
-            f"🚨 CAPÍTULO {chapter_no}/3: {_mention_name(victim)} tentou uma ultrapassagem arriscada, bateu e ficou FORA da corrida!",
-        ])
-    else:
-        lead = max(active, key=lambda u: progress.get(u, 0)) if active else None
-        if lead:
-            event = random.choice([
-                f"🚧 CAPÍTULO {chapter_no}/3: ACIDENTE na pista! {_mention_name(lead)} escapou por pouco enquanto dois carros se tocaram na curva!",
-                f"💥 CAPÍTULO {chapter_no}/3: Um carro rodou na pista e quase acertou {_mention_name(lead)}! O caos espalhou detritos pela curva!",
-                f"🛞 CAPÍTULO {chapter_no}/3: Um pneu estourou e provocou um acidente! {_mention_name(lead)} desviou no último segundo e seguiu na disputa!",
-            ])
-        else:
-            event = f"💥 CAPÍTULO {chapter_no}/3: Um acidente bloqueou a pista e a corrida terminou em meio ao caos!"
+
+    # Se houver mais de 3 pilotos, um acidente pode eliminar no máximo um por capítulo.
+    # Com 3 ou menos, o acidente é narrativo e não elimina ninguém, preservando o pódio.
+    victim = random.choice(active_before) if len(active_before) > 3 else None
+    event = _race_story_event(state, chapter_no, victim)
 
     chapter += 1
     state["story_chapter"] = chapter
     state.setdefault("events", []).append(event)
     _runtime_set(bid, platform, "race", state)
     return {
-        "ok": True, "done": chapter >= RACE_STORY_CHAPTERS, "event": event,
-        "state": state, "chapter": chapter,
+        "ok": True,
+        "done": chapter >= RACE_STORY_CHAPTERS,
+        "event": event,
+        "state": state,
+        "chapter": chapter,
     }
 
 def race_reset(bid, platform="kick"):
@@ -778,9 +886,11 @@ def race_finish(bid, platform="kick"):
     active = _race_active_players(state)
     progress = state.setdefault("progress", {})
     active.sort(key=lambda u: progress.get(u, 0) + random.random() * 8, reverse=True)
-    prizes = [500, 300, 150, 75, 30]
+
+    # A corrida tem somente pódio: 1º, 2º e 3º.
+    prizes = [500, 300, 150]
     winners = []
-    for i, u in enumerate(active[:len(prizes)]):
+    for i, u in enumerate(active[:3]):
         prize = prizes[i]
         _adjust_points(bid, u, prize, platform)
         winners.append((u, prize))
@@ -1175,6 +1285,44 @@ def survival_tick(bid, platform="kick"):
         "chapter": chapter,
         "dead_this_chapter": dead,
         "alive_count": len(alive_after),
+    }
+
+def survival_finish(bid, platform="kick", expected_started_at=None):
+    """Finaliza a sobrevivência e mantém no máximo 2 vencedores."""
+    state = _runtime_get(bid, platform, "survival", {})
+    if not state.get("open"):
+        return {"ok": False, "error": "🧟 Não há uma sobrevivência ativa."}
+    if expected_started_at is not None and float(state.get("started_at", 0)) != float(expected_started_at):
+        return {"ok": False, "stale": True}
+
+    players = list(state.get("players") or [])
+    alive = [u for u in players if state.get("alive", {}).get(u, False)]
+
+    # Compatibilidade com rodadas antigas: se ainda houver mais de 2 vivos,
+    # elimina os excedentes antes de distribuir os prêmios.
+    if len(alive) > 2:
+        random.shuffle(alive)
+        for u in alive[2:]:
+            state.setdefault("alive", {})[u] = False
+        alive = alive[:2]
+
+    prize = max(0, int(state.get("prize", 50)))
+    winners = []
+    for u in alive:
+        _adjust_points(bid, u, prize, platform)
+        winners.append((u, prize))
+
+    state["open"] = False
+    state["finished_at"] = time.time()
+    state["winners"] = [u for u, _ in winners]
+    _runtime_set(bid, platform, "survival", state)
+    forget_rankings(bid)
+    return {
+        "ok": True,
+        "winners": winners,
+        "players": players,
+        "dead": [u for u in players if not state.get("alive", {}).get(u, False)],
+        "prize": prize,
     }
 
 def _mention_name(username):
