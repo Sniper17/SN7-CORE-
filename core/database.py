@@ -1,10 +1,16 @@
 import os
 import psycopg
+try:
+    from psycopg_pool import ConnectionPool
+except ImportError:  # fallback para ambientes antigos durante a atualização
+    ConnectionPool = None
 from threading import Lock
 
 _db_initialized = False
 _db_init_lock = Lock()
 _point_rewards_ready = False
+_db_pool = None
+_db_pool_lock = Lock()
 
 DEFAULT_POINTS_RESPONSE = "$(user), você tem $(points) $(currency).$(emoji_text)$(rank_text)"
 
@@ -293,10 +299,31 @@ ALTER TABLE music_settings
 """
 
 def get_conn():
+    """Obtém uma conexão reutilizável para evitar handshake TCP/TLS por comando.
+
+    O SN7 recebe muitos comandos curtos. Criar uma conexão PostgreSQL nova para
+    cada mensagem adiciona latência desnecessária, especialmente quando o banco
+    está em outra região. O pool mantém algumas conexões aquecidas e devolve a
+    conexão ao pool quando o chamador executa conn.close().
+    """
+    global _db_pool
     url = os.environ.get("DATABASE_URL")
     if not url:
         raise RuntimeError("DATABASE_URL não configurado.")
-    return psycopg.connect(url)
+    if ConnectionPool is None:
+        return psycopg.connect(url)
+    if _db_pool is None:
+        with _db_pool_lock:
+            if _db_pool is None:
+                _db_pool = ConnectionPool(
+                    conninfo=url,
+                    min_size=1,
+                    max_size=5,
+                    timeout=4,
+                    max_idle=300,
+                    open=True,
+                )
+    return _db_pool.getconn()
 
 def init_db():
     global _db_initialized, _point_rewards_ready
