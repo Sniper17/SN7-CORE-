@@ -121,6 +121,31 @@ ALTER TABLE store_audio_queue ALTER COLUMN viewer_kick_user_id DROP NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_store_audio_queue_platform
 ON store_audio_queue(broadcaster_user_id, platform, status, id);
 
+-- 1.9.72: itens podem ser excluídos sem apagar o histórico.
+-- O nome é armazenado no resgate para que o histórico continue legível mesmo
+-- depois que o item original for removido.
+ALTER TABLE store_redemptions ADD COLUMN IF NOT EXISTS item_name TEXT NOT NULL DEFAULT '';
+UPDATE store_redemptions r
+   SET item_name=i.name
+  FROM store_items i
+ WHERE r.item_id=i.id AND COALESCE(r.item_name,'')='';
+ALTER TABLE store_redemptions ALTER COLUMN item_id DROP NOT NULL;
+ALTER TABLE store_redemptions DROP CONSTRAINT IF EXISTS store_redemptions_item_id_fkey;
+ALTER TABLE store_redemptions
+    ADD CONSTRAINT store_redemptions_item_id_fkey
+    FOREIGN KEY (item_id) REFERENCES store_items(id) ON DELETE SET NULL;
+
+ALTER TABLE store_audio_queue ADD COLUMN IF NOT EXISTS item_name TEXT NOT NULL DEFAULT '';
+UPDATE store_audio_queue q
+   SET item_name=i.name
+  FROM store_items i
+ WHERE q.item_id=i.id AND COALESCE(q.item_name,'')='';
+ALTER TABLE store_audio_queue ALTER COLUMN item_id DROP NOT NULL;
+ALTER TABLE store_audio_queue DROP CONSTRAINT IF EXISTS store_audio_queue_item_id_fkey;
+ALTER TABLE store_audio_queue
+    ADD CONSTRAINT store_audio_queue_item_id_fkey
+    FOREIGN KEY (item_id) REFERENCES store_items(id) ON DELETE SET NULL;
+
 CREATE TABLE IF NOT EXISTS custom_commands (
     id BIGSERIAL PRIMARY KEY,
     broadcaster_user_id BIGINT NOT NULL,

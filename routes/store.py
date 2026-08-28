@@ -12,6 +12,19 @@ from core.database import get_conn
 store_bp = Blueprint("store", __name__)
 
 
+# Cache curtíssimo apenas para reduzir consultas repetidas da Loja.
+# Dados administrativos continuam privados e são invalidados após mutações.
+_STORE_ITEMS_CACHE = {}
+_STORE_ITEMS_CACHE_TTL = 4.0
+_STORE_CACHE_LOCK = threading.Lock()
+
+def _store_cache_invalidate(bid):
+    bid = int(bid)
+    with _STORE_CACHE_LOCK:
+        for key in ((bid, False), (bid, True)):
+            _STORE_ITEMS_CACHE.pop(key, None)
+
+
 def _store_signing_secret():
     return (os.environ.get("FLASK_SECRET_KEY") or os.environ.get("KICK_CLIENT_SECRET") or "sn7-store-secret").encode("utf-8")
 
@@ -239,6 +252,14 @@ def _resolve_channel(target):
 
 
 def _channel_items(bid, include_inactive=False):
+    bid = int(bid)
+    key = (bid, bool(include_inactive))
+    now = time.monotonic()
+    with _STORE_CACHE_LOCK:
+        cached = _STORE_ITEMS_CACHE.get(key)
+        if cached and now - cached[0] < _STORE_ITEMS_CACHE_TTL:
+            return list(cached[1])
+
     conn = get_conn()
     try:
         with conn.cursor() as cur:
@@ -248,13 +269,17 @@ def _channel_items(bid, include_inactive=False):
                  WHERE broadcaster_user_id=%s
                    AND (%s OR active=TRUE)
                  ORDER BY id DESC
-            """, (int(bid), bool(include_inactive)))
+            """, (bid, bool(include_inactive)))
             rows = cur.fetchall()
     finally:
         conn.close()
-    return [{"id": int(r[0]), "item_type": r[1], "name": r[2], "description": r[3],
-             "image_url": r[4], "audio_url": r[5], "price": int(r[6]),
-             "stock": (int(r[7]) if r[7] is not None else None), "active": bool(r[8])} for r in rows]
+    result = [{"id": int(r[0]), "item_type": r[1], "name": r[2], "description": r[3],
+               "image_url": r[4], "audio_url": r[5], "price": int(r[6]),
+               "stock": (int(r[7]) if r[7] is not None else None), "active": bool(r[8])}
+              for r in rows]
+    with _STORE_CACHE_LOCK:
+        _STORE_ITEMS_CACHE[key] = (now, list(result))
+    return result
 
 
 def _wallet(bid, viewer):
@@ -406,19 +431,19 @@ def redeem_chat_item(broadcaster_id, platform, username, external_user_id=None, 
 
             cur.execute("""
                 INSERT INTO store_redemptions
-                    (broadcaster_user_id,item_id,platform,viewer_external_id,viewer_kick_user_id,viewer_username,price,status)
-                VALUES(%s,%s,%s,%s,%s,%s,%s,'queued')
+                    (broadcaster_user_id,item_id,item_name,platform,viewer_external_id,viewer_kick_user_id,viewer_username,price,status)
+                VALUES(%s,%s,%s,%s,%s,%s,%s,%s,'queued')
                 RETURNING id
-            """, (bid, int(item_id), platform, str(external_user_id or ""),
+            """, (bid, int(item_id), str(item_name or ""), platform, str(external_user_id or ""),
                   kick_user_id if platform == "kick" else None, username, price))
             redemption_id = int(cur.fetchone()[0])
 
             if str(item_type) == "audio":
                 cur.execute("""
                     INSERT INTO store_audio_queue
-                        (broadcaster_user_id,redemption_id,item_id,platform,viewer_external_id,viewer_kick_user_id,viewer_username,audio_url)
-                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s)
-                """, (bid, redemption_id, int(item_id), platform, str(external_user_id or ""),
+                        (broadcaster_user_id,redemption_id,item_id,item_name,platform,viewer_external_id,viewer_kick_user_id,viewer_username,audio_url)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """, (bid, redemption_id, int(item_id), str(item_name or ""), platform, str(external_user_id or ""),
                       kick_user_id if platform == "kick" else None, username, str(audio_url or "")))
 
         conn.commit()
@@ -477,15 +502,23 @@ def public_store(target):
         return jsonify({"ok": False, "error": "Loja/canal não encontrado."}), 404
     viewer = _viewer()
     wallet = _wallet(channel["broadcaster_user_id"], viewer) if viewer else None
-    return jsonify({"ok": True, "channel": channel, "viewer": viewer,
-                    "wallet": wallet, "items": _channel_items(channel["broadcaster_user_id"])})
+    response = jsonify({"ok": True, "channel": channel, "viewer": viewer,
+                        "wallet": wallet, "items": _channel_items(channel["broadcaster_user_id"])})
+    # A resposta contém carteira/conta do viewer: nunca é cache público.
+    # Um cache privado curtíssimo reduz recarregamentos desnecessários da página.
+    response.headers["Cache-Control"] = "private, max-age=3, stale-while-revalidate=10"
+    response.headers["Vary"] = "Cookie"
+    return response
 
 
 @store_bp.get("/<int:broadcaster_id>/admin")
 def admin_store(broadcaster_id):
     require_session_broadcaster(broadcaster_id)
-    return jsonify({"ok": True, "channel": {"broadcaster_user_id": int(broadcaster_id)},
-                    "items": _channel_items(broadcaster_id, True)})
+    response = jsonify({"ok": True, "channel": {"broadcaster_user_id": int(broadcaster_id)},
+                        "items": _channel_items(broadcaster_id, True)})
+    response.headers["Cache-Control"] = "private, max-age=2, stale-while-revalidate=5"
+    response.headers["Vary"] = "Cookie"
+    return response
 
 
 @store_bp.post("/<int:broadcaster_id>/items")
@@ -522,6 +555,7 @@ def create_item(broadcaster_id):
             item_id=int(cur.fetchone()[0])
         conn.commit()
     finally: conn.close()
+    _store_cache_invalidate(broadcaster_id)
     return jsonify({"ok":True,"item_id":item_id})
 
 
@@ -549,6 +583,8 @@ def update_item(broadcaster_id,item_id):
             changed=cur.rowcount
         conn.commit()
     finally: conn.close()
+    if changed:
+        _store_cache_invalidate(broadcaster_id)
     return jsonify({"ok":bool(changed)})
 
 
@@ -558,13 +594,16 @@ def delete_item(broadcaster_id,item_id):
     conn=get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM store_redemptions WHERE item_id=%s",(int(item_id),))
-            if int(cur.fetchone()[0] or 0)>0:
-                return jsonify({"ok":False,"error":"Este item já possui resgates. Desative-o para preservar o histórico."}),409
-            cur.execute("DELETE FROM store_items WHERE id=%s AND broadcaster_user_id=%s",(int(item_id),int(broadcaster_id)))
+            cur.execute(
+                "DELETE FROM store_items WHERE id=%s AND broadcaster_user_id=%s",
+                (int(item_id),int(broadcaster_id))
+            )
             changed=cur.rowcount
         conn.commit()
-    finally: conn.close()
+    finally:
+        conn.close()
+    if changed:
+        _store_cache_invalidate(broadcaster_id)
     return jsonify({"ok":bool(changed)})
 
 
@@ -613,16 +652,16 @@ def redeem(target,item_id):
             if stock is not None:
                 cur.execute("UPDATE store_items SET stock=stock-1,updated_at=NOW() WHERE id=%s RETURNING stock",(int(item_id),)); new_stock=int(cur.fetchone()[0])
             cur.execute("""INSERT INTO store_redemptions
-                           (broadcaster_user_id,item_id,platform,viewer_external_id,viewer_kick_user_id,viewer_username,price,status)
-                           VALUES(%s,%s,%s,%s,%s,%s,%s,'queued') RETURNING id""",
-                        (int(bid),int(item_id),platform,str(viewer.get("external_user_id") or ""),
+                           (broadcaster_user_id,item_id,item_name,platform,viewer_external_id,viewer_kick_user_id,viewer_username,price,status)
+                           VALUES(%s,%s,%s,%s,%s,%s,%s,%s,'queued') RETURNING id""",
+                        (int(bid),int(item_id),str(item[2] or ""),platform,str(viewer.get("external_user_id") or ""),
                          viewer.get("kick_user_id") if platform == "kick" else None,username,price))
             redemption_id=int(cur.fetchone()[0])
             if item[1]=='audio':
                 cur.execute("""INSERT INTO store_audio_queue
-                               (broadcaster_user_id,redemption_id,item_id,platform,viewer_external_id,viewer_kick_user_id,viewer_username,audio_url)
-                               VALUES(%s,%s,%s,%s,%s,%s,%s,%s)""",
-                            (int(bid),redemption_id,int(item_id),platform,str(viewer.get("external_user_id") or ""),
+                               (broadcaster_user_id,redemption_id,item_id,item_name,platform,viewer_external_id,viewer_kick_user_id,viewer_username,audio_url)
+                               VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                            (int(bid),redemption_id,int(item_id),str(item[2] or ""),platform,str(viewer.get("external_user_id") or ""),
                              viewer.get("kick_user_id") if platform == "kick" else None,username,item[5]))
         conn.commit()
     finally: conn.close()
@@ -655,8 +694,9 @@ def redemptions(broadcaster_id):
     conn=get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("""SELECT r.id,r.item_id,i.name,i.item_type,r.platform,r.viewer_external_id,r.viewer_kick_user_id,r.viewer_username,r.price,r.status,r.created_at
-                            FROM store_redemptions r JOIN store_items i ON i.id=r.item_id
+            cur.execute("""SELECT r.id,r.item_id,COALESCE(NULLIF(r.item_name,''),i.name,'Item removido'),COALESCE(i.item_type,'reward'),
+                                  r.platform,r.viewer_external_id,r.viewer_kick_user_id,r.viewer_username,r.price,r.status,r.created_at
+                            FROM store_redemptions r LEFT JOIN store_items i ON i.id=r.item_id
                            WHERE r.broadcaster_user_id=%s ORDER BY r.id DESC LIMIT %s""",(int(broadcaster_id),limit))
             rows=cur.fetchall()
     finally: conn.close()
@@ -711,8 +751,9 @@ def audio_next(broadcaster_id):
     conn=get_conn()
     try:
         with conn.cursor() as cur:
-            cur.execute("""SELECT q.id,q.redemption_id,q.item_id,q.viewer_username,q.audio_url,i.name
-                            FROM store_audio_queue q JOIN store_items i ON i.id=q.item_id
+            cur.execute("""SELECT q.id,q.redemption_id,q.item_id,q.viewer_username,q.audio_url,
+                                  COALESCE(NULLIF(q.item_name,''),i.name,'Áudio removido')
+                            FROM store_audio_queue q LEFT JOIN store_items i ON i.id=q.item_id
                            WHERE q.broadcaster_user_id=%s AND q.status='queued'
                            ORDER BY q.id ASC LIMIT 1""",(int(broadcaster_id),))
             r=cur.fetchone()

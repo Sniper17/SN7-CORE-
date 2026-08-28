@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>Loja · SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.69-store-categories-buy">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.72-store-performance">
 <style>
   .sn7-store-page{width:100%;max-width:1080px;margin:0 auto}
   .sn7-store-hero{position:relative;overflow:hidden;padding:34px;min-height:300px;display:flex;align-items:center;background:radial-gradient(700px 260px at 82% 0%,rgba(155,140,255,.14),transparent 62%),linear-gradient(145deg,#141923,#0e1219 75%);border:1px solid var(--border);border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.035)}
@@ -29,8 +29,8 @@
   .sn7-store-safe strong{color:#cbd2de}
   .sn7-store-nav-active{background:linear-gradient(145deg,rgba(155,140,255,.18),rgba(155,140,255,.055))!important;border-color:rgba(155,140,255,.23)!important;color:#eef0f6!important;box-shadow:0 9px 22px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05)!important}
   .sn7-store-nav-active .sn7-nav-icon{color:#c7c0ff!important}
-  @media(max-width:900px){.sn7-store-grid{grid-template-columns:1fr 1fr}}
-  @media(max-width:700px){.sn7-store-page{max-width:none}.sn7-store-hero{padding:25px 20px;min-height:0;border-radius:20px}.sn7-store-title{gap:10px}.sn7-store-title-icon{width:43px;height:43px;flex-basis:43px;border-radius:13px}.sn7-store-title h2{font-size:28px}.sn7-store-copy>p{font-size:12px}.sn7-store-grid{grid-template-columns:1fr}.sn7-store-card{min-height:0}.sn7-store-safe{margin-bottom:4px}}
+  @media(max-width:900px){.sn7-store-items-skeleton{grid-template-columns:1fr 1fr}.sn7-store-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:700px){.sn7-store-items-skeleton{grid-template-columns:1fr}.sn7-store-items-skeleton span{height:300px}.sn7-store-page{max-width:none}.sn7-store-hero{padding:25px 20px;min-height:0;border-radius:20px}.sn7-store-title{gap:10px}.sn7-store-title-icon{width:43px;height:43px;flex-basis:43px;border-radius:13px}.sn7-store-title h2{font-size:28px}.sn7-store-copy>p{font-size:12px}.sn7-store-grid{grid-template-columns:1fr}.sn7-store-card{min-height:0}.sn7-store-safe{margin-bottom:4px}}
 
   .sn7-store-builder{margin-top:14px;padding:22px;background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)),var(--panel);border:1px solid var(--border);border-radius:20px;box-shadow:0 18px 45px rgba(0,0,0,.16)}
   .sn7-store-builder-head{display:flex;align-items:center;justify-content:space-between;gap:18px}
@@ -77,7 +77,7 @@
   .sn7-store-dev-note strong{color:#b7bfcc}
   @media(max-width:760px){.sn7-store-builder{padding:17px}.sn7-store-builder-head{align-items:flex-start}.sn7-store-builder-head>div:first-child{align-items:flex-start}.sn7-store-add-btn span:last-child{display:none}.sn7-store-form-grid{grid-template-columns:1fr;gap:18px}.sn7-store-fields{grid-template-columns:1fr}.sn7-store-field:nth-child(3){grid-column:1}.sn7-store-form-actions,.sn7-store-dev-note{grid-column:1}}
 
-  .sn7-store-items-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:18px}.sn7-shop-item{overflow:hidden;border:1px solid var(--border);border-radius:16px;background:rgba(8,11,17,.42);display:flex;flex-direction:column}.sn7-shop-item.is-off{opacity:.58}.sn7-shop-item-image{height:145px;background:#0a0e15;display:grid;place-items:center;overflow:hidden}.sn7-shop-item-image img{width:100%;height:100%;object-fit:cover}.sn7-shop-card-placeholder{font-size:28px;color:#a99cff}.sn7-shop-item-body{padding:15px}.sn7-shop-item-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.sn7-shop-item-type{font-size:9px;color:#929bad;text-transform:uppercase;font-weight:800;letter-spacing:.6px}.sn7-shop-price{font-size:11px;font-weight:900;color:#c4b9ff}.sn7-shop-item h3{font-size:14px;margin:9px 0 5px}.sn7-shop-item p{font-size:10px;line-height:1.5;color:#8f99a9;min-height:31px;margin:0 0 9px}.sn7-shop-item small{font-size:9px;color:#5f6979}.sn7-shop-actions{display:flex;gap:7px;margin-top:12px}.sn7-shop-actions button,.sn7-store-redeem{border:1px solid rgba(155,140,255,.2);border-radius:9px;background:rgba(155,140,255,.08);color:#c8c0ff;padding:8px 10px;font:inherit;font-size:10px;font-weight:800;cursor:pointer}.sn7-shop-actions button.danger{color:#ff9d9d;border-color:rgba(255,120,120,.16);background:rgba(255,80,80,.05)}.sn7-store-redeem{width:100%;background:linear-gradient(145deg,#7c55f4,#633bd5);color:#fff}.sn7-store-redeem:disabled{opacity:.4;cursor:not-allowed}.sn7-store-wallet{padding:9px 12px;border-radius:10px;border:1px solid rgba(155,140,255,.2);background:rgba(155,140,255,.07);font-size:11px;font-weight:900;color:#c9c1ff}.sn7-store-login{margin-top:15px;display:flex;align-items:center;gap:12px;padding:13px;border:1px solid rgba(155,140,255,.15);border-radius:13px;background:rgba(155,140,255,.045);font-size:10px;color:#8f99a9}.sn7-store-login strong{color:#dce0e8}.sn7-store-primary-link{margin-left:auto;text-decoration:none;padding:9px 12px;border-radius:9px;background:#7049df;color:#fff;font-weight:800}.sn7-store-history{margin-top:16px}.sn7-shop-history-row{display:grid;grid-template-columns:1fr 1.5fr .7fr .6fr;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:10px}.sn7-shop-history-row span,.sn7-shop-history-row small{color:#8d97a7}.sn7-store-empty{padding:20px;text-align:center;border:1px dashed rgba(255,255,255,.08);border-radius:13px;color:#687284;font-size:10px}.sn7-store-field select{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:#0b0f17;color:#e7eaf1;padding:11px 12px;font:inherit;font-size:11px}.sn7-store-field select:focus{outline:none;border-color:rgba(155,140,255,.5)}
+  .sn7-store-items-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:18px};.sn7-shop-item{content-visibility:auto;contain-intrinsic-size:340px 420px}.sn7-store-items-skeleton{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;width:100%;grid-column:1/-1;margin-top:0}.sn7-store-items-skeleton span{height:360px;border-radius:16px;border:1px solid rgba(255,255,255,.06);background:linear-gradient(100deg,#10141c 30%,#171c26 45%,#10141c 60%);background-size:220% 100%;animation:sn7StoreSkeleton 1.15s ease-in-out infinite}@keyframes sn7StoreSkeleton{0%{background-position:120% 0}100%{background-position:-80% 0}}.sn7-shop-item{overflow:hidden;border:1px solid var(--border);border-radius:16px;background:rgba(8,11,17,.42);display:flex;flex-direction:column}.sn7-shop-item.is-off{opacity:.58}.sn7-shop-item-image{height:145px;background:#0a0e15;display:grid;place-items:center;overflow:hidden}.sn7-shop-item-image img{width:100%;height:100%;object-fit:cover}.sn7-shop-card-placeholder{font-size:28px;color:#a99cff}.sn7-shop-item-body{padding:15px}.sn7-shop-item-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.sn7-shop-item-type{font-size:9px;color:#929bad;text-transform:uppercase;font-weight:800;letter-spacing:.6px}.sn7-shop-price{font-size:11px;font-weight:900;color:#c4b9ff}.sn7-shop-item h3{font-size:14px;margin:9px 0 5px}.sn7-shop-item p{font-size:10px;line-height:1.5;color:#8f99a9;min-height:31px;margin:0 0 9px}.sn7-shop-item small{font-size:9px;color:#5f6979}.sn7-shop-actions{display:flex;gap:7px;margin-top:12px}.sn7-shop-actions button,.sn7-store-redeem{border:1px solid rgba(155,140,255,.2);border-radius:9px;background:rgba(155,140,255,.08);color:#c8c0ff;padding:8px 10px;font:inherit;font-size:10px;font-weight:800;cursor:pointer}.sn7-shop-actions button.danger{color:#ff9d9d;border-color:rgba(255,120,120,.16);background:rgba(255,80,80,.05)}.sn7-store-redeem{width:100%;background:linear-gradient(145deg,#7c55f4,#633bd5);color:#fff}.sn7-store-redeem:disabled{opacity:.4;cursor:not-allowed}.sn7-store-wallet{padding:9px 12px;border-radius:10px;border:1px solid rgba(155,140,255,.2);background:rgba(155,140,255,.07);font-size:11px;font-weight:900;color:#c9c1ff}.sn7-store-login{margin-top:15px;display:flex;align-items:center;gap:12px;padding:13px;border:1px solid rgba(155,140,255,.15);border-radius:13px;background:rgba(155,140,255,.045);font-size:10px;color:#8f99a9}.sn7-store-login strong{color:#dce0e8}.sn7-store-primary-link{margin-left:auto;text-decoration:none;padding:9px 12px;border-radius:9px;background:#7049df;color:#fff;font-weight:800}.sn7-store-history{margin-top:16px}.sn7-shop-history-row{display:grid;grid-template-columns:1fr 1.5fr .7fr .6fr;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:10px}.sn7-shop-history-row span,.sn7-shop-history-row small{color:#8d97a7}.sn7-store-empty{padding:20px;text-align:center;border:1px dashed rgba(255,255,255,.08);border-radius:13px;color:#687284;font-size:10px}.sn7-store-field select{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:#0b0f17;color:#e7eaf1;padding:11px 12px;font:inherit;font-size:11px}.sn7-store-field select:focus{outline:none;border-color:rgba(155,140,255,.5)}
   @media(max-width:900px){.sn7-store-items-grid{grid-template-columns:1fr 1fr}}@media(max-width:700px){.sn7-store-items-grid{grid-template-columns:1fr}.sn7-store-login{align-items:flex-start;flex-wrap:wrap}.sn7-store-primary-link{margin-left:0}.sn7-shop-history-row{grid-template-columns:1fr 1fr}.sn7-store-wallet{margin-top:8px}}
   .sn7-store-upload-mini{display:block;margin-top:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.06);border-radius:9px;color:#8e98a8;font-size:9px;cursor:pointer;background:rgba(255,255,255,.02)}.sn7-store-upload-mini input{display:block;margin-top:5px;width:100%;font-size:9px}
 
@@ -239,7 +239,7 @@
 
       <section class="sn7-store-builder" id="store-public" {% if broadcaster_id %}hidden{% endif %}>
         <div class="sn7-store-builder-head"><div><div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.2 10.2c.8-1.1 4.8-1.1 5.6.3.9 1.7-1.1 2.4-2.8 2.7-1.7.3-3.7.8-2.9 2.5.7 1.5 4.9 1.6 5.8.1"/></svg></div><div><strong>Recompensas disponíveis</strong><p>Use seus pontos neste canal para resgatar os itens.</p></div></div><div id="public-wallet" class="sn7-store-wallet">—</div></div>
-        <section class="sn7-public-store-category" aria-label="Itens da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🎁</span><strong>Itens da Loja</strong></div><span>Recompensas compráveis com pontos</span></div><div id="public-reward-items" class="sn7-store-items-grid"></div></section><section class="sn7-public-store-category" aria-label="Áudios da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🔊</span><strong>Áudios da Loja</strong></div><span>Sustos, sons e efeitos para resgatar</span></div><div id="public-audio-items" class="sn7-store-items-grid"></div></section>
+        <section class="sn7-public-store-category" aria-label="Itens da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🎁</span><strong>Itens da Loja</strong></div><span>Recompensas compráveis com pontos</span></div><div id="public-reward-items" class="sn7-store-items-grid"><div class="sn7-store-items-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div></section><section class="sn7-public-store-category" aria-label="Áudios da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🔊</span><strong>Áudios da Loja</strong></div><span>Sustos, sons e efeitos para resgatar</span></div><div id="public-audio-items" class="sn7-store-items-grid"><div class="sn7-store-items-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div></section>
       </section>
 
       <section class="sn7-store-builder" id="store-history" {% if not broadcaster_id %}hidden{% endif %}>
@@ -309,14 +309,23 @@
   const admin=!!bid;
   const $=id=>document.getElementById(id);
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const api=(u,o)=>fetch(u,Object.assign({headers:{'Content-Type':'application/json'},credentials:'same-origin'},o||{})).then(async r=>{let d={};try{d=await r.json()}catch(_){};if(!r.ok)throw Object.assign(new Error(d.error||'Erro na Loja'),{status:r.status,data:d});return d});
+  const api=(u,o)=>fetch(u,Object.assign({headers:{'Content-Type':'application/json'},credentials:'same-origin',cache:'default'},o||{})).then(async r=>{let d={};try{d=await r.json()}catch(_){};if(!r.ok)throw Object.assign(new Error(d.error||'Erro na Loja'),{status:r.status,data:d});return d});
+  let publicLoadPromise=null;
+  let publicLoadedAt=0;
+  let publicLoadedPayload=null;
   function setViewerText(text){if($('store-viewer-text'))$('store-viewer-text').textContent=text}
+  function showStoreSkeletons(){
+    const skeleton='<div class="sn7-store-items-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>';
+    if($('public-reward-items') && !$('public-reward-items').children.length)$('public-reward-items').innerHTML=skeleton;
+    if($('public-audio-items') && !$('public-audio-items').children.length)$('public-audio-items').innerHTML=skeleton;
+  }
   function itemCard(i,adminMode){
-    const img=i.image_url?`<img src="${esc(i.image_url)}" alt="">`:'<span class="sn7-store-card-placeholder">✦</span>';
+    const img=i.image_url?`<img src="${esc(i.image_url)}" alt="" loading="lazy" decoding="async">`:'<span class="sn7-store-card-placeholder">✦</span>';
     const stock=i.stock===null?'Ilimitado':`${i.stock} disponíveis`;
     return `<article class="sn7-shop-item ${i.active?'':'is-off'}"><div class="sn7-shop-item-image">${img}</div><div class="sn7-shop-item-body"><div class="sn7-shop-item-top"><span class="sn7-shop-item-type">${i.item_type==='audio'?'🔊 Áudio':'🎁 Recompensa'}</span><span class="sn7-shop-price">✦ ${i.price.toLocaleString('pt-BR')}</span></div><h3>${esc(i.name)}</h3><p>${esc(i.description||'Sem descrição.')}</p><small>${stock}${i.active?'':' · desativado'}</small><div class="sn7-shop-actions">${adminMode?`<button data-toggle="${i.id}" data-active="${i.active?'1':'0'}">${i.active?'Desativar':'Ativar'}</button><button class="danger" data-delete="${i.id}">Excluir</button>`:`<button class="sn7-store-redeem" data-redeem="${i.id}" ${!i.active||i.stock===0?'disabled':''}>Resgatar</button>`}</div></div></article>`;
   }
   function setStoreBootDone(){const l=$('sn7StoreBootLoader');if(!l)return;l.classList.add('done');setTimeout(()=>l.remove(),220)}
+  requestAnimationFrame(()=>setStoreBootDone());
   let storeLoadingTimer=null;
   function setStoreOperationLoading(open){const l=$('sn7StoreOperationLoader');if(!l)return;clearTimeout(storeLoadingTimer);l.classList.toggle('open',!!open);if(open)storeLoadingTimer=setTimeout(()=>l.classList.remove('open'),12000)}
   function storeStandardNotice(message,title='Aviso'){return new Promise(resolve=>{document.querySelector('.sn7-confirm-modal[data-sn7-layer="notice"]')?.remove();const m=document.createElement('div');m.className='sn7-confirm-modal';m.dataset.sn7Layer='notice';m.innerHTML=`<div class="sn7-confirm-card" role="dialog" aria-modal="true"><h3>${esc(title)}</h3><p>${esc(message)}</p><div class="sn7-confirm-actions"><button type="button" class="sn7-confirm-cancel">Fechar</button></div></div>`;document.body.appendChild(m);requestAnimationFrame(()=>m.classList.add('open'));const close=()=>{m.classList.remove('open');m.classList.add('closing');setTimeout(()=>{m.remove();resolve()},160)};m.querySelector('.sn7-confirm-cancel').onclick=close;m.onclick=e=>{if(e.target===m)close()}})}
@@ -325,11 +334,35 @@
   function storeModal(id,open){const m=$(id);if(!m)return;if(open){m.hidden=false;requestAnimationFrame(()=>m.classList.add('open'));}else{m.classList.remove('open');setTimeout(()=>{m.hidden=true},180)}}
   function openStoreLogin(){const t=encodeURIComponent(target||'');if($('store-login-kick'))$('store-login-kick').href=`/kick/store-login?channel=${t}`;if($('store-login-youtube'))$('store-login-youtube').href=`/youtube/login?store=1&channel=${t}`;if($('store-login-twitch'))$('store-login-twitch').href=`/twitch/login?store=1&channel=${t}`;storeModal('sn7StoreLoginModal',true)}
   function setAccountUi(v){currentViewer=v||null;const trigger=$('sn7StoreLoginTrigger');if(!trigger)return;if(v){trigger.textContent='Conta';trigger.classList.add('is-connected');trigger.title=`${v.username||'Conta'} · ${v.platform||''}`;const p=({kick:'Kick',youtube:'YouTube',twitch:'Twitch'}[v.platform]||v.platform||'Plataforma');$('sn7StoreAccountText').textContent=`${v.username||'Conta'} · ${p}`;}else{trigger.textContent='Login';trigger.classList.remove('is-connected');trigger.title='Entrar';}}
-  async function logoutStoreViewer(){const yes=await window.sn7StoreConfirm('Sair da conta','Deseja sair da conta conectada nesta Loja?','Sair');if(!yes)return;window.sn7StoreLoading(true);try{await api('/api/store/viewer/logout',{method:'POST',body:'{}'});storeModal('sn7StoreAccountModal',false);setAccountUi(null);await loadPublic();}catch(e){window.sn7StoreNotice(e.message)}finally{window.sn7StoreLoading(false)}}
-  async function loadPublic(){
+  async function logoutStoreViewer(){const yes=await window.sn7StoreConfirm('Sair da conta','Deseja sair da conta conectada nesta Loja?','Sair');if(!yes)return;window.sn7StoreLoading(true);try{await api('/api/store/viewer/logout',{method:'POST',body:'{}'});storeModal('sn7StoreAccountModal',false);setAccountUi(null);await loadPublic(true);}catch(e){window.sn7StoreNotice(e.message)}finally{window.sn7StoreLoading(false)}}
+  async function loadPublic(force=false){
     if(!target){setViewerText('Escolha uma loja de um canal para começar.');setStoreBootDone();return;}
+    const now=Date.now();
+    if(!force && publicLoadedPayload && now-publicLoadedAt<4000){
+      renderPublicStore(publicLoadedPayload);
+      setStoreBootDone();
+      return;
+    }
+    if(publicLoadPromise)return publicLoadPromise;
+    showStoreSkeletons();
+    publicLoadPromise=(async()=>{
     try{
       const d=await api(`/api/store/${encodeURIComponent(target)}/public`);
+      publicLoadedPayload=d;
+      publicLoadedAt=Date.now();
+      renderPublicStore(d);
+    }catch(e){
+      setViewerText(e.message);
+      $('public-reward-items').innerHTML='<div class="sn7-store-empty">Não foi possível carregar esta loja.</div>';
+      $('public-audio-items').innerHTML='';
+    }finally{
+      publicLoadPromise=null;
+      setStoreBootDone();
+    }
+    })();
+    return publicLoadPromise;
+  }
+  function renderPublicStore(d){
       $('store-title').textContent=`Loja de ${d.channel.username}`;
       $('store-subtitle').textContent='Recompensas da comunidade, resgatadas com os pontos conquistados na live.';
       if(d.viewer){
@@ -367,7 +400,7 @@
           const r=await api(`/api/store/${encodeURIComponent(target)}/redeem/${b.dataset.redeem}`,{method:'POST',body:'{}'});
           setViewerText('Resgate realizado com sucesso!');
           if($('public-wallet'))$('public-wallet').textContent=`✦ ${(r.points||0).toLocaleString('pt-BR')} pontos`;
-          await loadPublic();
+          await loadPublic(true);
         }catch(e){
           if(e.status===401){
             openStoreLogin();
@@ -378,8 +411,8 @@
           card?.setAttribute('aria-busy','false');
         }
       });
-    }catch(e){setViewerText(e.message);$('public-reward-items').innerHTML='<div class="sn7-store-empty">Não foi possível carregar esta loja.</div>'; $('public-audio-items').innerHTML=''}finally{setStoreBootDone()}
   }
+
   if(!admin){
     $('sn7StoreLoginTrigger')?.addEventListener('click',()=>{if(currentViewer){storeModal('sn7StoreAccountModal',true)}else openStoreLogin()});
     $('sn7StoreLoginClose')?.addEventListener('click',()=>storeModal('sn7StoreLoginModal',false));
