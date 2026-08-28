@@ -26,7 +26,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.61-loja-public-clean"
+SN7_VERSION = "1.9.62-dashboard-store"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 
@@ -154,8 +154,10 @@ def profile():
 
 @app.get("/loja")
 def store():
-    """Loja pública e área administrativa do canal logado."""
+    """Loja pública; streamers autenticados administram pela aba Loja do painel."""
     current = get_session_broadcaster_id(validate=False)
+    if current is not None:
+        return redirect("/?store=1")
     broadcaster_id = str(current) if current is not None else None
     profile = None
     if current is not None:

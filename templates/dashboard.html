@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.53-minigames-stable">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.62-dashboard-store">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}.sn7-music-remove{position:relative;min-width:32px;min-height:32px}.sn7-music-remove[aria-busy="true"]{cursor:wait}.sn7-inline-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.22);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .62s linear infinite;vertical-align:middle}.sn7-music-row-removing{opacity:.45;transform:scale(.985);transition:opacity .12s ease,transform .12s ease}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -125,6 +125,104 @@ body.sn7-modal-open{overflow:hidden}
 <style id="sn7-1-9-30-style">
 .sn7-automation-panel{max-width:980px}.sn7-automation-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}.sn7-automation-head h2{margin:0 0 5px;font-size:22px}.sn7-automation-list{display:grid;gap:10px}.sn7-automation-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:15px;border:1px solid var(--border);border-radius:15px;background:#0f131a}.sn7-automation-row strong{display:block}.sn7-automation-row small{display:block;color:var(--muted);margin-top:4px;line-height:1.4}.sn7-automation-actions{display:flex;gap:7px;align-items:center}.sn7-automation-actions button{border:1px solid var(--border);background:#151a22;color:#cbd2de;border-radius:9px;padding:8px 10px;cursor:pointer}.sn7-automation-actions button:hover{color:#fff;background:#1b202a}.sn7-automation-badge{font-size:9px;font-weight:800;padding:5px 7px;border-radius:999px;border:1px solid #2c6548;color:#55d98b;background:#102219}.sn7-automation-badge.off{color:#8f98a8;border-color:var(--border);background:transparent}@media(max-width:700px){.sn7-automation-head{flex-direction:column}.sn7-automation-head .btn{width:100%}.sn7-automation-row{grid-template-columns:1fr}.sn7-automation-actions{justify-content:space-between}.sn7-automation-actions button{flex:1}}
 </style>
+<style id="sn7-dashboard-store-style">
+  .sn7-store-page{width:100%;max-width:1080px;margin:0 auto}
+  .sn7-store-hero{position:relative;overflow:hidden;padding:34px;min-height:300px;display:flex;align-items:center;background:radial-gradient(700px 260px at 82% 0%,rgba(155,140,255,.14),transparent 62%),linear-gradient(145deg,#141923,#0e1219 75%);border:1px solid var(--border);border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.035)}
+  .sn7-store-hero:after{content:"";position:absolute;width:310px;height:310px;right:-90px;bottom:-190px;border-radius:50%;background:radial-gradient(circle,rgba(103,232,249,.08),transparent 68%);pointer-events:none}
+  .sn7-store-copy{position:relative;z-index:1;max-width:700px}
+  .sn7-store-badge{display:inline-flex;align-items:center;gap:7px;padding:7px 10px;border-radius:999px;background:rgba(155,140,255,.10);border:1px solid rgba(155,140,255,.18);color:#bdb5ff;font-size:10px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase}
+  .sn7-store-title{display:flex;align-items:center;gap:13px;margin:18px 0 10px}
+  .sn7-store-title-icon{width:48px;height:48px;flex:0 0 48px;display:grid;place-items:center;border-radius:15px;background:linear-gradient(145deg,rgba(155,140,255,.20),rgba(155,140,255,.06));border:1px solid rgba(155,140,255,.20);box-shadow:0 10px 30px rgba(0,0,0,.18)}
+  .sn7-store-title-icon svg{width:26px;height:26px;fill:none;stroke:#c7c0ff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .sn7-store-title h2{margin:0;font-size:clamp(27px,4vw,38px);letter-spacing:-.8px}
+  .sn7-store-copy>p{margin:0;color:#9ca6b7;line-height:1.65;font-size:14px;max-width:650px}
+  .sn7-store-status{display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:10px 12px;border-radius:11px;background:rgba(8,11,17,.56);border:1px solid rgba(255,255,255,.07);color:#aeb6c5;font-size:11px}
+  .sn7-store-status i{width:7px;height:7px;border-radius:50%;background:#a78bfa;box-shadow:0 0 10px rgba(167,139,250,.55)}
+  .sn7-store-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
+  .sn7-store-card{min-height:150px;padding:20px;background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)),var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:0 14px 35px rgba(0,0,0,.14)}
+  .sn7-store-card-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:#1b202a;color:#b7abff;margin-bottom:15px}
+  .sn7-store-card-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .sn7-store-card strong{display:block;font-size:14px;margin-bottom:5px}.sn7-store-card p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+  .sn7-store-safe{margin-top:14px;padding:14px 16px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:rgba(10,13,18,.48);color:#8993a4;font-size:11px;line-height:1.6}
+  .sn7-store-safe strong{color:#cbd2de}
+  .sn7-store-nav-active{background:linear-gradient(145deg,rgba(155,140,255,.18),rgba(155,140,255,.055))!important;border-color:rgba(155,140,255,.23)!important;color:#eef0f6!important;box-shadow:0 9px 22px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05)!important}
+  .sn7-store-nav-active .sn7-nav-icon{color:#c7c0ff!important}
+  @media(max-width:900px){.sn7-store-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:700px){.sn7-store-page{max-width:none}.sn7-store-hero{padding:25px 20px;min-height:0;border-radius:20px}.sn7-store-title{gap:10px}.sn7-store-title-icon{width:43px;height:43px;flex-basis:43px;border-radius:13px}.sn7-store-title h2{font-size:28px}.sn7-store-copy>p{font-size:12px}.sn7-store-grid{grid-template-columns:1fr}.sn7-store-card{min-height:0}.sn7-store-safe{margin-bottom:4px}}
+
+  .sn7-store-builder{margin-top:14px;padding:22px;background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)),var(--panel);border:1px solid var(--border);border-radius:20px;box-shadow:0 18px 45px rgba(0,0,0,.16)}
+  .sn7-store-builder-head{display:flex;align-items:center;justify-content:space-between;gap:18px}
+  .sn7-store-builder-head>div:first-child{display:flex;align-items:center;gap:14px;min-width:0}
+  .sn7-store-builder-icon{width:46px;height:46px;flex:0 0 46px;display:grid;place-items:center;border-radius:14px;background:linear-gradient(145deg,rgba(155,140,255,.19),rgba(155,140,255,.05));border:1px solid rgba(155,140,255,.18);color:#b9adff}
+  .sn7-store-builder-icon svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .sn7-store-builder-head strong{display:block;font-size:16px;letter-spacing:-.2px}
+  .sn7-store-builder-head p{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
+  .sn7-store-add-btn,.sn7-store-primary,.sn7-store-secondary,.sn7-store-close-btn{font:inherit;cursor:pointer}
+  .sn7-store-add-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(155,140,255,.28);border-radius:12px;padding:10px 14px;background:linear-gradient(145deg,rgba(126,87,255,.9),rgba(102,70,218,.82));color:#fff;font-weight:800;font-size:12px;box-shadow:0 10px 24px rgba(85,50,190,.22)}
+  .sn7-store-add-btn span:first-child{display:grid;place-items:center;width:18px;height:18px;border-radius:6px;background:rgba(255,255,255,.14);font-size:18px;line-height:16px;font-weight:500}
+  .sn7-store-item-form{margin-top:18px;padding:22px;border:1px solid rgba(155,140,255,.17);border-radius:17px;background:linear-gradient(145deg,rgba(8,11,18,.72),rgba(17,21,31,.72));box-shadow:inset 0 1px 0 rgba(255,255,255,.025)}
+  .sn7-store-form-title{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .sn7-store-form-kicker{font-size:9px;font-weight:900;letter-spacing:1.4px;color:#a99cff}
+  .sn7-store-form-title h3{margin:6px 0 4px;font-size:20px;letter-spacing:-.35px}
+  .sn7-store-form-title p{margin:0;color:#8f99a9;font-size:11px}
+  .sn7-store-close-btn{width:32px;height:32px;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025);color:#aab2c0;font-size:21px;line-height:1}
+  .sn7-store-form-grid{display:grid;grid-template-columns:minmax(280px,.85fr) minmax(0,1.35fr);gap:24px}
+  .sn7-store-label{display:block;margin-bottom:8px;font-size:10px;font-weight:800;color:#c8ced9;letter-spacing:.2px}
+  .sn7-store-upload{min-height:155px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;border:1px dashed rgba(155,140,255,.42);border-radius:14px;background:rgba(155,140,255,.035);cursor:pointer;transition:.18s ease}
+  .sn7-store-upload:hover{background:rgba(155,140,255,.07);border-color:rgba(155,140,255,.7)}
+  .sn7-store-upload input{display:none}
+  .sn7-store-upload-icon{width:42px;height:42px;display:grid;place-items:center;margin-bottom:9px;border-radius:12px;background:rgba(155,140,255,.10);color:#b8acff}
+  .sn7-store-upload-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .sn7-store-upload strong{font-size:12px;color:#d9ddea}.sn7-store-upload small{margin-top:5px;color:#7e8899;font-size:9px}
+  .sn7-store-preview{height:112px;margin-top:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;border:1px solid rgba(255,255,255,.06);border-radius:13px;background:rgba(3,6,11,.46);overflow:hidden;color:#697486;font-size:10px}
+  .sn7-store-preview-placeholder svg{width:25px;height:25px;fill:none;stroke:#7d8798;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+  .sn7-store-preview img{width:100%;height:100%;object-fit:cover}
+  .sn7-store-fields{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(150px,.7fr);gap:15px}
+  .sn7-store-field{position:relative}.sn7-store-field:nth-child(3){grid-column:1/-1}
+  .sn7-store-field input,.sn7-store-field textarea{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:#0b0f17;color:#e7eaf1;outline:none;padding:11px 12px;font:inherit;font-size:11px;transition:border-color .16s,box-shadow .16s}
+  .sn7-store-field textarea{resize:vertical;min-height:105px;line-height:1.55}
+  .sn7-store-field input:focus,.sn7-store-field textarea:focus{border-color:rgba(155,140,255,.5);box-shadow:0 0 0 3px rgba(155,140,255,.08)}
+  .sn7-store-field input::placeholder,.sn7-store-field textarea::placeholder{color:#586273}
+  .sn7-store-input-prefix{position:relative}.sn7-store-input-prefix>span{position:absolute;left:11px;top:10px;color:#a994ff;font-size:12px}.sn7-store-input-prefix input{padding-left:29px}
+  .sn7-store-counter{display:block;text-align:right;margin-top:4px;color:#596373;font-size:9px}
+  .sn7-store-form-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:9px;padding-top:2px}
+  .sn7-store-secondary,.sn7-store-primary{padding:10px 15px;border-radius:10px;font-size:11px;font-weight:800}
+  .sn7-store-secondary{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025);color:#aeb6c5}
+  .sn7-store-primary{border:1px solid rgba(155,140,255,.25);background:linear-gradient(145deg,#7c55f4,#633bd5);color:#fff;box-shadow:0 8px 18px rgba(84,51,190,.2)}
+  .sn7-store-primary:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+  .sn7-store-dev-note{grid-column:1/-1;display:flex;align-items:center;gap:7px;padding:10px 12px;border:1px solid rgba(255,255,255,.055);border-radius:10px;color:#7f8998;font-size:9px}
+  .sn7-store-dev-note span{width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:#a78bfa;box-shadow:0 0 9px rgba(167,139,250,.55)}
+  .sn7-store-dev-note strong{color:#b7bfcc}
+  @media(max-width:760px){.sn7-store-builder{padding:17px}.sn7-store-builder-head{align-items:flex-start}.sn7-store-builder-head>div:first-child{align-items:flex-start}.sn7-store-add-btn span:last-child{display:none}.sn7-store-form-grid{grid-template-columns:1fr;gap:18px}.sn7-store-fields{grid-template-columns:1fr}.sn7-store-field:nth-child(3){grid-column:1}.sn7-store-form-actions,.sn7-store-dev-note{grid-column:1}}
+
+  .sn7-store-items-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:18px}.sn7-shop-item{overflow:hidden;border:1px solid var(--border);border-radius:16px;background:rgba(8,11,17,.42);display:flex;flex-direction:column}.sn7-shop-item.is-off{opacity:.58}.sn7-shop-item-image{height:145px;background:#0a0e15;display:grid;place-items:center;overflow:hidden}.sn7-shop-item-image img{width:100%;height:100%;object-fit:cover}.sn7-shop-card-placeholder{font-size:28px;color:#a99cff}.sn7-shop-item-body{padding:15px}.sn7-shop-item-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.sn7-shop-item-type{font-size:9px;color:#929bad;text-transform:uppercase;font-weight:800;letter-spacing:.6px}.sn7-shop-price{font-size:11px;font-weight:900;color:#c4b9ff}.sn7-shop-item h3{font-size:14px;margin:9px 0 5px}.sn7-shop-item p{font-size:10px;line-height:1.5;color:#8f99a9;min-height:31px;margin:0 0 9px}.sn7-shop-item small{font-size:9px;color:#5f6979}.sn7-shop-actions{display:flex;gap:7px;margin-top:12px}.sn7-shop-actions button,.sn7-store-redeem{border:1px solid rgba(155,140,255,.2);border-radius:9px;background:rgba(155,140,255,.08);color:#c8c0ff;padding:8px 10px;font:inherit;font-size:10px;font-weight:800;cursor:pointer}.sn7-shop-actions button.danger{color:#ff9d9d;border-color:rgba(255,120,120,.16);background:rgba(255,80,80,.05)}.sn7-store-redeem{width:100%;background:linear-gradient(145deg,#7c55f4,#633bd5);color:#fff}.sn7-store-redeem:disabled{opacity:.4;cursor:not-allowed}.sn7-store-wallet{padding:9px 12px;border-radius:10px;border:1px solid rgba(155,140,255,.2);background:rgba(155,140,255,.07);font-size:11px;font-weight:900;color:#c9c1ff}.sn7-store-login{margin-top:15px;display:flex;align-items:center;gap:12px;padding:13px;border:1px solid rgba(155,140,255,.15);border-radius:13px;background:rgba(155,140,255,.045);font-size:10px;color:#8f99a9}.sn7-store-login strong{color:#dce0e8}.sn7-store-primary-link{margin-left:auto;text-decoration:none;padding:9px 12px;border-radius:9px;background:#7049df;color:#fff;font-weight:800}.sn7-store-history{margin-top:16px}.sn7-shop-history-row{display:grid;grid-template-columns:1fr 1.5fr .7fr .6fr;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:10px}.sn7-shop-history-row span,.sn7-shop-history-row small{color:#8d97a7}.sn7-store-empty{padding:20px;text-align:center;border:1px dashed rgba(255,255,255,.08);border-radius:13px;color:#687284;font-size:10px}.sn7-store-field select{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.08);border-radius:11px;background:#0b0f17;color:#e7eaf1;padding:11px 12px;font:inherit;font-size:11px}.sn7-store-field select:focus{outline:none;border-color:rgba(155,140,255,.5)}
+  @media(max-width:900px){.sn7-store-items-grid{grid-template-columns:1fr 1fr}}@media(max-width:700px){.sn7-store-items-grid{grid-template-columns:1fr}.sn7-store-login{align-items:flex-start;flex-wrap:wrap}.sn7-store-primary-link{margin-left:0}.sn7-shop-history-row{grid-template-columns:1fr 1fr}.sn7-store-wallet{margin-top:8px}}
+  .sn7-store-upload-mini{display:block;margin-top:8px;padding:9px 10px;border:1px solid rgba(255,255,255,.06);border-radius:9px;color:#8e98a8;font-size:9px;cursor:pointer;background:rgba(255,255,255,.02)}.sn7-store-upload-mini input{display:block;margin-top:5px;width:100%;font-size:9px}
+
+
+  .sn7-store-public-body{margin:0;min-height:100vh;background:radial-gradient(900px 420px at 50% -100px,rgba(126,87,255,.10),transparent 70%),#0b0d12;color:#eef0f6}
+  .sn7-store-public-body .sn7-store-page{max-width:980px;padding:28px 18px 42px;box-sizing:border-box}
+  .sn7-store-public-body .sn7-store-hero{min-height:220px;border-radius:22px}
+  .sn7-store-public-body .sn7-store-builder{margin-top:14px}
+  .sn7-store-login-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+  .sn7-store-secondary-link{background:rgba(255,255,255,.035)!important;border-color:rgba(255,255,255,.10)!important}
+  .sn7-store-public-body .sn7-store-safe{display:none}
+  @media(max-width:700px){.sn7-store-public-body .sn7-store-page{padding:14px 10px 28px}.sn7-store-public-body .sn7-store-hero{border-radius:18px}.sn7-store-login-options{grid-template-columns:1fr}}
+
+  /* 1.9.60 — Loja pública: mesma linguagem visual do painel. */
+  .sn7-store-boot-loader,.sn7-store-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-store-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-store-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-store-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-store-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7StoreLoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-store-operation-loader .sn7-store-loader-spinner{width:26px;height:26px}@keyframes sn7StoreLoaderSpin{to{transform:rotate(360deg)}}
+  .sn7-store-public-topbar{position:fixed;top:14px;right:14px;z-index:1000;display:flex;align-items:center;gap:8px}.sn7-store-login-trigger{appearance:none;border:1px solid #2a303c;background:#11151d;color:#dfe3ec;border-radius:11px;min-width:76px;min-height:38px;padding:8px 12px;font:inherit;font-size:11px;font-weight:800;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.28);transition:transform .12s cubic-bezier(.22,.8,.24,1),background .16s ease,border-color .16s ease,box-shadow .16s ease}.sn7-store-login-trigger:hover{background:#1b202a;border-color:#394253;color:#fff}.sn7-store-login-trigger:active{transform:translateY(1px) scale(.985)}
+  .sn7-store-public-body .sn7-store-page{padding-top:72px}
+  .sn7-store-account-badge{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(167,139,250,.2);background:rgba(167,139,250,.07);color:#c9c1ff;border-radius:11px;min-height:38px;padding:7px 11px;font-size:10px;font-weight:800;max-width:190px}.sn7-store-account-dot{width:7px;height:7px;border-radius:50%;background:#a78bfa;box-shadow:0 0 9px rgba(167,139,250,.55);flex:0 0 7px}
+  .sn7-store-modal[hidden],.sn7-store-confirm-modal[hidden]{display:none!important}
+  .sn7-store-modal{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(3,5,9,.76);backdrop-filter:blur(7px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s cubic-bezier(.22,.8,.24,1),visibility 0s linear .16s;box-sizing:border-box}.sn7-store-modal.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .16s cubic-bezier(.22,.8,.24,1)}.sn7-store-modal.closing{opacity:0;visibility:hidden;pointer-events:none}.sn7-store-modal-card{position:relative;width:min(430px,100%);padding:28px 24px 22px;background:#11151d;border:1px solid #2a303c;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.5);transform:translateY(8px) scale(.985);opacity:.98;transition:transform .18s cubic-bezier(.22,.8,.24,1),opacity .18s cubic-bezier(.22,.8,.24,1);box-sizing:border-box}.sn7-store-modal.open .sn7-store-modal-card{transform:translateY(0) scale(1);opacity:1}.sn7-store-modal-close{position:absolute;top:10px;right:11px;width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:#8f98a8;font-size:25px;line-height:1;cursor:pointer}.sn7-store-modal-close:hover{background:#1b202a;color:#fff}.sn7-store-modal-icon{width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:#1b202a;color:#b7abff;font-size:22px;margin-bottom:16px}.sn7-store-modal-card h3{margin:0 0 8px;font-size:21px;letter-spacing:-.25px}.sn7-store-modal-card>p{margin:0;color:var(--muted);font-size:13px;line-height:1.6}.sn7-store-modal-status{margin-top:16px;padding:11px 12px;border-radius:10px;background:#0d1016;border:1px solid var(--border);color:#aeb6c5;font-size:11px;line-height:1.5}.sn7-store-platform-list{display:grid;grid-template-columns:1fr;gap:9px;margin-top:18px}.sn7-store-platform-btn{appearance:none;display:flex;align-items:center;gap:11px;width:100%;min-height:46px;padding:10px 13px;border:1px solid #2a303c;border-radius:10px;background:#151a22;color:#e9ecf3;font:inherit;font-size:11px;font-weight:800;text-decoration:none;cursor:pointer;box-sizing:border-box;transition:transform .12s cubic-bezier(.22,.8,.24,1),background .16s ease,border-color .16s ease,opacity .16s ease}.sn7-store-platform-btn:hover{background:#1b202a;border-color:#394253}.sn7-store-platform-btn:active{transform:translateY(1px) scale(.985)}.sn7-store-platform-btn.kick{border-color:rgba(83,252,24,.18)}.sn7-store-platform-btn.youtube{border-color:rgba(255,0,0,.18)}.sn7-store-platform-btn.twitch{border-color:rgba(145,70,255,.22)}.sn7-store-platform-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:8px;font-size:13px;font-weight:900;flex:0 0 28px}.sn7-store-platform-icon.kick{background:rgba(83,252,24,.10);color:#53fc18}.sn7-store-platform-icon.youtube{background:rgba(255,0,0,.10);color:#ff6b6b}.sn7-store-platform-icon.twitch{background:rgba(145,70,255,.12);color:#b995ff}.sn7-store-platform-btn small{display:block;margin-left:auto;color:#7f8998;font-size:9px;font-weight:700}.sn7-store-modal-action{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap;margin-top:20px}.sn7-store-modal-action button{min-height:42px;border-radius:9px;padding:10px 14px;font:inherit;font-size:11px;font-weight:800;cursor:pointer;transition:transform .12s cubic-bezier(.22,.8,.24,1),background .16s ease,border-color .16s ease,opacity .16s ease}.sn7-store-cancel{border:1px solid var(--border);background:transparent;color:var(--muted)}.sn7-store-confirm{border:0;background:#fff;color:#111}.sn7-store-danger{border:0;background:#ef4444;color:#fff}.sn7-store-modal-action button:active{transform:translateY(1px) scale(.985)}
+  .sn7-store-confirm-card{width:min(440px,100%);background:#11151d;border:1px solid #2a303c;border-radius:18px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.5);box-sizing:border-box}.sn7-store-confirm-card h3{margin:0 0 8px;font-size:19px}.sn7-store-confirm-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}.sn7-store-confirm-modal{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(3,5,9,.76);backdrop-filter:blur(7px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s cubic-bezier(.22,.8,.24,1),visibility 0s linear .16s}.sn7-store-confirm-modal.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .16s cubic-bezier(.22,.8,.24,1)}.sn7-store-confirm-modal.closing{opacity:0;visibility:hidden;pointer-events:none}.sn7-store-confirm-modal .sn7-store-confirm-card{transform:translateY(8px) scale(.985);opacity:.98;transition:transform .18s cubic-bezier(.22,.8,.24,1),opacity .18s cubic-bezier(.22,.8,.24,1)}.sn7-store-confirm-modal.open .sn7-store-confirm-card{transform:translateY(0) scale(1);opacity:1}
+  .sn7-shop-item{position:relative;transition:transform .16s cubic-bezier(.22,.8,.24,1),border-color .16s ease,box-shadow .16s ease}.sn7-shop-item:hover{transform:translateY(-1px);border-color:#394253;box-shadow:0 16px 36px rgba(0,0,0,.16)}.sn7-shop-item.sn7-store-card-loading{pointer-events:none}.sn7-shop-item.sn7-store-card-loading::after{content:"";position:absolute;inset:0;z-index:30;background:rgba(11,13,18,.46);backdrop-filter:blur(2px);border-radius:inherit}.sn7-shop-item.sn7-store-card-loading::before{content:"";position:absolute;left:50%;top:50%;width:27px;height:27px;margin:-13.5px 0 0 -13.5px;z-index:31;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7StoreCardSpin .72s linear infinite;box-sizing:border-box}@keyframes sn7StoreCardSpin{to{transform:rotate(360deg)}}
+  .sn7-store-logged-status{margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid rgba(167,139,250,.16);border-radius:11px;background:rgba(167,139,250,.045);color:#aeb6c5;font-size:10px}.sn7-store-logged-status strong{color:#dfe3ec}.sn7-store-logged-status button{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025);color:#aeb6c5;border-radius:9px;padding:7px 10px;font:inherit;font-size:9px;font-weight:800;cursor:pointer}.sn7-store-logged-status button:hover{background:#1b202a;color:#fff}
+  @media(max-width:700px){.sn7-store-public-topbar{top:10px;right:10px}.sn7-store-public-body .sn7-store-page{padding-top:62px}.sn7-store-login-trigger{min-width:68px}.sn7-store-account-badge{max-width:155px}.sn7-store-modal{align-items:flex-start;padding:10px}.sn7-store-modal-card{margin:auto 0;padding:22px 18px calc(20px + env(safe-area-inset-bottom));max-height:calc(100svh - 20px);overflow:auto}.sn7-store-modal-action{flex-direction:column}.sn7-store-modal-action button{width:100%}.sn7-store-confirm-modal{align-items:flex-start;padding:10px}.sn7-store-confirm-card{margin:auto 0}.sn7-store-logged-status{align-items:flex-start;flex-direction:column}.sn7-store-logged-status button{width:100%}}
+  @media(prefers-reduced-motion:reduce){.sn7-store-loader-spinner,.sn7-shop-item.sn7-store-card-loading::before{animation:none}.sn7-store-modal,.sn7-store-modal-card,.sn7-store-confirm-modal,.sn7-store-confirm-modal .sn7-store-confirm-card,.sn7-store-login-trigger,.sn7-store-platform-btn,.sn7-store-modal-action button,.sn7-shop-item{transition:none}}
+
+</style>
 </head>
 <body>
 <div id="sn7BootLoader" class="sn7-boot-loader" aria-hidden="true"><span class="sn7-loader-spinner"></span></div>
@@ -155,7 +253,7 @@ body.sn7-modal-open{overflow:hidden}
         </span>
         <span class="sn7-nav-label" data-short="Ranking">Ranking</span>
       </button>
-      <button type="button" data-store-link aria-label="Loja" onclick="window.location.href='/loja'">
+      <button type="button" data-tab="store" aria-label="Loja">
         <span class="sn7-nav-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" focusable="false"><path d="M4 9.5h16l-1 10H5l-1-10Z"/><path d="M7 9.5V7a5 5 0 0 1 10 0v2.5"/><path d="M8.5 13h.1M12 13h.1M15.5 13h.1"/></svg>
         </span>
@@ -192,7 +290,7 @@ body.sn7-modal-open{overflow:hidden}
         <span class="sn7-nav-label" data-short="Perfil">Perfil</span>
       </button>
     </nav>
-    <div class="sidebar-footer">SN7 CORE <span>v1.9.31</span></div>
+    <div class="sidebar-footer">SN7 CORE <span>v1.9.62</span></div>
   </aside>
 
   <main>
@@ -242,6 +340,57 @@ body.sn7-modal-open{overflow:hidden}
         <div id="sn7RankingList" class="sn7-ranking-platform-grid">
           <div class="sn7-ranking-loading">Carregando rankings...</div>
         </div>
+      </div>
+    </section>
+
+
+    <section id="store" class="tab">
+      <div class="sn7-store-page sn7-dashboard-store-page">
+        {% if broadcaster_id %}
+<section class="sn7-store-builder" id="store-admin" aria-label="Administração da loja">
+        <div class="sn7-store-builder-head">
+          <div>
+            <div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 14.5 9l6 .5-4.6 3.9 1.4 5.9-5.3-3.1-5.3 3.1 1.4-5.9L3.5 9l6-.5L12 3.5Z"/></svg></div>
+            <div><strong>Itens e recompensas</strong><p>Crie e gerencie o que a comunidade pode resgatar.</p></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="sn7-store-add-btn" id="sn7-open-audio-player"><span aria-hidden="true">🔊</span><span>Player da live</span></button><button type="button" class="sn7-store-add-btn" id="sn7-open-item-form"><span aria-hidden="true">+</span><span>Novo item</span></button></div>
+        </div>
+        <div id="admin-items" class="sn7-store-items-grid"></div>
+        <div class="sn7-store-item-form" id="sn7-item-form" hidden>
+          <div class="sn7-store-form-title"><div><span class="sn7-store-form-kicker">CONFIGURAR RECOMPENSA</span><h3>Adicionar novo item</h3><p>Defina o conteúdo que ficará disponível para a comunidade.</p></div><button type="button" class="sn7-store-close-btn" id="sn7-close-item-form" aria-label="Fechar">×</button></div>
+          <div class="sn7-store-form-grid">
+            <div class="sn7-store-image-col">
+              <label class="sn7-store-label">Imagem do item</label>
+              <label class="sn7-store-upload" for="sn7-item-image"><input id="sn7-item-image" type="file" accept="image/png,image/jpeg,image/webp"><span class="sn7-store-upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M5 14v4.5a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5V14"/></svg></span><strong>Enviar imagem</strong><small>PNG, JPG ou WEBP · até 2 MB</small></label>
+              <div class="sn7-store-preview" id="sn7-item-preview"><span class="sn7-store-preview-placeholder" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m5.5 17 4.2-4.2 2.8 2.8 2-2 4 4"/></svg></span><img id="sn7-item-preview-img" alt="Prévia" hidden><span id="sn7-item-preview-text">Prévia da imagem</span></div>
+            </div>
+            <div class="sn7-store-fields">
+              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-type">Tipo</label><select id="sn7-item-type"><option value="reward">🎁 Recompensa</option><option value="audio">🔊 Áudio</option></select></div>
+              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-name">Nome do item</label><input id="sn7-item-name" type="text" maxlength="80" placeholder="Ex.: Escolher próxima música"></div>
+              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-price">Valor em pontos</label><div class="sn7-store-input-prefix"><span>✦</span><input id="sn7-item-price" type="number" min="1" step="1" placeholder="1000"></div></div>
+              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-stock">Estoque <small>(opcional)</small></label><input id="sn7-item-stock" type="number" min="0" step="1" placeholder="Ilimitado"></div>
+              <div class="sn7-store-field sn7-audio-field" hidden><label class="sn7-store-label" for="sn7-item-audio-url">Áudio</label><input id="sn7-item-audio-url" type="url" maxlength="7000000" placeholder="https://.../audio.mp3"><label class="sn7-store-upload-mini" for="sn7-item-audio-file">ou enviar arquivo · até 4 MB<input id="sn7-item-audio-file" type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/webm"></label><small class="sn7-store-counter">O áudio entra na fila automaticamente após o resgate.</small></div>
+              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-description">Descrição</label><textarea id="sn7-item-description" maxlength="300" rows="6" placeholder="Explique o que o item faz ou como será entregue..."></textarea><small class="sn7-store-counter"><span id="sn7-item-description-count">0</span>/300</small></div>
+              <div class="sn7-store-form-actions"><button type="button" class="sn7-store-secondary" id="sn7-cancel-item">Cancelar</button><button type="button" class="sn7-store-primary" id="sn7-save-item" disabled>Salvar item</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="sn7-store-builder" id="store-history" {% if not broadcaster_id %}hidden{% endif %}>
+        <div class="sn7-store-builder-head"><div><div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 5h12v15H6z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg></div><div><strong>Últimos resgates</strong><p>Acompanhe as recompensas solicitadas pela comunidade.</p></div></div></div>
+        <div id="admin-redemptions" class="sn7-store-history"></div>
+      </section>
+
+      <div class="sn7-store-safe"><strong>🔒 Carteiras separadas por canal:</strong> cada viewer mantém um saldo próprio em cada streamer. A Loja não cria nem substitui o sistema atual de pontos.</div>
+        {% else %}
+          <div class="panel form-panel sn7-store-login-panel">
+            <div class="sn7-store-builder-head">
+              <div><div class="sn7-store-builder-icon" aria-hidden="true">✦</div><div><strong>Loja do canal</strong><p>Conecte sua conta no Perfil para administrar as recompensas da sua comunidade.</p></div></div>
+            </div>
+            <button type="button" class="btn" onclick="document.querySelector('nav button[data-tab=\"profile\"]')?.click()">Ir para Perfil</button>
+          </div>
+        {% endif %}
       </div>
     </section>
 
@@ -574,8 +723,107 @@ body.sn7-modal-open{overflow:hidden}
 </div>
 <script>const BROADCASTER_ID={{ broadcaster_id|tojson }}; window.SN7_NAV_FROM_URL = !!new URLSearchParams(window.location.search).get('connected');
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
+const SN7_OPEN_STORE={{ "true" if request.args.get("store") == "1" else "false" }};
 const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
-<script src="/static/js/app.js?v=sn7-1.9.53-minigames-stable"></script><script>
+<script id="sn7-store-admin-script">
+(function(){
+  "use strict";
+  const bid = window.BROADCASTER_ID ? Number(window.BROADCASTER_ID) : 0;
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;", "'":"&#39;"}[m]));
+  const api = (u, o) => fetch(u, Object.assign({headers:{"Content-Type":"application/json"},credentials:"same-origin",cache:"no-store"},o||{})).then(async r=>{let d={};try{d=await r.json()}catch(_){};if(!r.ok||d.ok===false)throw Object.assign(new Error(d.error||`Falha HTTP ${r.status}`),{status:r.status,data:d});return d});
+  let loadedFor = 0;
+  let loading = false;
+
+  function itemCard(i){
+    const img=i.image_url?`<img src="${esc(i.image_url)}" alt="">`:'<span class="sn7-store-card-placeholder">✦</span>';
+    const stock=i.stock===null?'Ilimitado':`${i.stock} disponíveis`;
+    return `<article class="sn7-shop-item ${i.active?'':'is-off'}"><div class="sn7-shop-item-image">${img}</div><div class="sn7-shop-item-body"><div class="sn7-shop-item-top"><span class="sn7-shop-item-type">${i.item_type==='audio'?'🔊 Áudio':'🎁 Recompensa'}</span><span class="sn7-shop-price">✦ ${Number(i.price||0).toLocaleString('pt-BR')}</span></div><h3>${esc(i.name)}</h3><p>${esc(i.description||'Sem descrição.')}</p><small>${stock}${i.active?'':' · desativado'}</small><div class="sn7-shop-actions"><button data-toggle="${i.id}">${i.active?'Desativar':'Ativar'}</button><button class="danger" data-delete="${i.id}">Excluir</button></div></div></article>`;
+  }
+
+  function notice(message){
+    if(typeof window.sn7ConfirmAction!=="function"){alert(message);return}
+    // Reuse the dashboard's standard confirmation/notice visual language.
+    const modal=document.createElement("div");
+    modal.className="sn7-confirm-modal";
+    modal.innerHTML=`<div class="sn7-confirm-card" role="dialog" aria-modal="true"><h3>Aviso</h3><p>${esc(message)}</p><div class="sn7-confirm-actions"><button type="button" class="sn7-confirm-cancel">Fechar</button></div></div>`;
+    document.body.appendChild(modal); requestAnimationFrame(()=>modal.classList.add("open"));
+    const close=()=>{modal.classList.remove("open");modal.classList.add("closing");setTimeout(()=>modal.remove(),160)};
+    modal.querySelector(".sn7-confirm-cancel")?.addEventListener("click",close); modal.addEventListener("click",e=>{if(e.target===modal)close()});
+  }
+
+  function resetForm(){
+    const ids=["sn7-item-name","sn7-item-price","sn7-item-stock","sn7-item-audio-url","sn7-item-description"];
+    ids.forEach(id=>{const el=$(id);if(el)el.value=""});
+    if($("sn7-item-type"))$("sn7-item-type").value="reward";
+    if($("sn7-item-image"))$("sn7-item-image").value="";
+    if($("sn7-item-audio-file"))$("sn7-item-audio-file").value="";
+    if($("sn7-item-preview-img")){$("sn7-item-preview-img").hidden=true;$("sn7-item-preview-img").removeAttribute("src")}
+    if($("sn7-item-preview-text"))$("sn7-item-preview-text").hidden=false;
+    updateForm();
+  }
+  function updateForm(){
+    const type=$("sn7-item-type"), name=$("sn7-item-name"), price=$("sn7-item-price"), audio=$("sn7-item-audio-url"), desc=$("sn7-item-description"), count=$("sn7-item-description-count"), save=$("sn7-save-item");
+    if(!type||!name||!price||!audio||!desc||!save)return;
+    if(count)count.textContent=desc.value.length;
+    if(audio.parentElement)audio.parentElement.hidden=type.value!=="audio";
+    save.disabled=!(name.value.trim()&&Number(price.value)>0&&desc.value.trim()&&(type.value!=="audio"||audio.value.trim()||$("sn7-item-audio-file")?.files?.length));
+  }
+
+  async function loadStoreAdmin(force=false){
+    if(!bid){
+      const list=$("admin-items"); if(list)list.innerHTML='<div class="sn7-store-empty">Conecte sua conta no Perfil para administrar a Loja.</div>';
+      return;
+    }
+    if(loading || (!force && loadedFor===bid && document.querySelector('nav button[data-tab="store"]')?.classList.contains("active")===false)) return;
+    loading=true;
+    try{
+      const d=await api(`/api/store/${bid}/admin`);
+      $("admin-items").innerHTML=d.items.length?d.items.map(itemCard).join(''):'<div class="sn7-store-empty">Nenhum item criado ainda. Clique em “Novo item”.</div>';
+      try{
+        const h=await api(`/api/store/${bid}/redemptions?limit=30`);
+        $("admin-redemptions").innerHTML=h.redemptions.length?h.redemptions.map(r=>`<div class="sn7-shop-history-row"><strong>${esc(r.viewer_username)}</strong><span>${esc(r.name)}</span><b>✦ ${Number(r.price||0).toLocaleString('pt-BR')}</b><small>${esc(r.status)}</small></div>`).join(''):'<div class="sn7-store-empty">Nenhum resgate ainda.</div>';
+      }catch(e){$("admin-redemptions").innerHTML='<div class="sn7-store-empty">Histórico indisponível.</div>'}
+      loadedFor=bid;
+    }catch(e){
+      $("admin-items").innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`;
+    }finally{loading=false;}
+  }
+
+  function init(){
+    const section=$("store"); if(!section)return;
+    const open=$("sn7-open-item-form"), close=$("sn7-close-item-form"), cancel=$("sn7-cancel-item"), form=$("sn7-item-form"), player=$("sn7-open-audio-player"), file=$("sn7-item-image"), audioFile=$("sn7-item-audio-file"), img=$("sn7-item-preview-img"), ptext=$("sn7-item-preview-text");
+    const toggle=v=>{if(form)form.hidden=!v;if(v)$("sn7-item-name")?.focus()};
+    open?.addEventListener("click",()=>toggle(true));
+    close?.addEventListener("click",()=>toggle(false));
+    cancel?.addEventListener("click",()=>{resetForm();toggle(false)});
+    player?.addEventListener("click",async()=>{if(player.disabled)return;player.disabled=true;sn7ShowOperationLoader();try{const d=await api(`/api/store/${bid}/audio/player-token`);window.open(d.player_url,'_blank','noopener');}catch(e){notice(e.message)}finally{player.disabled=false;sn7HideOperationLoader()}});
+    ["sn7-item-type","sn7-item-name","sn7-item-price","sn7-item-stock","sn7-item-audio-url","sn7-item-description"].forEach(id=>$(id)?.addEventListener("input",updateForm));
+    file?.addEventListener("change",()=>{const f=file.files?.[0];if(!f)return;if(f.size>2*1024*1024){notice('A imagem deve ter no máximo 2 MB.');file.value='';return}const r=new FileReader();r.onload=e=>{if(img){img.src=e.target.result;img.hidden=false}if(ptext)ptext.hidden=true};r.readAsDataURL(f)});
+    audioFile?.addEventListener("change",updateForm);
+    $("sn7-save-item")?.addEventListener("click",async()=>{
+      const save=$("sn7-save-item");if(save.disabled)return;save.disabled=true;sn7ShowOperationLoader();
+      try{
+        let image='';if(file?.files?.[0])image=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file.files[0])});
+        let audioData=$("sn7-item-audio-url")?.value.trim()||'';if(audioFile?.files?.[0]){if(audioFile.files[0].size>4*1024*1024)throw new Error('O áudio deve ter no máximo 4 MB.');audioData=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(audioFile.files[0])})}
+        const d=await api(`/api/store/${bid}/items`,{method:'POST',body:JSON.stringify({item_type:$('sn7-item-type').value,name:$('sn7-item-name').value.trim(),price:Number($('sn7-item-price').value),stock:$('sn7-item-stock').value===''?null:Number($('sn7-item-stock').value),description:$('sn7-item-description').value.trim(),image_url:image,audio_url:audioData})});
+        if(!d.ok)throw new Error(d.error||'Não foi possível salvar');resetForm();toggle(false);await loadStoreAdmin(true);
+      }catch(e){notice(e.message)}finally{updateForm();sn7HideOperationLoader()}
+    });
+    $("admin-items")?.addEventListener("click",async e=>{
+      const toggleBtn=e.target.closest('[data-toggle]'), del=e.target.closest('[data-delete]');
+      try{
+        if(toggleBtn){sn7ShowOperationLoader();await api(`/api/store/${bid}/items/${toggleBtn.dataset.toggle}`,{method:'PATCH',body:JSON.stringify({active:toggleBtn.textContent.includes('Desativar')?false:true})});await loadStoreAdmin(true);sn7HideOperationLoader();return}
+        if(del){const yes=await window.sn7ConfirmAction('Excluir item','Deseja excluir este item? O histórico de resgates será preservado e, se já houver resgates, o item precisará ser desativado.','Excluir');if(!yes)return;sn7ShowOperationLoader();await api(`/api/store/${bid}/items/${del.dataset.delete}`,{method:'DELETE'});await loadStoreAdmin(true);sn7HideOperationLoader()}
+      }catch(x){sn7HideOperationLoader();notice(x.message)}
+    });
+    updateForm();
+  }
+  window.loadStoreAdmin=loadStoreAdmin;
+  document.addEventListener("DOMContentLoaded",()=>{init(); if(document.querySelector('nav button[data-tab="store"]')?.classList.contains('active'))loadStoreAdmin();});
+})();
+</script>
+<script src="/static/js/app.js?v=sn7-1.9.62-dashboard-store"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -1154,8 +1402,17 @@ document.addEventListener("keydown", (event) => {
     if(event.key === "Escape") closeConnectModal();
 });
 </script>
-<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.53-minigames-stable"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.53-minigames-stable"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.53-minigames-stable"></script>
+<script id="sn7-store-open-handler">
+document.addEventListener("DOMContentLoaded",()=>{
+  if(window.SN7_OPEN_STORE){
+    const btn=document.querySelector('nav button[data-tab="store"]');
+    if(btn) btn.click();
+    try{history.replaceState({},document.title,window.location.pathname||"/")}catch(_){}
+  }
+});
+</script>
+<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.62-dashboard-store"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.62-dashboard-store"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.62-dashboard-store"></script>
 </body>
 </html>

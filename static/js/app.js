@@ -118,6 +118,7 @@ function activateTab(tab, options = {}) {
     }
     if (button.dataset.tab === "minigames" && typeof window.loadMiniGames === "function") { window.loadMiniGames().catch(() => {}); }
     if (button.dataset.tab === "automations" && typeof window.loadAutomations === "function") { window.loadAutomations().catch(() => {}); }
+    if (button.dataset.tab === "store" && typeof window.loadStoreAdmin === "function") { window.loadStoreAdmin().catch(() => {}); }
   }
 
   const title = $("title");
@@ -150,7 +151,8 @@ function activateTab(tab, options = {}) {
           const icons = {
             overview: '<path d="M3.5 10.6 12 3.5l8.5 7.1"/><path d="M5.5 9.7v9.8a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V9.7"/><path d="M9.5 20.5v-5.8h5v5.8"/>',
             economy: '<circle cx="12" cy="12" r="7.8"/><path d="M12 8v8M9.2 10.2c.8-1.1 4.8-1.1 5.6.3.9 1.7-1.1 2.4-2.8 2.7-1.7.3-3.7.8-2.9 2.5.7 1.5 4.9 1.6 5.8.1"/>',
-            ranking: '<path d="M7 20V10h4v10M13 20V4h4v16M3 20h18"/>',
+            ranking: '<path d="M7 20V10h4v10M13 20V4h4v16M3 20h18"/>' ,
+            store: '<path d="M4 9.5h16l-1 10H5l-1-10Z"/><path d="M7 9.5V7a5 5 0 0 1 10 0v2.5"/><path d="M8.5 13h.1M12 13h.1M15.5 13h.1"/>' ,
             music: '<path d="M9 18V5l10-2v13"/><circle cx="6.5" cy="18" r="3"/><circle cx="16.5" cy="16" r="3"/>',
             minigames: '<path d="m7.5 8.5 2-2h5l2 2"/><path d="M7.5 8.5h9a4.2 4.2 0 0 1 3.9 5.7l-1.2 3.1a2.4 2.4 0 0 1-4.3.3L14 16h-4l-2.9 1.6a2.4 2.4 0 0 1-4.3-.3l-1.2-3.1a4.2 4.2 0 0 1 3.9-5.7Z"/>',
             commands: '<path d="m8 8 4 4-4 4M13 16h4"/><rect x="3.5" y="4" width="17" height="16" rx="3"/>',
