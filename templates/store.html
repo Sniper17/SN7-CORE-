@@ -322,7 +322,7 @@
   function itemCard(i,adminMode){
     const img=i.image_url?`<img src="${esc(i.image_url)}" alt="" loading="lazy" decoding="async">`:'<span class="sn7-store-card-placeholder">✦</span>';
     const stock=i.stock===null?'Ilimitado':`${i.stock} disponíveis`;
-    return `<article class="sn7-shop-item ${i.active?'':'is-off'}"><div class="sn7-shop-item-image">${img}</div><div class="sn7-shop-item-body"><div class="sn7-shop-item-top"><span class="sn7-shop-item-type">${i.item_type==='audio'?'🔊 Áudio':'🎁 Recompensa'}</span><span class="sn7-shop-price">✦ ${i.price.toLocaleString('pt-BR')}</span></div><h3>${esc(i.name)}</h3><p>${esc(i.description||'Sem descrição.')}</p><small>${stock}${i.active?'':' · desativado'}</small><div class="sn7-shop-actions">${adminMode?`<button data-toggle="${i.id}" data-active="${i.active?'1':'0'}">${i.active?'Desativar':'Ativar'}</button><button class="danger" data-delete="${i.id}">Excluir</button>`:`<button class="sn7-store-redeem" data-redeem="${i.id}" ${!i.active||i.stock===0?'disabled':''}>Resgatar</button>`}</div></div></article>`;
+    return `<article class="sn7-shop-item ${i.active?'':'is-off'}" data-store-item-id="${i.id}"><div class="sn7-shop-item-image">${img}</div><div class="sn7-shop-item-body"><div class="sn7-shop-item-top"><span class="sn7-shop-item-type">${i.item_type==='audio'?'🔊 Áudio':'🎁 Recompensa'}</span><span class="sn7-shop-price">✦ ${i.price.toLocaleString('pt-BR')}</span></div><h3>${esc(i.name)}</h3><p>${esc(i.description||'Sem descrição.')}</p><small>${stock}${i.active?'':' · desativado'}</small><div class="sn7-shop-actions">${adminMode?`<button type="button" data-toggle="${i.id}" data-active="${i.active?'1':'0'}">${i.active?'Desativar':'Ativar'}</button><button type="button" class="danger" data-delete="${i.id}">Excluir</button>`:`<button type="button" class="sn7-store-redeem" data-redeem="${i.id}" ${!i.active||i.stock===0?'disabled':''}>Resgatar</button>`}</div></div></article>`;
   }
   function setStoreBootDone(){const l=$('sn7StoreBootLoader');if(!l)return;l.classList.add('done');setTimeout(()=>l.remove(),220)}
   requestAnimationFrame(()=>setStoreBootDone());
@@ -437,7 +437,7 @@
       const wasOpen=card.getAttribute('aria-expanded')==='true';
       document.querySelectorAll('[data-admin-category]').forEach(x=>x.setAttribute('aria-expanded','false'));
       document.querySelectorAll('.sn7-store-admin-panel').forEach(x=>x.hidden=true);
-      if(!wasOpen){card.setAttribute('aria-expanded','true');panel.hidden=false;openCategory=kind;loadAdmin();}
+      if(!wasOpen){card.setAttribute('aria-expanded','true');panel.hidden=false;openCategory=kind;const list=$(`admin-items-${kind}`);if(list){list.innerHTML='';list.setAttribute('aria-busy','true')}loadAdmin();}
       else openCategory='';
     }));
     document.querySelectorAll('[data-open-item]').forEach(b=>b.addEventListener('click',()=>openFormFor(b.dataset.openItem)));
@@ -448,12 +448,56 @@
     audioFile?.addEventListener('change',()=>{if(audioFile.files?.[0]?.size>4*1024*1024){window.sn7StoreNotice('O áudio deve ter no máximo 4 MB.');audioFile.value='';}update()});
     save.onclick=async()=>{save.disabled=true;window.sn7StoreLoading(true);const savedType=type.value;try{let image='';if(file.files?.[0])image=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file.files[0])});let audioData=audio.value.trim();if(audioFile?.files?.[0])audioData=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(audioFile.files[0])});const d=await api(`/api/store/${bid}/items`,{method:'POST',body:JSON.stringify({item_type:type.value,name:name.value.trim(),price:Number(price.value),stock:stock.value===''?null:Number(stock.value),description:desc.value.trim(),image_url:image,audio_url:audioData})});if(!d.ok)throw new Error(d.error||'Não foi possível salvar o item.');reset();toggleForm(false);window.sn7StoreNotice(savedType==='audio'?'Áudio adicionado com sucesso.':'Item adicionado com sucesso.','Salvo');await loadAdmin();}catch(e){window.sn7StoreNotice(e.message||'Não foi possível salvar o item.')}finally{update();window.sn7StoreLoading(false)}};
     $('admin-items-reward').addEventListener('click',handleAdminAction);$('admin-items-audio').addEventListener('click',handleAdminAction);
-    async function handleAdminAction(e){const t=e.target.closest('[data-toggle]'),del=e.target.closest('[data-delete]');try{if(t){window.sn7StoreLoading(true);await api(`/api/store/${bid}/items/${t.dataset.toggle}`,{method:'PATCH',body:JSON.stringify({active:t.dataset.active==='1'?false:true})});await loadAdmin();return}if(del){const yes=await window.sn7StoreConfirm('Excluir item','Deseja excluir este item? O histórico de resgates será preservado e, se já houver resgates, o item precisará ser desativado.','Excluir');if(!yes)return;window.sn7StoreLoading(true);await api(`/api/store/${bid}/items/${del.dataset.delete}`,{method:'DELETE'});await loadAdmin();}}catch(x){window.sn7StoreNotice(x.message||'Não foi possível concluir a operação.')}finally{window.sn7StoreLoading(false)}}
+    async function handleAdminAction(e){
+       e.preventDefault();
+       e.stopPropagation();
+       const t=e.target.closest('[data-toggle]'),del=e.target.closest('[data-delete]');
+       if(!t&&!del)return;
+       try{
+         if(t){
+           window.sn7StoreLoading(true);
+           await api(`/api/store/${bid}/items/${t.dataset.toggle}`,{method:'PATCH',body:JSON.stringify({active:t.dataset.active==='1'?false:true})});
+           await loadAdmin();
+           return;
+         }
+         const yes=await window.sn7StoreConfirm('Excluir item','Deseja excluir este item? O histórico de resgates será preservado.','Excluir');
+         if(!yes)return;
+         const card=del.closest('.sn7-shop-item');
+         const container=del.closest('#admin-items-reward,#admin-items-audio');
+         const buttons=card?.querySelectorAll('button');
+         buttons?.forEach(b=>{b.disabled=true;});
+         card?.classList.add('sn7-store-card-loading');
+         card?.setAttribute('aria-busy','true');
+         await api(`/api/store/${bid}/items/${del.dataset.delete}`,{method:'DELETE'});
+         card?.remove();
+         if(container&&!container.querySelector('.sn7-shop-item')){
+           container.innerHTML=container.id==='admin-items-audio'
+             ? '<div class="sn7-store-empty">Nenhum áudio criado ainda. Clique em “Novo áudio”.</div>'
+             : '<div class="sn7-store-empty">Nenhum item criado ainda. Clique em “Novo item”.</div>';
+         }
+       }catch(x){
+         window.sn7StoreNotice(x.message||'Não foi possível concluir a operação.');
+       }finally{
+         window.sn7StoreLoading(false);
+       }
+     }
     async function loadAdmin(){
-      try{const d=await api(`/api/store/${bid}/admin`);const rewards=d.items.filter(i=>i.item_type!=='audio'),audios=d.items.filter(i=>i.item_type==='audio');$('admin-items-reward').innerHTML=rewards.length?rewards.map(i=>itemCard(i,true)).join(''):'<div class="sn7-store-empty">Nenhum item criado ainda. Clique em “Novo item”.</div>';$('admin-items-audio').innerHTML=audios.length?audios.map(i=>itemCard(i,true)).join(''):'<div class="sn7-store-empty">Nenhum áudio criado ainda. Clique em “Novo áudio”.</div>';}catch(e){$('admin-items-reward').innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`;$('admin-items-audio').innerHTML='';}
-      try{const d=await api(`/api/store/${bid}/redemptions?limit=30`);$('admin-redemptions').innerHTML=d.redemptions.length?d.redemptions.map(r=>`<div class="sn7-shop-history-row"><strong>${esc(r.viewer_username)}</strong><span>${esc(r.name)}</span><b>✦ ${r.price.toLocaleString('pt-BR')}</b><small>${esc(r.status)}</small></div>`).join(''):'<div class="sn7-store-empty">Nenhum resgate ainda.</div>';}catch(e){$('admin-redemptions').innerHTML='<div class="sn7-store-empty">Histórico indisponível.</div>'}
-      finally{setStoreBootDone()}
-    }
+       try{
+         const d=await api(`/api/store/${bid}/admin`);
+         const rewards=d.items.filter(i=>i.item_type!=='audio'),audios=d.items.filter(i=>i.item_type==='audio');
+         $('admin-items-reward').innerHTML=rewards.length?rewards.map(i=>itemCard(i,true)).join(''):'<div class="sn7-store-empty">Nenhum item criado ainda. Clique em “Novo item”.</div>';
+         $('admin-items-audio').innerHTML=audios.length?audios.map(i=>itemCard(i,true)).join(''):'<div class="sn7-store-empty">Nenhum áudio criado ainda. Clique em “Novo áudio”.</div>';
+         $('admin-items-reward').setAttribute('aria-busy','false');
+         $('admin-items-audio').setAttribute('aria-busy','false');
+       }catch(e){
+         $('admin-items-reward').innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`;
+         $('admin-items-audio').innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`;
+         $('admin-items-reward').setAttribute('aria-busy','false');
+         $('admin-items-audio').setAttribute('aria-busy','false');
+       }
+       try{const d=await api(`/api/store/${bid}/redemptions?limit=30`);$('admin-redemptions').innerHTML=d.redemptions.length?d.redemptions.map(r=>`<div class="sn7-shop-history-row"><strong>${esc(r.viewer_username)}</strong><span>${esc(r.name)}</span><b>✦ ${r.price.toLocaleString('pt-BR')}</b><small>${esc(r.status)}</small></div>`).join(''):'<div class="sn7-store-empty">Nenhum resgate ainda.</div>';}catch(e){$('admin-redemptions').innerHTML='<div class="sn7-store-empty">Histórico indisponível.</div>'}
+       finally{setStoreBootDone()}
+     }
     update();loadAdmin();
   }else loadPublic();
 })();
