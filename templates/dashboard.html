@@ -728,7 +728,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
 <script id="sn7-store-admin-script">
 (function(){
   "use strict";
-  const bid = (typeof BROADCASTER_ID !== "undefined" && BROADCASTER_ID) ? Number(BROADCASTER_ID) : 0;
+  const bid = (typeof BROADCASTER_ID !== "undefined" && BROADCASTER_ID) ? String(BROADCASTER_ID) : "";
   const $ = (id) => document.getElementById(id);
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;", "'":"&#39;"}[m]));
   const api = (u, o) => fetch(u, Object.assign({headers:{"Content-Type":"application/json"},credentials:"same-origin",cache:"no-store"},o||{})).then(async r=>{let d={};try{d=await r.json()}catch(_){};if(!r.ok||d.ok===false)throw Object.assign(new Error(d.error||`Falha HTTP ${r.status}`),{status:r.status,data:d});return d});
