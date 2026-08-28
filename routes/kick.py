@@ -1432,6 +1432,33 @@ def _process_chat(payload, send_chat=None):
             send_chat(bid, message)
             return
 
+        if key == "buy":
+            item_query = " ".join(args).strip()
+            if not item_query:
+                send_chat(bid, "🛍️ Use !buy nome do item. Ex.: !buy susto")
+                return
+            try:
+                from routes.store import redeem_chat_item
+                result = redeem_chat_item(
+                    bid, platform, user,
+                    external_user_id=sender.get("user_id"),
+                    kick_user_id=uid,
+                    item_query=item_query,
+                )
+                if not result.get("ok"):
+                    send_chat(bid, f"🛍️ {result.get('error') or 'Não foi possível concluir a compra.'}")
+                    return
+                currency = str((get_channel(bid) or {}).get("currency_name") or "Pontos")
+                kind = "áudio" if result.get("item_type") == "audio" else "item"
+                send_chat(
+                    bid,
+                    f"🛍️ {user} comprou {kind} {result['item_name']} por {result['price']:,} {currency}! Saldo: {result['points']:,} {currency}.".replace(",", ".")
+                )
+            except Exception as exc:
+                print(f"[STORE-BUY] erro no !buy: {exc}", flush=True)
+                send_chat(bid, "🛍️ Não foi possível concluir a compra agora. Tente novamente.")
+            return
+
         # !corrida e os controles administrativos não precisam cadastrar o
         # usuário antes de responder. Isso reduz consultas no caminho crítico.
         if key not in {"race", "race_finish", "race_reset"}:

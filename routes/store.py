@@ -293,6 +293,170 @@ def _target_for_item(bid, item_id):
         conn.close()
 
 
+
+def redeem_chat_item(broadcaster_id, platform, username, external_user_id=None, kick_user_id=None, item_query=""):
+    """Compra um item da Loja diretamente pelo chat, com débito atômico de pontos."""
+    bid = int(broadcaster_id)
+    platform = str(platform or "kick").strip().lower()
+    if platform not in {"kick", "twitch", "youtube"}:
+        platform = "kick"
+    username = str(username or "").strip()
+    query = str(item_query or "").strip()
+    if not username:
+        return {"ok": False, "error": "Usuário não identificado."}
+    if not query:
+        return {"ok": False, "error": "Use !buy nome do item."}
+
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            # Exato primeiro; se não houver, aceitamos uma única correspondência parcial.
+            cur.execute("""
+                SELECT id,item_type,name,description,image_url,audio_url,price,stock,active
+                  FROM store_items
+                 WHERE broadcaster_user_id=%s AND active=TRUE
+                   AND (stock IS NULL OR stock > 0)
+                   AND LOWER(name)=LOWER(%s)
+                 ORDER BY id DESC LIMIT 1
+                 FOR UPDATE
+            """, (bid, query))
+            item = cur.fetchone()
+            if not item:
+                cur.execute("""
+                    SELECT id,item_type,name,description,image_url,audio_url,price,stock,active
+                      FROM store_items
+                     WHERE broadcaster_user_id=%s AND active=TRUE
+                       AND (stock IS NULL OR stock > 0)
+                       AND LOWER(name) LIKE LOWER(%s)
+                     ORDER BY id DESC
+                     LIMIT 6
+                 FOR UPDATE
+                """, (bid, f"%{query}%"))
+                matches = cur.fetchall()
+                if len(matches) == 1:
+                    item = matches[0]
+                elif len(matches) > 1:
+                    names = ", ".join(str(r[2]) for r in matches[:4])
+                    return {"ok": False, "error": f"Encontrei mais de um item: {names}. Digite o nome completo."}
+
+            if not item:
+                return {"ok": False, "error": "Item não encontrado ou indisponível."}
+
+            item_id, item_type, item_name, description, image_url, audio_url, price, stock, active = item
+            price = int(price)
+            if stock is not None and int(stock) <= 0:
+                return {"ok": False, "error": "Item esgotado."}
+
+            # O motor de chat já garante o player, mas a consulta é protegida por
+            # lock para impedir saldo duplicado em mensagens concorrentes.
+            cur.execute("""
+                SELECT id,username,points
+                  FROM players
+                 WHERE broadcaster_user_id=%s AND platform=%s AND LOWER(username)=LOWER(%s)
+                 ORDER BY id DESC LIMIT 1
+                 FOR UPDATE
+            """, (bid, platform, username))
+            wallet = cur.fetchone()
+            if not wallet:
+                cur.execute("""
+                    INSERT INTO players(broadcaster_user_id,platform,kick_user_id,username)
+                    VALUES(%s,%s,%s,%s)
+                    ON CONFLICT DO NOTHING
+                    RETURNING id,username,points
+                """, (bid, platform, kick_user_id if platform == "kick" else None, username))
+                wallet = cur.fetchone()
+                if not wallet:
+                    cur.execute("""
+                        SELECT id,username,points
+                          FROM players
+                         WHERE broadcaster_user_id=%s AND platform=%s AND LOWER(username)=LOWER(%s)
+                         ORDER BY id DESC LIMIT 1 FOR UPDATE
+                    """, (bid, platform, username))
+                    wallet = cur.fetchone()
+
+            if not wallet:
+                return {"ok": False, "error": "Não foi possível localizar sua carteira de pontos."}
+
+            points = int(wallet[2] or 0)
+            if points < price:
+                return {"ok": False, "error": f"Você precisa de {price:,} pontos. Saldo: {points:,}.".replace(",", ".")}
+
+            cur.execute("""
+                UPDATE players SET points=points-%s, updated_at=NOW()
+                 WHERE id=%s AND points >= %s
+                 RETURNING points
+            """, (price, int(wallet[0]), price))
+            updated = cur.fetchone()
+            if not updated:
+                return {"ok": False, "error": "Seu saldo mudou. Tente novamente."}
+            new_points = int(updated[0])
+
+            new_stock = stock
+            if stock is not None:
+                cur.execute("""
+                    UPDATE store_items
+                       SET stock=stock-1, updated_at=NOW()
+                     WHERE id=%s AND stock > 0
+                     RETURNING stock
+                """, (int(item_id),))
+                row = cur.fetchone()
+                if not row:
+                    raise RuntimeError("Estoque mudou durante a compra.")
+                new_stock = int(row[0])
+
+            cur.execute("""
+                INSERT INTO store_redemptions
+                    (broadcaster_user_id,item_id,platform,viewer_external_id,viewer_kick_user_id,viewer_username,price,status)
+                VALUES(%s,%s,%s,%s,%s,%s,%s,'queued')
+                RETURNING id
+            """, (bid, int(item_id), platform, str(external_user_id or ""),
+                  kick_user_id if platform == "kick" else None, username, price))
+            redemption_id = int(cur.fetchone()[0])
+
+            if str(item_type) == "audio":
+                cur.execute("""
+                    INSERT INTO store_audio_queue
+                        (broadcaster_user_id,redemption_id,item_id,platform,viewer_external_id,viewer_kick_user_id,viewer_username,audio_url)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s)
+                """, (bid, redemption_id, int(item_id), platform, str(external_user_id or ""),
+                      kick_user_id if platform == "kick" else None, username, str(audio_url or "")))
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    try:
+        from routes.overlay import emit_overlay_event
+        emit_overlay_event(bid, "store_redemption", {
+            "redemption_id": redemption_id,
+            "item_id": int(item_id),
+            "item_type": str(item_type or "reward"),
+            "item": str(item_name or ""),
+            "description": str(description or ""),
+            "image_url": str(image_url or ""),
+            "audio_url": str(audio_url or ""),
+            "price": price,
+            "viewer": username,
+            "platform": platform,
+        })
+    except Exception as exc:
+        print(f"[STORE-OVERLAY] evento de compra via chat falhou: {exc}", flush=True)
+
+    return {
+        "ok": True,
+        "redemption_id": redemption_id,
+        "item_id": int(item_id),
+        "item_type": str(item_type or "reward"),
+        "item_name": str(item_name or ""),
+        "price": price,
+        "points": new_points,
+        "stock": new_stock,
+    }
+
+
 @store_bp.get("/viewer")
 def viewer_status():
     viewer = _viewer()
@@ -345,7 +509,7 @@ def create_item(broadcaster_id):
         return jsonify({"ok":False,"error":"Dados do item inválidos."}),400
     if item_type=="audio" and not audio_url:
         return jsonify({"ok":False,"error":"Informe a URL do áudio para uma recompensa de áudio."}),400
-    if image_url.startswith("data:") and len(image_url)>2_500_000:
+    if image_url.startswith("data:") and len(image_url)>3_000_000:
         return jsonify({"ok":False,"error":"Imagem muito grande."}),400
     if audio_url and len(audio_url)>7_000_000: return jsonify({"ok":False,"error":"Áudio muito grande. O limite é 4 MB."}),400
     conn=get_conn()
