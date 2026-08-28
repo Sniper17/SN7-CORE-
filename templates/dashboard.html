@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.68-overlay-store-music">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.70-store-categories-buy-fix">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}.sn7-music-remove{position:relative;min-width:32px;min-height:32px}.sn7-music-remove[aria-busy="true"]{cursor:wait}.sn7-inline-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.22);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .62s linear infinite;vertical-align:middle}.sn7-music-row-removing{opacity:.45;transform:scale(.985);transition:opacity .12s ease,transform .12s ease}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -266,6 +266,34 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
 .sn7-overlay-preview-mode{overflow:hidden}
 .sn7-overlay-preview-mode .sn7-overlay-fullscreen-btn{position:fixed;top:14px;right:14px;z-index:100001}
 </style>
+
+<style id="sn7-store-dashboard-1-9-70">
+.sn7-store-admin-categories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px}
+.sn7-store-category-card{appearance:none;width:100%;display:flex;align-items:center;gap:13px;text-align:left;padding:15px 16px;border:1px solid var(--border);border-radius:16px;background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)),#11151d;color:#e7eaf1;font:inherit;cursor:pointer;transition:transform .14s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease}
+.sn7-store-category-card:hover{transform:translateY(-1px);border-color:#394253;background:#141923}
+.sn7-store-category-card[aria-expanded="true"]{border-color:rgba(155,140,255,.35);background:linear-gradient(145deg,rgba(155,140,255,.12),rgba(155,140,255,.035)),#11151d;box-shadow:0 12px 28px rgba(0,0,0,.16)}
+.sn7-store-category-card-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:#0d1119;border:1px solid rgba(255,255,255,.06);font-size:20px;flex:0 0 42px}
+.sn7-store-category-card-body{min-width:0;flex:1}.sn7-store-category-card-body strong{display:block;font-size:13px}.sn7-store-category-card-body small{display:block;margin-top:4px;color:var(--muted);font-size:10px;line-height:1.4}
+.sn7-store-category-card-arrow{font-size:22px;color:#788294;transition:transform .16s ease}.sn7-store-category-card[aria-expanded="true"] .sn7-store-category-card-arrow{transform:rotate(90deg);color:#c4b9ff}
+.sn7-store-admin-panel{margin-top:12px;padding:18px;border:1px solid var(--border);border-radius:17px;background:rgba(8,11,17,.34)}
+.sn7-store-admin-panel[hidden]{display:none!important}
+.sn7-store-admin-panel-head{display:flex;align-items:center;justify-content:space-between;gap:14px}.sn7-store-admin-panel-head h3{margin:5px 0 3px;font-size:17px}.sn7-store-admin-panel-head p{margin:0;color:var(--muted);font-size:10px}
+.sn7-store-add-btn-minimal{padding:8px 11px!important;border-radius:9px!important;box-shadow:none!important;background:rgba(155,140,255,.10)!important;border-color:rgba(155,140,255,.20)!important;color:#c9c1ff!important;font-size:10px!important}
+.sn7-store-add-btn-minimal span:first-child{width:16px!important;height:16px!important;font-size:16px!important;background:transparent!important}
+.sn7-store-admin-panel .sn7-store-items-grid{margin-top:15px}
+.sn7-store-toggle{display:inline-flex!important;align-items:center;gap:6px!important;border-radius:999px!important;padding:7px 9px!important;background:#121821!important;border:1px solid #303846!important;color:#8791a2!important}
+.sn7-store-toggle .sn7-toggle-check{width:17px;height:17px;display:grid;place-items:center;border-radius:5px;border:1px solid #3b4453;color:transparent;font-size:11px;font-weight:900;line-height:1}
+.sn7-store-toggle.is-active{background:rgba(56,189,124,.07)!important;border-color:rgba(56,189,124,.35)!important;color:#72e5a4!important}
+.sn7-store-toggle.is-active .sn7-toggle-check{background:#123323;border-color:#2c8a5b;color:#70e5a2}
+.sn7-shop-item.is-off .sn7-shop-item-image{filter:grayscale(.2)}
+@media(max-width:700px){
+  .sn7-store-admin-categories{grid-template-columns:1fr}
+  .sn7-store-admin-panel{padding:14px}
+  .sn7-store-admin-panel-head{align-items:flex-start;flex-direction:column}
+  .sn7-store-add-btn-minimal{width:100%;justify-content:center}
+}
+</style>
+
 </head>
 <body>
 <div id="sn7BootLoader" class="sn7-boot-loader" aria-hidden="true"><span class="sn7-loader-spinner"></span></div>
@@ -429,42 +457,77 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
     <section id="store" class="tab">
       <div class="sn7-store-page sn7-dashboard-store-page">
         {% if broadcaster_id %}
-<section class="sn7-store-builder" id="store-admin" aria-label="Administração da loja">
-        <div class="sn7-store-builder-head">
-          <div>
-            <div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 14.5 9l6 .5-4.6 3.9 1.4 5.9-5.3-3.1-5.3 3.1 1.4-5.9L3.5 9l6-.5L12 3.5Z"/></svg></div>
-            <div><strong>Itens e recompensas</strong><p>Crie e gerencie o que a comunidade pode resgatar.</p></div>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="sn7-store-add-btn" id="sn7-open-audio-player"><span aria-hidden="true">🔊</span><span>Player da live</span></button><button type="button" class="sn7-store-add-btn" id="sn7-open-item-form"><span aria-hidden="true">+</span><span>Novo item</span></button></div>
-        </div>
-        <div class="sn7-store-category"><div class="sn7-store-category-head"><strong>Itens da Loja</strong><span>Recompensas compráveis com pontos</span></div><div id="admin-reward-items" class="sn7-store-items-grid"></div></div><div class="sn7-store-category"><div class="sn7-store-category-head"><strong>Áudios da Loja</strong><span>Sustos, sons e efeitos resgatáveis</span></div><div id="admin-audio-items" class="sn7-store-items-grid"></div></div>
-        <div class="sn7-store-item-form" id="sn7-item-form" hidden>
-          <div class="sn7-store-form-title"><div><span class="sn7-store-form-kicker">CONFIGURAR RECOMPENSA</span><h3>Adicionar novo item</h3><p>Defina o conteúdo que ficará disponível para a comunidade.</p></div><button type="button" class="sn7-store-close-btn" id="sn7-close-item-form" aria-label="Fechar">×</button></div>
-          <div class="sn7-store-form-grid">
-            <div class="sn7-store-image-col">
-              <label class="sn7-store-label">Imagem do item</label>
-              <label class="sn7-store-upload" for="sn7-item-image"><input id="sn7-item-image" type="file" accept="image/png,image/jpeg,image/webp"><span class="sn7-store-upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M5 14v4.5a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5V14"/></svg></span><strong>Enviar imagem</strong><small>PNG, JPG ou WEBP · até 2 MB</small></label>
-              <div class="sn7-store-preview" id="sn7-item-preview"><span class="sn7-store-preview-placeholder" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m5.5 17 4.2-4.2 2.8 2.8 2-2 4 4"/></svg></span><img id="sn7-item-preview-img" alt="Prévia" hidden><span id="sn7-item-preview-text">Prévia da imagem</span></div>
-            </div>
-            <div class="sn7-store-fields">
-              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-type">Tipo</label><select id="sn7-item-type"><option value="reward">🎁 Recompensa</option><option value="audio">🔊 Áudio</option></select></div>
-              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-name">Nome do item</label><input id="sn7-item-name" type="text" maxlength="80" placeholder="Ex.: Escolher próxima música"></div>
-              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-price">Valor em pontos</label><div class="sn7-store-input-prefix"><span>✦</span><input id="sn7-item-price" type="number" min="1" step="1" placeholder="1000"></div></div>
-              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-stock">Estoque <small>(opcional)</small></label><input id="sn7-item-stock" type="number" min="0" step="1" placeholder="Ilimitado"></div>
-              <div class="sn7-store-field sn7-audio-field" hidden><label class="sn7-store-label" for="sn7-item-audio-url">Áudio</label><input id="sn7-item-audio-url" type="url" maxlength="7000000" placeholder="https://.../audio.mp3"><label class="sn7-store-upload-mini" for="sn7-item-audio-file">ou enviar arquivo · até 4 MB<input id="sn7-item-audio-file" type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/webm"></label><small class="sn7-store-counter">O áudio entra na fila automaticamente após o resgate.</small></div>
-              <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-description">Descrição</label><textarea id="sn7-item-description" maxlength="300" rows="6" placeholder="Explique o que o item faz ou como será entregue..."></textarea><small class="sn7-store-counter"><span id="sn7-item-description-count">0</span>/300</small></div>
-              <div class="sn7-store-form-actions"><button type="button" class="sn7-store-secondary" id="sn7-cancel-item">Cancelar</button><button type="button" class="sn7-store-primary" id="sn7-save-item" disabled>Salvar item</button></div>
+        <section class="sn7-store-builder" id="store-admin" aria-label="Administração da loja">
+          <div class="sn7-store-builder-head">
+            <div>
+              <div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5 14.5 9l6 .5-4.6 3.9 1.4 5.9-5.3-3.1-5.3 3.1-5.3-3.1 1.4-5.9L3.5 9l6-.5L12 3.5Z"/></svg></div>
+              <div><strong>Loja do canal</strong><p>Gerencie separadamente os itens vendidos e os áudios resgatáveis.</p></div>
             </div>
           </div>
-        </div>
-      </section>
 
-      <section class="sn7-store-builder" id="store-history" {% if not broadcaster_id %}hidden{% endif %}>
-        <div class="sn7-store-builder-head"><div><div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 5h12v15H6z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg></div><div><strong>Últimos resgates</strong><p>Acompanhe as recompensas solicitadas pela comunidade.</p></div></div></div>
-        <div id="admin-redemptions" class="sn7-store-history"></div>
-      </section>
+          <div class="sn7-store-admin-categories">
+            <button type="button" class="sn7-store-category-card" data-admin-category="reward" aria-expanded="false">
+              <span class="sn7-store-category-card-icon" aria-hidden="true">🎁</span>
+              <span class="sn7-store-category-card-body"><strong>Itens da Loja</strong><small>Recompensas compráveis com pontos</small></span>
+              <span class="sn7-store-category-card-arrow" aria-hidden="true">›</span>
+            </button>
+            <button type="button" class="sn7-store-category-card" data-admin-category="audio" aria-expanded="false">
+              <span class="sn7-store-category-card-icon" aria-hidden="true">🔊</span>
+              <span class="sn7-store-category-card-body"><strong>Áudios da Loja</strong><small>Sustos, sons e efeitos resgatáveis</small></span>
+              <span class="sn7-store-category-card-arrow" aria-hidden="true">›</span>
+            </button>
+          </div>
 
-      <div class="sn7-store-safe"><strong>🔒 Carteiras separadas por canal:</strong> cada viewer mantém um saldo próprio em cada streamer. A Loja não cria nem substitui o sistema atual de pontos.</div>
+          <section class="sn7-store-admin-panel" id="sn7-admin-panel-reward" hidden>
+            <div class="sn7-store-admin-panel-head">
+              <div><span class="sn7-store-form-kicker">ITENS DA LOJA</span><h3>Itens para venda</h3><p>Recompensas que a comunidade pode comprar com pontos.</p></div>
+              <button type="button" class="sn7-store-add-btn sn7-store-add-btn-minimal" data-open-item="reward"><span aria-hidden="true">+</span><span>Novo item</span></button>
+            </div>
+            <div id="admin-reward-items" class="sn7-store-items-grid"></div>
+          </section>
+
+          <section class="sn7-store-admin-panel" id="sn7-admin-panel-audio" hidden>
+            <div class="sn7-store-admin-panel-head">
+              <div><span class="sn7-store-form-kicker">ÁUDIOS DA LOJA</span><h3>Áudios resgatáveis</h3><p>Sustos, sons e efeitos que entram na fila após o resgate.</p></div>
+              <button type="button" class="sn7-store-add-btn sn7-store-add-btn-minimal" data-open-item="audio"><span aria-hidden="true">+</span><span>Novo áudio</span></button>
+            </div>
+            <div id="admin-audio-items" class="sn7-store-items-grid"></div>
+          </section>
+
+          <div class="sn7-store-item-form" id="sn7-item-form" hidden>
+            <div class="sn7-store-form-title">
+              <div><span class="sn7-store-form-kicker">CONFIGURAR ITEM</span><h3 id="sn7-item-form-heading">Adicionar novo item</h3><p>Defina o conteúdo que ficará disponível para a comunidade.</p></div>
+              <button type="button" class="sn7-store-close-btn" id="sn7-close-item-form" aria-label="Fechar">×</button>
+            </div>
+            <div class="sn7-store-form-grid">
+              <div class="sn7-store-image-col">
+                <label class="sn7-store-label">Imagem do item</label>
+                <label class="sn7-store-upload" for="sn7-item-image">
+                  <input id="sn7-item-image" type="file" accept="image/png,image/jpeg,image/webp">
+                  <span class="sn7-store-upload-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4"/><path d="m7.5 8.5 4.5-4.5 4.5 4.5"/><path d="M5 14v4.5a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5V14"/></svg></span>
+                  <strong>Enviar imagem</strong><small>PNG, JPG ou WEBP · até 2 MB · opcional</small>
+                </label>
+                <div class="sn7-store-preview" id="sn7-item-preview"><span class="sn7-store-preview-placeholder" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-13Z"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m5.5 17 4.2-4.2 2.8 2.8 2-2 4 4"/></svg></span><img id="sn7-item-preview-img" alt="Prévia" hidden><span id="sn7-item-preview-text">Prévia da imagem</span></div>
+              </div>
+              <div class="sn7-store-fields">
+                <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-type">Tipo</label><select id="sn7-item-type"><option value="reward">🎁 Recompensa</option><option value="audio">🔊 Áudio</option></select></div>
+                <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-name">Nome do item</label><input id="sn7-item-name" type="text" maxlength="80" placeholder="Ex.: Susto, escolher próxima música..."></div>
+                <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-price">Valor em pontos</label><div class="sn7-store-input-prefix"><span>✦</span><input id="sn7-item-price" type="number" min="1" step="1" placeholder="1000"></div></div>
+                <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-stock">Estoque <small>(opcional)</small></label><input id="sn7-item-stock" type="number" min="0" step="1" placeholder="Ilimitado"></div>
+                <div class="sn7-store-field sn7-audio-field" hidden><label class="sn7-store-label" for="sn7-item-audio-url">Áudio</label><input id="sn7-item-audio-url" type="url" maxlength="7000000" placeholder="https://.../audio.mp3"><label class="sn7-store-upload-mini" for="sn7-item-audio-file">ou enviar arquivo · até 4 MB<input id="sn7-item-audio-file" type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/webm"></label><small class="sn7-store-counter">O áudio entra na fila automaticamente após o resgate.</small></div>
+                <div class="sn7-store-field"><label class="sn7-store-label" for="sn7-item-description">Descrição <small>(opcional)</small></label><textarea id="sn7-item-description" maxlength="300" rows="6" placeholder="Explique o que o item faz ou como será entregue..."></textarea><small class="sn7-store-counter"><span id="sn7-item-description-count">0</span>/300</small></div>
+                <div class="sn7-store-form-actions"><button type="button" class="sn7-store-secondary" id="sn7-cancel-item">Cancelar</button><button type="button" class="sn7-store-primary" id="sn7-save-item" disabled>Salvar item</button></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sn7-store-builder" id="store-history">
+          <div class="sn7-store-builder-head"><div><div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 5h12v15H6z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg></div><div><strong>Últimos resgates</strong><p>Acompanhe as recompensas solicitadas pela comunidade.</p></div></div></div>
+          <div id="admin-redemptions" class="sn7-store-history"></div>
+        </section>
+
+        <div class="sn7-store-safe"><strong>🔒 Carteiras separadas por canal:</strong> cada viewer mantém um saldo próprio em cada streamer. A Loja não cria nem substitui o sistema atual de pontos.</div>
         {% else %}
           <div class="panel form-panel sn7-store-login-panel">
             <div class="sn7-store-builder-head">
@@ -950,33 +1013,40 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
 <script id="sn7-store-admin-script">
 (function(){
   "use strict";
-  const bid = (typeof BROADCASTER_ID !== "undefined" && BROADCASTER_ID) ? String(BROADCASTER_ID) : "";
-  const $ = (id) => document.getElementById(id);
-  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;", "'":"&#39;"}[m]));
-  const api = (u, o) => fetch(u, Object.assign({headers:{"Content-Type":"application/json"},credentials:"same-origin",cache:"no-store"},o||{})).then(async r=>{let d={};try{d=await r.json()}catch(_){};if(!r.ok||d.ok===false)throw Object.assign(new Error(d.error||`Falha HTTP ${r.status}`),{status:r.status,data:d});return d});
-  let loadedFor = 0;
-  let loading = false;
+  const bid=(typeof BROADCASTER_ID!=="undefined"&&BROADCASTER_ID)?String(BROADCASTER_ID):"";
+  const $=id=>document.getElementById(id);
+  const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+  const api=(u,o)=>fetch(u,Object.assign({headers:{"Content-Type":"application/json"},credentials:"same-origin",cache:"no-store"},o||{})).then(async r=>{let d={};try{d=await r.json()}catch(_){};if(!r.ok||d.ok===false)throw Object.assign(new Error(d.error||`Falha HTTP ${r.status}`),{status:r.status,data:d});return d});
+  let loading=false;
+
+  function toast(message,title="Loja"){
+    if(typeof window.sn7ShowToast==="function"){window.sn7ShowToast(message,title);return}
+    console.error("[SN7 STORE]",title,message);
+  }
+  function showLoader(){if(typeof window.sn7ShowOperationLoader==="function")window.sn7ShowOperationLoader()}
+  function hideLoader(){if(typeof window.sn7HideOperationLoader==="function")window.sn7HideOperationLoader()}
 
   function itemCard(i){
-    const img=i.image_url?`<img src="${esc(i.image_url)}" alt="">`:'<span class="sn7-store-card-placeholder">✦</span>';
+    const img=i.image_url?`<img src="${esc(i.image_url)}" alt="" loading="lazy">`:'<span class="sn7-shop-card-placeholder">✦</span>';
     const stock=i.stock===null?'Ilimitado':`${i.stock} disponíveis`;
-    return `<article class="sn7-shop-item ${i.active?'':'is-off'}"><div class="sn7-shop-item-image">${img}</div><div class="sn7-shop-item-body"><div class="sn7-shop-item-top"><span class="sn7-shop-item-type">${i.item_type==='audio'?'🔊 Áudio':'🎁 Recompensa'}</span><span class="sn7-shop-price">✦ ${Number(i.price||0).toLocaleString('pt-BR')}</span></div><h3>${esc(i.name)}</h3><p>${esc(i.description||'Sem descrição.')}</p><small>${stock}${i.active?'':' · desativado'}</small><div class="sn7-shop-actions"><button data-toggle="${i.id}">${i.active?'Desativar':'Ativar'}</button><button class="danger" data-delete="${i.id}">Excluir</button></div></div></article>`;
-  }
-
-  function notice(message){
-    if(typeof window.sn7ConfirmAction!=="function"){alert(message);return}
-    // Reuse the dashboard's standard confirmation/notice visual language.
-    const modal=document.createElement("div");
-    modal.className="sn7-confirm-modal";
-    modal.innerHTML=`<div class="sn7-confirm-card" role="dialog" aria-modal="true"><h3>Aviso</h3><p>${esc(message)}</p><div class="sn7-confirm-actions"><button type="button" class="sn7-confirm-cancel">Fechar</button></div></div>`;
-    document.body.appendChild(modal); requestAnimationFrame(()=>modal.classList.add("open"));
-    const close=()=>{modal.classList.remove("open");modal.classList.add("closing");setTimeout(()=>modal.remove(),160)};
-    modal.querySelector(".sn7-confirm-cancel")?.addEventListener("click",close); modal.addEventListener("click",e=>{if(e.target===modal)close()});
+    const active=!!i.active;
+    return `<article class="sn7-shop-item ${active?'':'is-off'}">
+      <div class="sn7-shop-item-image">${img}</div>
+      <div class="sn7-shop-item-body">
+        <div class="sn7-shop-item-top"><span class="sn7-shop-item-type">${i.item_type==='audio'?'🔊 Áudio':'🎁 Recompensa'}</span><span class="sn7-shop-price">✦ ${Number(i.price||0).toLocaleString('pt-BR')}</span></div>
+        <h3>${esc(i.name)}</h3>
+        <p>${esc(i.description||'Sem descrição.')}</p>
+        <small>${stock} · ${active?'disponível':'desativado'}</small>
+        <div class="sn7-shop-actions">
+          <button type="button" class="sn7-store-toggle ${active?'is-active':''}" data-toggle="${i.id}" data-active="${active?'1':'0'}" aria-pressed="${active?'true':'false'}" title="${active?'Clique para desativar':'Clique para ativar'}"><span class="sn7-toggle-check" aria-hidden="true">✓</span><span>${active?'Ativo':'Inativo'}</span></button>
+          <button type="button" class="danger" data-delete="${i.id}">Excluir</button>
+        </div>
+      </div>
+    </article>`;
   }
 
   function resetForm(){
-    const ids=["sn7-item-name","sn7-item-price","sn7-item-stock","sn7-item-audio-url","sn7-item-description"];
-    ids.forEach(id=>{const el=$(id);if(el)el.value=""});
+    ["sn7-item-name","sn7-item-price","sn7-item-stock","sn7-item-audio-url","sn7-item-description"].forEach(id=>{const el=$(id);if(el)el.value=""});
     if($("sn7-item-type"))$("sn7-item-type").value="reward";
     if($("sn7-item-image"))$("sn7-item-image").value="";
     if($("sn7-item-audio-file"))$("sn7-item-audio-file").value="";
@@ -985,72 +1055,124 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     updateForm();
   }
   function updateForm(){
-    const type=$("sn7-item-type"), name=$("sn7-item-name"), price=$("sn7-item-price"), audio=$("sn7-item-audio-url"), desc=$("sn7-item-description"), count=$("sn7-item-description-count"), save=$("sn7-save-item");
+    const type=$("sn7-item-type"),name=$("sn7-item-name"),price=$("sn7-item-price"),audio=$("sn7-item-audio-url"),desc=$("sn7-item-description"),count=$("sn7-item-description-count"),save=$("sn7-save-item");
     if(!type||!name||!price||!audio||!desc||!save)return;
     if(count)count.textContent=desc.value.length;
-    if(audio.parentElement)audio.parentElement.hidden=type.value!=="audio";
-    save.disabled=!(name.value.trim()&&Number(price.value)>0&&desc.value.trim()&&(type.value!=="audio"||audio.value.trim()||$("sn7-item-audio-file")?.files?.length));
+    const af=type.value==="audio";
+    if(audio.parentElement)audio.parentElement.hidden=!af;
+    save.disabled=!(name.value.trim()&&Number(price.value)>0&&(!af||audio.value.trim()||$("sn7-item-audio-file")?.files?.length));
   }
 
   async function loadStoreAdmin(force=false){
-    if(!bid){
-      const list=$("admin-reward-items"); const audioList=$("admin-audio-items"); if(list)list.innerHTML='<div class="sn7-store-empty">Conecte sua conta no Perfil para administrar a Loja.</div>';
-      return;
-    }
-    if(loading || (!force && loadedFor===bid && document.querySelector('nav button[data-tab="store"]')?.classList.contains("active")===false)) return;
+    if(!bid)return;
+    if(loading&&!force)return;
     loading=true;
     try{
-      const d=await api(`/api/store/${bid}/admin`);
+      const d=await api(`/api/store/${encodeURIComponent(bid)}/admin`);
       const rewards=d.items.filter(i=>i.item_type!=="audio");
       const audios=d.items.filter(i=>i.item_type==="audio");
-      $("admin-reward-items").innerHTML=rewards.length?rewards.map(itemCard).join(''):'<div class="sn7-store-empty">Nenhum item de loja criado ainda.</div>';
-      $("admin-audio-items").innerHTML=audios.length?audios.map(itemCard).join(''):'<div class="sn7-store-empty">Nenhum áudio criado ainda.</div>';
+      $("admin-reward-items").innerHTML=rewards.length?rewards.map(itemCard).join(''):'<div class="sn7-store-empty">Nenhum item criado ainda. Clique em “Novo item”.</div>';
+      $("admin-audio-items").innerHTML=audios.length?audios.map(itemCard).join(''):'<div class="sn7-store-empty">Nenhum áudio criado ainda. Clique em “Novo áudio”.</div>';
       try{
-        const h=await api(`/api/store/${bid}/redemptions?limit=30`);
+        const h=await api(`/api/store/${encodeURIComponent(bid)}/redemptions?limit=30`);
         $("admin-redemptions").innerHTML=h.redemptions.length?h.redemptions.map(r=>`<div class="sn7-shop-history-row"><strong>${esc(r.viewer_username)}</strong><span>${esc(r.name)}</span><b>✦ ${Number(r.price||0).toLocaleString('pt-BR')}</b><small>${esc(r.status)}</small></div>`).join(''):'<div class="sn7-store-empty">Nenhum resgate ainda.</div>';
-      }catch(e){$("admin-redemptions").innerHTML='<div class="sn7-store-empty">Histórico indisponível.</div>'}
-      loadedFor=bid;
+      }catch(_){$("admin-redemptions").innerHTML='<div class="sn7-store-empty">Histórico indisponível.</div>'}
     }catch(e){
       $("admin-reward-items").innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`;
       $("admin-audio-items").innerHTML="";
-    }finally{loading=false;}
+    }finally{loading=false}
   }
 
-  function init(){
-    const section=$("store"); if(!section)return;
-    const open=$("sn7-open-item-form"), close=$("sn7-close-item-form"), cancel=$("sn7-cancel-item"), form=$("sn7-item-form"), player=$("sn7-open-audio-player"), file=$("sn7-item-image"), audioFile=$("sn7-item-audio-file"), img=$("sn7-item-preview-img"), ptext=$("sn7-item-preview-text");
-    const toggle=v=>{if(form)form.hidden=!v;if(v)$("sn7-item-name")?.focus()};
-    open?.addEventListener("click",()=>toggle(true));
-    close?.addEventListener("click",()=>toggle(false));
-    cancel?.addEventListener("click",()=>{resetForm();toggle(false)});
-    player?.addEventListener("click",async()=>{if(player.disabled)return;player.disabled=true;sn7ShowOperationLoader();try{const d=await api(`/api/store/${bid}/audio/player-token`);window.open(d.player_url,'_blank','noopener');}catch(e){notice(e.message)}finally{player.disabled=false;sn7HideOperationLoader()}});
-    ["sn7-item-type","sn7-item-name","sn7-item-price","sn7-item-stock","sn7-item-audio-url","sn7-item-description"].forEach(id=>$(id)?.addEventListener("input",updateForm));
-    file?.addEventListener("change",()=>{const f=file.files?.[0];if(!f)return;if(f.size>2*1024*1024){notice('A imagem deve ter no máximo 2 MB.');file.value='';return}const r=new FileReader();r.onload=e=>{if(img){img.src=e.target.result;img.hidden=false}if(ptext)ptext.hidden=true};r.readAsDataURL(f)});
-    audioFile?.addEventListener("change",updateForm);
-    $("sn7-save-item")?.addEventListener("click",async()=>{
-      const save=$("sn7-save-item");if(save.disabled)return;save.disabled=true;sn7ShowOperationLoader();
-      try{
-        let image='';if(file?.files?.[0])image=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file.files[0])});
-        let audioData=$("sn7-item-audio-url")?.value.trim()||'';if(audioFile?.files?.[0]){if(audioFile.files[0].size>4*1024*1024)throw new Error('O áudio deve ter no máximo 4 MB.');audioData=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(audioFile.files[0])})}
-        const d=await api(`/api/store/${bid}/items`,{method:'POST',body:JSON.stringify({item_type:$('sn7-item-type').value,name:$('sn7-item-name').value.trim(),price:Number($('sn7-item-price').value),stock:$('sn7-item-stock').value===''?null:Number($('sn7-item-stock').value),description:$('sn7-item-description').value.trim(),image_url:image,audio_url:audioData})});
-        if(!d.ok)throw new Error(d.error||'Não foi possível salvar');resetForm();toggle(false);await loadStoreAdmin(true);
-      }catch(e){notice(e.message)}finally{updateForm();sn7HideOperationLoader()}
-    });
-    document.querySelectorAll("#admin-reward-items,#admin-audio-items").forEach(container=>container.addEventListener("click",async e=>{
-      const toggleBtn=e.target.closest('[data-toggle]'), del=e.target.closest('[data-delete]');
-      try{
-        if(toggleBtn){sn7ShowOperationLoader();await api(`/api/store/${bid}/items/${toggleBtn.dataset.toggle}`,{method:'PATCH',body:JSON.stringify({active:toggleBtn.textContent.includes('Desativar')?false:true})});await loadStoreAdmin(true);sn7HideOperationLoader();return}
-        if(del){const yes=await window.sn7ConfirmAction('Excluir item','Deseja excluir este item? O histórico de resgates será preservado e, se já houver resgates, o item precisará ser desativado.','Excluir');if(!yes)return;sn7ShowOperationLoader();await api(`/api/store/${bid}/items/${del.dataset.delete}`,{method:'DELETE'});await loadStoreAdmin(true);sn7HideOperationLoader()}
-      }catch(x){sn7HideOperationLoader();notice(x.message)}
-    });
-    });
+  function openForm(kind){
+    resetForm();
+    $("sn7-item-type").value=kind||"reward";
+    $("sn7-item-form-heading").textContent=kind==="audio"?"Adicionar novo áudio":"Adicionar novo item";
     updateForm();
+    $("sn7-item-form").hidden=false;
+    $("sn7-item-form").scrollIntoView({behavior:"smooth",block:"nearest"});
+    setTimeout(()=>$("sn7-item-name")?.focus(),100);
+  }
+  function closeForm(){resetForm();$("sn7-item-form").hidden=true}
+
+  function init(){
+    if(!bid)return;
+    document.querySelectorAll("[data-admin-category]").forEach(card=>card.addEventListener("click",()=>{
+      const kind=card.dataset.adminCategory,panel=$(`sn7-admin-panel-${kind}`),was=card.getAttribute("aria-expanded")==="true";
+      document.querySelectorAll("[data-admin-category]").forEach(x=>x.setAttribute("aria-expanded","false"));
+      document.querySelectorAll(".sn7-store-admin-panel").forEach(x=>x.hidden=true);
+      if(!was){card.setAttribute("aria-expanded","true");panel.hidden=false;loadStoreAdmin(true)}
+    }));
+
+    document.querySelectorAll("[data-open-item]").forEach(b=>b.addEventListener("click",()=>openForm(b.dataset.openItem)));
+    $("sn7-close-item-form")?.addEventListener("click",closeForm);
+    $("sn7-cancel-item")?.addEventListener("click",closeForm);
+
+    const file=$("sn7-item-image"),img=$("sn7-item-preview-img"),ptext=$("sn7-item-preview-text");
+    file?.addEventListener("change",()=>{
+      const f=file.files?.[0];if(!f)return;
+      if(f.size>2*1024*1024){toast("A imagem deve ter no máximo 2 MB.","Imagem inválida");file.value="";return}
+      const r=new FileReader();r.onload=e=>{img.src=e.target.result;img.hidden=false;ptext.hidden=true};r.readAsDataURL(f);
+    });
+    $("sn7-item-audio-file")?.addEventListener("change",e=>{
+      const f=e.target.files?.[0];if(f&&f.size>4*1024*1024){toast("O áudio deve ter no máximo 4 MB.","Áudio inválido");e.target.value=""}
+      updateForm();
+    });
+    ["sn7-item-type","sn7-item-name","sn7-item-price","sn7-item-stock","sn7-item-audio-url","sn7-item-description"].forEach(id=>$(id)?.addEventListener("input",updateForm));
+    $("sn7-item-type")?.addEventListener("change",updateForm);
+
+    $("sn7-save-item")?.addEventListener("click",async()=>{
+      const save=$("sn7-save-item");if(!save||save.disabled)return;
+      save.disabled=true;showLoader();
+      try{
+        const fileEl=$("sn7-item-image"),audioFile=$("sn7-item-audio-file");
+        let image="";
+        if(fileEl?.files?.[0])image=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(fileEl.files[0])});
+        let audioData=$("sn7-item-audio-url").value.trim();
+        if(audioFile?.files?.[0])audioData=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(audioFile.files[0])});
+        const d=await api(`/api/store/${encodeURIComponent(bid)}/items`,{method:"POST",body:JSON.stringify({
+          item_type:$("sn7-item-type").value,name:$("sn7-item-name").value.trim(),price:Number($("sn7-item-price").value),
+          stock:$("sn7-item-stock").value===""?null:Number($("sn7-item-stock").value),
+          description:$("sn7-item-description").value.trim(),image_url:image,audio_url:audioData
+        })});
+        if(!d.ok)throw new Error(d.error||"Não foi possível salvar o item.");
+        const savedType=$("sn7-item-type").value;
+        closeForm();
+        await loadStoreAdmin(true);
+        toast(savedType==="audio"?"Áudio adicionado com sucesso.":"Item adicionado com sucesso.","Loja atualizada");
+      }catch(e){toast(e.message||"Não foi possível salvar o item.","Não foi possível salvar")}
+      finally{hideLoader();updateForm()}
+    });
+
+    document.querySelectorAll("#admin-reward-items,#admin-audio-items").forEach(container=>container.addEventListener("click",async e=>{
+      const toggle=e.target.closest("[data-toggle]"),del=e.target.closest("[data-delete]");
+      if(toggle){
+        const next=toggle.dataset.active!=="1";showLoader();
+        try{
+          await api(`/api/store/${encodeURIComponent(bid)}/items/${toggle.dataset.toggle}`,{method:"PATCH",body:JSON.stringify({active:next})});
+          await loadStoreAdmin(true);
+          toast(next?"Item ativado.":"Item desativado.","Loja atualizada");
+        }catch(x){toast(x.message||"Não foi possível alterar o item.","Não foi possível alterar")}
+        finally{hideLoader()}
+        return;
+      }
+      if(del){
+        let yes=false;
+        if(typeof window.sn7ConfirmAction==="function")yes=await window.sn7ConfirmAction("Excluir item","Deseja excluir este item? O histórico de resgates será preservado e, se já houver resgates, o item precisará ser desativado.","Excluir");
+        else yes=confirm("Deseja excluir este item?");
+        if(!yes)return;
+        showLoader();
+        try{await api(`/api/store/${encodeURIComponent(bid)}/items/${del.dataset.delete}`,{method:"DELETE"});await loadStoreAdmin(true);toast("Item excluído.","Loja atualizada")}
+        catch(x){toast(x.message||"Não foi possível excluir o item.","Não foi possível excluir")}
+        finally{hideLoader()}
+      }
+    }));
+    loadStoreAdmin();
   }
   window.loadStoreAdmin=loadStoreAdmin;
-  document.addEventListener("DOMContentLoaded",()=>{init(); if(document.querySelector('nav button[data-tab="store"]')?.classList.contains('active'))loadStoreAdmin();});
+  document.addEventListener("DOMContentLoaded",init);
 })();
 </script>
-<script src="/static/js/app.js?v=sn7-1.9.68-overlay-store-music"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.70-store-categories-buy-fix"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -1638,8 +1760,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
 });
 </script>
-<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.68-overlay-store-music"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.68-overlay-store-music"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.68-overlay-store-music"></script>
+<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.70-store-categories-buy-fix"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.70-store-categories-buy-fix"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.70-store-categories-buy-fix"></script>
 </body>
 </html>
