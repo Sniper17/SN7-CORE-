@@ -117,12 +117,14 @@ def _overlay_url(bid):
 
 
 @overlay_bp.get("/api/<int:broadcaster_id>/config")
+@overlay_bp.get("/api/overlay/<int:broadcaster_id>/config")
 def get_config(broadcaster_id):
     require_session_broadcaster(broadcaster_id)
     return jsonify({"ok": True, "config": _load_config(broadcaster_id), "overlay_url": _overlay_url(broadcaster_id)})
 
 
 @overlay_bp.put("/api/<int:broadcaster_id>/config")
+@overlay_bp.put("/api/overlay/<int:broadcaster_id>/config")
 def put_config(broadcaster_id):
     require_session_broadcaster(broadcaster_id)
     data = request.get_json(silent=True) or {}
@@ -162,6 +164,7 @@ def events(target):
 
 
 @overlay_bp.get("/api/<int:broadcaster_id>/url")
+@overlay_bp.get("/api/overlay/<int:broadcaster_id>/url")
 def overlay_url(broadcaster_id):
     require_session_broadcaster(broadcaster_id)
     return jsonify({"ok": True, "overlay_url": _overlay_url(broadcaster_id)})

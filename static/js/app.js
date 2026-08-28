@@ -47,6 +47,38 @@ function sn7HideBootLoader() {
   setTimeout(() => loader.remove(), 220);
 }
 
+function sn7ShowToast(message, title = "Aviso") {
+  document.querySelector(".sn7-confirm-modal[data-sn7-layer=\"notice\"]")?.remove();
+  const modal = document.createElement("div");
+  modal.className = "sn7-confirm-modal";
+  modal.setAttribute("data-sn7-layer", "notice");
+  modal.innerHTML = `
+    <div class="sn7-confirm-card" role="dialog" aria-modal="true" aria-labelledby="sn7NoticeTitle">
+      <h3 id="sn7NoticeTitle">${esc(title)}</h3>
+      <p>${esc(message)}</p>
+      <div class="sn7-confirm-actions">
+        <button type="button" class="sn7-confirm-cancel">Fechar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.style.setProperty("position", "fixed", "important");
+  modal.style.setProperty("inset", "0", "important");
+  modal.style.setProperty("z-index", "2147483647", "important");
+  modal.style.setProperty("display", "flex", "important");
+  modal.style.setProperty("align-items", "center", "important");
+  modal.style.setProperty("justify-content", "center", "important");
+  requestAnimationFrame(() => modal.classList.add("open"));
+  const close = () => {
+    modal.classList.remove("open");
+    modal.classList.add("closing");
+    setTimeout(() => modal.remove(), 160);
+  };
+  modal.querySelector(".sn7-confirm-cancel")?.addEventListener("click", close);
+  modal.addEventListener("click", event => { if (event.target === modal) close(); });
+  return modal;
+}
+window.sn7ShowToast = sn7ShowToast;
+
 
 const SN7_ACTIVE_TAB_KEY = "sn7-core-active-tab";
 const SN7_ACTIVE_MODAL_KEY = "sn7-core-active-modal";

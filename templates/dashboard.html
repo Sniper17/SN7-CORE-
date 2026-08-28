@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.65-overlay-fullscreen">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.66-overlay-save-fix">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}.sn7-music-remove{position:relative;min-width:32px;min-height:32px}.sn7-music-remove[aria-busy="true"]{cursor:wait}.sn7-inline-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.22);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .62s linear infinite;vertical-align:middle}.sn7-music-row-removing{opacity:.45;transform:scale(.985);transition:opacity .12s ease,transform .12s ease}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -840,19 +840,36 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     list.innerHTML=config.elements.map(e=>`<label class="sn7-overlay-element-row ${selected===e.id?"active":""}" data-id="${esc(e.id)}"><input type="checkbox" ${e.enabled?"checked":""}><span>${e.type==="store_audio"?"🔊":e.type==="store_alert"?"🎁":e.type==="music"?"🎵":"✨"}</span><span><strong>${esc(e.name)}</strong><small>${esc(e.type)}</small></span></label>`).join("");
     list.querySelectorAll("[data-id]").forEach(row=>{const e=config.elements.find(x=>x.id===row.dataset.id);row.addEventListener("click",ev=>{if(ev.target.tagName==="INPUT"){e.enabled=ev.target.checked;render();return}selected=e.id;render()});});
   }
+  async function overlayApi(url, options){
+    const r=await fetch(url,Object.assign({credentials:"same-origin",cache:"no-store"},options||{}));
+    const text=await r.text();
+    let d={};
+    try{d=text?JSON.parse(text):{}}catch(_){throw new Error(`Resposta inválida do servidor (HTTP ${r.status}).`)}
+    if(!r.ok||d.ok===false)throw new Error(d.error||`Falha HTTP ${r.status}.`);
+    return d;
+  }
   async function load(){
     if(!bid){$("sn7OverlayElements").innerHTML='<div class="sn7-store-empty">Conecte sua conta no Perfil para configurar o Overlay.</div>';return}
     loading=true;
-    try{const r=await fetch(`/api/overlay/api/${encodeURIComponent(bid)}/config`,{credentials:"same-origin",cache:"no-store"});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível carregar o Overlay.");config=normalize(d.config);$("sn7OverlayUrl").value=d.overlay_url||"";render();}
+    try{const d=await overlayApi(`/api/overlay/${encodeURIComponent(bid)}/config`);config=normalize(d.config);$("sn7OverlayUrl").value=d.overlay_url||"";render();}
     catch(e){$("sn7OverlayElements").innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`}
     finally{loading=false}
   }
   async function save(){
     if(!bid||loading)return;
-    loading=true;[$("sn7OverlaySave")].forEach(b=>{if(b)b.disabled=true});
-    try{const r=await fetch(`/api/overlay/api/${encodeURIComponent(bid)}/config`,{method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({config})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Falha ao salvar.");config=normalize(d.config);$("sn7OverlayUrl").value=d.overlay_url||$("sn7OverlayUrl").value;render();if(typeof window.sn7ShowOperationLoader==="function")window.sn7ShowOperationLoader(false);}
-    catch(e){if(typeof window.sn7ShowToast==="function")window.sn7ShowToast(e.message);else alert(e.message)}
-    finally{loading=false;[$("sn7OverlaySave")].forEach(b=>{if(b)b.disabled=false})}
+    loading=true;
+    const button=$("sn7OverlaySave");
+    if(button)button.disabled=true;
+    if(typeof window.sn7ShowOperationLoader==="function")window.sn7ShowOperationLoader();
+    try{
+      const d=await overlayApi(`/api/overlay/${encodeURIComponent(bid)}/config`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({config})});
+      config=normalize(d.config);$("sn7OverlayUrl").value=d.overlay_url||$("sn7OverlayUrl").value;render();
+      if(typeof window.sn7HideOperationLoader==="function")window.sn7HideOperationLoader();
+      if(typeof window.sn7ShowToast==="function")window.sn7ShowToast("Overlay salvo com sucesso.","Overlay salvo");
+    }catch(e){
+      if(typeof window.sn7HideOperationLoader==="function")window.sn7HideOperationLoader();
+      if(typeof window.sn7ShowToast==="function")window.sn7ShowToast(e.message,"Não foi possível salvar");else console.error(e);
+    }finally{loading=false;if(button)button.disabled=false;}
   }
   $("sn7OverlaySave")?.addEventListener("click",save);
   $("sn7OverlayReset")?.addEventListener("click",()=>{config=defaults();selected=null;render()});
@@ -998,7 +1015,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   document.addEventListener("DOMContentLoaded",()=>{init(); if(document.querySelector('nav button[data-tab="store"]')?.classList.contains('active'))loadStoreAdmin();});
 })();
 </script>
-<script src="/static/js/app.js?v=sn7-1.9.65-overlay-fullscreen"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.66-overlay-save-fix"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -1586,8 +1603,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
 });
 </script>
-<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.65-overlay-fullscreen"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.65-overlay-fullscreen"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.65-overlay-fullscreen"></script>
+<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.66-overlay-save-fix"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.66-overlay-save-fix"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.66-overlay-save-fix"></script>
 </body>
 </html>
