@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.66-overlay-save-fix">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.67-overlay-custom-images">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}.sn7-music-remove{position:relative;min-width:32px;min-height:32px}.sn7-music-remove[aria-busy="true"]{cursor:wait}.sn7-inline-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.22);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .62s linear infinite;vertical-align:middle}.sn7-music-row-removing{opacity:.45;transform:scale(.985);transition:opacity .12s ease,transform .12s ease}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -244,9 +244,19 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
 .sn7-overlay-element{position:absolute;display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid rgba(155,140,255,.45);border-radius:12px;background:rgba(13,17,24,.88);color:#e9edf5;cursor:grab;user-select:none;box-shadow:0 10px 25px rgba(0,0,0,.22);min-width:110px;min-height:42px;font-size:10px;font-weight:800}
 .sn7-overlay-element.selected{outline:2px solid #a99cff;box-shadow:0 0 0 5px rgba(155,140,255,.10)}
 .sn7-overlay-element small{display:block;color:#7f899b;font-size:8px;margin-top:2px;font-weight:700}
-.sn7-overlay-element .ov-icon{font-size:18px}.sn7-overlay-side{padding:16px}
+.sn7-overlay-element .ov-icon{font-size:18px}.sn7-overlay-element .ov-image{width:30px;height:30px;border-radius:8px;object-fit:cover;border:1px solid rgba(255,255,255,.08);flex:0 0 30px}.sn7-overlay-side{padding:16px}
 .sn7-overlay-side h3{margin:0 0 4px;font-size:14px}.sn7-overlay-side>p{margin:0 0 14px;color:var(--muted);font-size:11px;line-height:1.5}
-.sn7-overlay-elements{display:grid;gap:8px}.sn7-overlay-element-row{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;background:#151a22;cursor:pointer}
+.sn7-overlay-elements{display:grid;gap:8px}.sn7-overlay-element-row{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;background:#151a22;cursor:pointer}.sn7-overlay-element-row .sn7-overlay-check{display:grid;place-items:center;width:18px;height:18px;border:1px solid #394253;border-radius:5px;color:transparent;font-size:11px;line-height:1;background:#0b0f15;flex:0 0 18px}
+.sn7-overlay-element-row.is-enabled .sn7-overlay-check{color:#72e5a0;background:#10251a;border-color:#2d6947}
+.sn7-overlay-element-row .sn7-overlay-card-image{width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid rgba(255,255,255,.08);background:#0b0f15}
+.sn7-overlay-element-row .sn7-overlay-card-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:8px;background:#111722;border:1px solid rgba(255,255,255,.06);font-size:17px}
+.sn7-overlay-element-row .sn7-overlay-card-main{min-width:0}
+.sn7-overlay-element-row .sn7-overlay-card-controls{grid-column:2 / span 2;display:flex;align-items:center;gap:7px;margin-top:7px}
+.sn7-overlay-element-row .sn7-overlay-image-btn{padding:5px 8px;font-size:9px}
+.sn7-overlay-element-row .sn7-overlay-image-name{color:#697386;font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sn7-overlay-element-row .sn7-overlay-image-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.sn7-overlay-element-row .sn7-overlay-remove-image{padding:4px 7px;font-size:8px}
+.sn7-overlay-element-row .sn7-overlay-remove-image[hidden]{display:none!important}
 .sn7-overlay-element-row.active{border-color:rgba(155,140,255,.55);background:#191b28}.sn7-overlay-element-row strong{display:block;font-size:11px}.sn7-overlay-element-row small{color:#697386;font-size:9px}
 .sn7-overlay-element-row input{accent-color:#a99cff}.sn7-overlay-actions{display:flex;gap:8px;margin-top:14px}.sn7-overlay-actions .btn{flex:1}
 .sn7-overlay-url{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}.sn7-overlay-url label{display:block;color:#8f98a8;font-size:9px;font-weight:900;letter-spacing:1px;margin-bottom:6px}.sn7-overlay-url-row{display:flex;gap:6px}.sn7-overlay-url-row input{min-width:0;flex:1;background:#0b0e13;border:1px solid var(--border);color:#aeb6c5;border-radius:9px;padding:9px;font-size:9px}.sn7-overlay-help{margin-top:8px;color:#697386;font-size:9px;line-height:1.45}
@@ -705,13 +715,7 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
           .sn7-platform-card strong{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sn7-platform-card small{display:block;color:var(--muted);font-size:10px;margin-top:3px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
           .sn7-platform-status{grid-area:status;justify-self:end;align-self:center;font-size:10px;font-weight:800;padding:5px 8px;border-radius:999px;background:#151a22;color:#8f98a8;border:1px solid var(--border);white-space:nowrap;max-width:100%;box-sizing:border-box}
           .sn7-platform-status.active{color:#55d98b;border-color:#2c6548;background:#102219}
-          .sn7-obs-card{margin-top:18px;padding:16px;border:1px solid var(--border);border-radius:15px;background:linear-gradient(145deg,#121720,#0e1117)}
-          .sn7-obs-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.sn7-obs-head h3{margin:0 0 5px}.sn7-obs-head p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
-          .sn7-obs-state{font-size:10px;font-weight:800;color:#8f98a8;white-space:nowrap}.sn7-obs-state.on{color:#55d98b}
-          .sn7-obs-url{margin-top:13px;display:flex;gap:8px}.sn7-obs-url input{min-width:0;flex:1;background:#0b0e14;border:1px solid var(--border);color:#cfd5df;border-radius:10px;padding:10px;font-size:10px}
-          .sn7-obs-help{margin:10px 0 0;color:var(--muted);font-size:10px;line-height:1.5}
-          .sn7-obs-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}.sn7-obs-actions .btn{margin:0}
-          @media(max-width:700px){.sn7-profile-platforms{grid-template-columns:1fr}.sn7-obs-url{flex-direction:column}.sn7-obs-url .btn{width:100%}}
+          @media(max-width:700px){.sn7-profile-platforms{grid-template-columns:1fr}}
           .sn7-profile-section{padding-top:22px}
           .sn7-profile-section h3{margin:0 0 6px}
           .sn7-profile-section p{margin:0;color:var(--muted);font-size:12px;line-height:1.5}
@@ -758,21 +762,6 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
               <button id="sn7ProfileBotToggle" class="btn" type="button" disabled>Verificando...</button>
             </div>
           </div>
-          <div class="sn7-obs-card">
-            <div class="sn7-obs-head">
-              <div><h3>OBS Studio</h3><p>Conecte o SN7 Core diretamente ao OBS usando uma Fonte de Navegador.</p></div>
-              <span id="sn7ObsState" class="sn7-obs-state">NÃO CONECTADO</span>
-            </div>
-            <div id="sn7ObsUrlRow" class="sn7-obs-url" hidden>
-              <input id="sn7ObsUrl" type="text" readonly aria-label="URL do SN7 para o OBS">
-              <button class="btn" type="button" onclick="sn7CopyObsUrl()">Copiar URL</button>
-            </div>
-            <p class="sn7-obs-help">No OBS: Fontes → + → Navegador → cole a URL do SN7. Essa conexão será exclusiva deste canal.</p>
-            <div class="sn7-obs-actions">
-              <button id="sn7ObsConnect" class="btn" type="button" onclick="sn7ConnectOBS()">Conectar ao OBS</button>
-              <button id="sn7ObsRotate" class="btn" type="button" onclick="sn7RotateOBS()" hidden>Gerar nova conexão</button>
-            </div>
-          </div>
           <div class="sn7-profile-actions">
             <button id="sn7ProfileRefresh" class="btn" type="button">Atualizar status</button>
             <button id="sn7ProfileLogout" class="btn" type="button">Sair da conta</button>
@@ -810,6 +799,22 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   ]});
   let config=defaults(), selected=null, drag=null, loading=false;
   function normalize(c){const d=defaults();return {version:1,canvas:d.canvas,elements:Array.isArray(c?.elements)&&c.elements.length?c.elements.map((e,i)=>Object.assign(d.elements[i]||{id:"element-"+i,type:"text",name:"Elemento",x:100,y:100,width:300,height:100,enabled:true,settings:{}},e)):d.elements};}
+  const iconFor=e=>e.type==="store_audio"?"🔊":e.type==="store_alert"?"🎁":e.type==="music"?"🎵":"✨";
+  const settingsFor=e=>{if(!e.settings||typeof e.settings!=="object")e.settings={};return e.settings};
+  const imageFor=e=>String(settingsFor(e).image_url||"").trim();
+  function imageMarkup(e, cls="sn7-overlay-card-image"){
+    const url=imageFor(e);
+    return url?`<img class="${cls}" src="${esc(url)}" alt="" loading="lazy">`:`<span class="sn7-overlay-card-icon">${iconFor(e)}</span>`;
+  }
+  function readImage(file, cb){
+    if(!file)return;
+    if(!/^image\/(png|jpe?g|webp)$/i.test(file.type)){if(typeof window.sn7ShowToast==="function")window.sn7ShowToast("Use PNG, JPG ou WEBP.","Imagem inválida");return}
+    if(file.size>2*1024*1024){if(typeof window.sn7ShowToast==="function")window.sn7ShowToast("A imagem deve ter no máximo 2 MB.","Imagem muito grande");return}
+    const reader=new FileReader();
+    reader.onload=()=>cb(String(reader.result||""));
+    reader.onerror=()=>{if(typeof window.sn7ShowToast==="function")window.sn7ShowToast("Não foi possível carregar a imagem.","Erro")};
+    reader.readAsDataURL(file);
+  }
   function render(){
     const preview=$("sn7OverlayPreview"), list=$("sn7OverlayElements"); if(!preview||!list)return;
     preview.innerHTML="";
@@ -827,8 +832,8 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     preview.appendChild(exitBtn);
     config.elements.forEach((e)=>{
       const el=document.createElement("div");el.className="sn7-overlay-element"+(selected===e.id?" selected":"");
-      const icon=e.type==="store_audio"?"🔊":e.type==="store_alert"?"🎁":e.type==="music"?"🎵":"✨";
-      el.innerHTML=`<span class="ov-icon">${icon}</span><span>${esc(e.name)}<small>${e.enabled?"ATIVO":"DESATIVADO"}</small></span>`;
+      const icon=iconFor(e), image=imageFor(e);
+      el.innerHTML=`${image?`<img class="ov-image" src="${esc(image)}" alt="">`:`<span class="ov-icon">${icon}</span>`}<span>${esc(e.name)}<small>${e.enabled?"ATIVO":"DESATIVADO"}</small></span>`;
       const sx=preview.clientWidth/1920, sy=preview.clientHeight/1080;
       el.style.left=(Number(e.x||0)*sx)+"px";el.style.top=(Number(e.y||0)*sy)+"px";
       el.style.width=Math.max(70,Number(e.width||300)*sx)+"px";el.style.height=Math.max(38,Number(e.height||100)*sy)+"px";
@@ -837,8 +842,32 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
       el.addEventListener("pointerup",()=>{drag=null;});
       preview.appendChild(el);
     });
-    list.innerHTML=config.elements.map(e=>`<label class="sn7-overlay-element-row ${selected===e.id?"active":""}" data-id="${esc(e.id)}"><input type="checkbox" ${e.enabled?"checked":""}><span>${e.type==="store_audio"?"🔊":e.type==="store_alert"?"🎁":e.type==="music"?"🎵":"✨"}</span><span><strong>${esc(e.name)}</strong><small>${esc(e.type)}</small></span></label>`).join("");
-    list.querySelectorAll("[data-id]").forEach(row=>{const e=config.elements.find(x=>x.id===row.dataset.id);row.addEventListener("click",ev=>{if(ev.target.tagName==="INPUT"){e.enabled=ev.target.checked;render();return}selected=e.id;render()});});
+    list.innerHTML=config.elements.map(e=>{
+      const image=imageFor(e);
+      return `<div class="sn7-overlay-element-row ${selected===e.id?"active ":""}${e.enabled?"is-enabled":""}" data-id="${esc(e.id)}">
+        <button type="button" class="sn7-overlay-check" data-toggle="${esc(e.id)}" aria-label="${e.enabled?"Desativar":"Ativar"}">${e.enabled?"✓":""}</button>
+        ${imageMarkup(e)}
+        <span class="sn7-overlay-card-main"><strong>${esc(e.name)}</strong><small>${e.enabled?"ATIVO":"DESATIVADO"} · ${esc(e.type)}</small></span>
+        <div class="sn7-overlay-card-controls">
+          <input class="sn7-overlay-image-input" id="sn7OverlayImage-${esc(e.id)}" type="file" accept="image/png,image/jpeg,image/webp">
+          <label class="btn sn7-overlay-image-btn" for="sn7OverlayImage-${esc(e.id)}">Imagem</label>
+          <button type="button" class="btn sn7-overlay-remove-image" data-remove-image="${esc(e.id)}" ${image?"":"hidden"}>Remover imagem</button>
+          <span class="sn7-overlay-image-name">${image?"Imagem personalizada":"Padrão"}</span>
+        </div>
+      </div>`;
+    }).join("");
+    list.querySelectorAll("[data-id]").forEach(row=>{
+      const e=config.elements.find(x=>x.id===row.dataset.id);
+      row.addEventListener("click",ev=>{
+        if(ev.target.closest("[data-toggle]")){e.enabled=!e.enabled;render();return}
+        if(ev.target.closest("[data-remove-image]")){settingsFor(e).image_url="";render();return}
+        if(ev.target.closest(".sn7-overlay-image-btn")||ev.target.closest(".sn7-overlay-image-input"))return;
+        selected=e.id;render();
+      });
+      row.querySelector(".sn7-overlay-image-input")?.addEventListener("change",ev=>{
+        readImage(ev.target.files?.[0],data=>{settingsFor(e).image_url=data;render()});
+      });
+    });
   }
   async function overlayApi(url, options){
     const r=await fetch(url,Object.assign({credentials:"same-origin",cache:"no-store"},options||{}));
@@ -1015,7 +1044,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   document.addEventListener("DOMContentLoaded",()=>{init(); if(document.querySelector('nav button[data-tab="store"]')?.classList.contains('active'))loadStoreAdmin();});
 })();
 </script>
-<script src="/static/js/app.js?v=sn7-1.9.66-overlay-save-fix"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.67-overlay-custom-images"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -1603,8 +1632,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
 });
 </script>
-<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.66-overlay-save-fix"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.66-overlay-save-fix"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.66-overlay-save-fix"></script>
+<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.67-overlay-custom-images"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.67-overlay-custom-images"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.67-overlay-custom-images"></script>
 </body>
 </html>

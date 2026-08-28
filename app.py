@@ -27,7 +27,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.66-overlay-save-fix"
+SN7_VERSION = "1.9.67-overlay-custom-images"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 
