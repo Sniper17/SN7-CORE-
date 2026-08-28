@@ -27,7 +27,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.64-overlay-studio"
+SN7_VERSION = "1.9.65-overlay-fullscreen"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 

@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.64-overlay-studio">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.65-overlay-fullscreen">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}.sn7-music-remove{position:relative;min-width:32px;min-height:32px}.sn7-music-remove[aria-busy="true"]{cursor:wait}.sn7-inline-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.22);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .62s linear infinite;vertical-align:middle}.sn7-music-row-removing{opacity:.45;transform:scale(.985);transition:opacity .12s ease,transform .12s ease}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -230,12 +230,16 @@ body.sn7-modal-open{overflow:hidden}
 .sn7-overlay-head h2{margin:0 0 6px;font-size:25px}.sn7-overlay-head p{margin:0;color:var(--muted);line-height:1.5}
 .sn7-overlay-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}
 .sn7-overlay-preview-card,.sn7-overlay-side{border:1px solid var(--border);background:#0f131a;border-radius:18px}
-.sn7-overlay-preview-card{padding:16px}.sn7-overlay-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.sn7-overlay-preview-card{padding:16px}.sn7-overlay-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.sn7-overlay-preview-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px}.sn7-overlay-fullscreen-btn{padding:7px 10px;font-size:10px;white-space:nowrap}
 .sn7-overlay-preview{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:13px;border:1px solid rgba(255,255,255,.08);background:
 linear-gradient(45deg,#11151d 25%,transparent 25%) 0 0/24px 24px,
 linear-gradient(-45deg,#11151d 25%,transparent 25%) 0 0/24px 24px,
 linear-gradient(45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,
 linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
+.sn7-overlay-preview.is-fullscreen-fallback{position:fixed;inset:0;z-index:99999;width:100vw!important;height:100vh!important;aspect-ratio:auto!important;border-radius:0;max-width:none;margin:0;background-color:#0b0e13;touch-action:none}
+.sn7-overlay-preview:fullscreen{width:100vw!important;height:100vh!important;aspect-ratio:auto!important;border-radius:0;max-width:none;background-color:#0b0e13}
+.sn7-overlay-preview:fullscreen .sn7-overlay-element,.sn7-overlay-preview.is-fullscreen-fallback .sn7-overlay-element{touch-action:none}
+.sn7-overlay-preview-fullscreen-exit{position:absolute;top:14px;right:14px;z-index:100000;display:none!important;pointer-events:auto!important;padding:8px 10px;font-size:10px}.sn7-overlay-preview:fullscreen .sn7-overlay-preview-fullscreen-exit,.sn7-overlay-preview.is-fullscreen-fallback .sn7-overlay-preview-fullscreen-exit{display:block!important}
 .sn7-overlay-preview:before{content:"TRANSPARENTE • 1920 × 1080";position:absolute;left:12px;top:10px;color:#596273;font-size:8px;font-weight:900;letter-spacing:1.4px;z-index:0}
 .sn7-overlay-element{position:absolute;display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid rgba(155,140,255,.45);border-radius:12px;background:rgba(13,17,24,.88);color:#e9edf5;cursor:grab;user-select:none;box-shadow:0 10px 25px rgba(0,0,0,.22);min-width:110px;min-height:42px;font-size:10px;font-weight:800}
 .sn7-overlay-element.selected{outline:2px solid #a99cff;box-shadow:0 0 0 5px rgba(155,140,255,.10)}
@@ -247,7 +251,9 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
 .sn7-overlay-element-row input{accent-color:#a99cff}.sn7-overlay-actions{display:flex;gap:8px;margin-top:14px}.sn7-overlay-actions .btn{flex:1}
 .sn7-overlay-url{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}.sn7-overlay-url label{display:block;color:#8f98a8;font-size:9px;font-weight:900;letter-spacing:1px;margin-bottom:6px}.sn7-overlay-url-row{display:flex;gap:6px}.sn7-overlay-url-row input{min-width:0;flex:1;background:#0b0e13;border:1px solid var(--border);color:#aeb6c5;border-radius:9px;padding:9px;font-size:9px}.sn7-overlay-help{margin-top:8px;color:#697386;font-size:9px;line-height:1.45}
 @media(max-width:900px){.sn7-overlay-layout{grid-template-columns:1fr}.sn7-overlay-side{order:2}}
-@media(max-width:700px){.sn7-overlay-head{flex-direction:column}.sn7-overlay-actions{flex-direction:column}.sn7-overlay-url-row{flex-direction:column}.sn7-overlay-url-row .btn{width:100%}}
+@media(max-width:700px){.sn7-overlay-head{flex-direction:column}.sn7-overlay-actions{flex-direction:column}.sn7-overlay-url-row{flex-direction:column}.sn7-overlay-url-row .btn{width:100%}.sn7-overlay-preview-toolbar{align-items:flex-start}.sn7-overlay-preview-tools{flex-wrap:wrap}.sn7-overlay-fullscreen-btn{font-size:9px}}
+.sn7-overlay-preview-mode{overflow:hidden}
+.sn7-overlay-preview-mode .sn7-overlay-fullscreen-btn{position:fixed;top:14px;right:14px;z-index:100001}
 </style>
 </head>
 <body>
@@ -322,7 +328,7 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
         <span class="sn7-nav-label" data-short="Perfil">Perfil</span>
       </button>
     </nav>
-    <div class="sidebar-footer">SN7 CORE <span>v1.9.64</span></div>
+    <div class="sidebar-footer">SN7 CORE <span>v1.9.65</span></div>
   </aside>
 
   <main>
@@ -385,11 +391,10 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
             <h2>Seu overlay, do seu jeito.</h2>
             <p>Use uma única fonte no OBS e escolha onde cada alerta aparece. Loja, áudios e futuros eventos entram no mesmo overlay.</p>
           </div>
-          <button class="btn" type="button" id="sn7OverlaySaveTop">Salvar alterações</button>
         </div>
         <div class="sn7-overlay-layout">
           <div class="sn7-overlay-preview-card">
-            <div class="sn7-overlay-preview-toolbar"><strong>Pré-visualização</strong><span class="sn7-automation-badge">1920 × 1080</span></div>
+            <div class="sn7-overlay-preview-toolbar"><strong>Pré-visualização</strong><div class="sn7-overlay-preview-tools"><span class="sn7-automation-badge">1920 × 1080</span><button type="button" class="btn sn7-overlay-fullscreen-btn" id="sn7OverlayFullscreen" aria-label="Abrir pré-visualização em tela cheia">⛶ Tela cheia</button></div></div>
             <div id="sn7OverlayPreview" class="sn7-overlay-preview"></div>
           </div>
           <aside class="sn7-overlay-side">
@@ -398,7 +403,7 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
             <div id="sn7OverlayElements" class="sn7-overlay-elements"><div class="sn7-store-empty">Carregando overlay…</div></div>
             <div class="sn7-overlay-actions">
               <button type="button" class="btn" id="sn7OverlayReset">Restaurar padrão</button>
-              <button type="button" class="btn" id="sn7OverlaySave">Salvar</button>
+              <button type="button" class="btn" id="sn7OverlaySave">Salvar alterações</button>
             </div>
             <div class="sn7-overlay-url">
               <label>URL PARA O OBS</label>
@@ -808,6 +813,18 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   function render(){
     const preview=$("sn7OverlayPreview"), list=$("sn7OverlayElements"); if(!preview||!list)return;
     preview.innerHTML="";
+    const exitBtn=document.createElement("button");
+    exitBtn.type="button";
+    exitBtn.className="sn7-overlay-preview-fullscreen-exit btn";
+    exitBtn.textContent="⛶ Sair da tela cheia";
+    exitBtn.setAttribute("aria-label","Sair da pré-visualização em tela cheia");
+    exitBtn.addEventListener("click",async()=>{
+      if(document.fullscreenElement===preview){try{await document.exitFullscreen();return}catch(_){}}
+      setPreviewFullscreen(false);
+      const topBtn=$("sn7OverlayFullscreen");
+      if(topBtn)topBtn.textContent="⛶ Tela cheia";
+    });
+    preview.appendChild(exitBtn);
     config.elements.forEach((e)=>{
       const el=document.createElement("div");el.className="sn7-overlay-element"+(selected===e.id?" selected":"");
       const icon=e.type==="store_audio"?"🔊":e.type==="store_alert"?"🎁":e.type==="music"?"🎵":"✨";
@@ -832,14 +849,51 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   }
   async function save(){
     if(!bid||loading)return;
-    loading=true;[$("sn7OverlaySave"),$("sn7OverlaySaveTop")].forEach(b=>{if(b)b.disabled=true});
+    loading=true;[$("sn7OverlaySave")].forEach(b=>{if(b)b.disabled=true});
     try{const r=await fetch(`/api/overlay/api/${encodeURIComponent(bid)}/config`,{method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({config})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Falha ao salvar.");config=normalize(d.config);$("sn7OverlayUrl").value=d.overlay_url||$("sn7OverlayUrl").value;render();if(typeof window.sn7ShowOperationLoader==="function")window.sn7ShowOperationLoader(false);}
     catch(e){if(typeof window.sn7ShowToast==="function")window.sn7ShowToast(e.message);else alert(e.message)}
-    finally{loading=false;[$("sn7OverlaySave"),$("sn7OverlaySaveTop")].forEach(b=>{if(b)b.disabled=false})}
+    finally{loading=false;[$("sn7OverlaySave")].forEach(b=>{if(b)b.disabled=false})}
   }
-  $("sn7OverlaySave")?.addEventListener("click",save);$("sn7OverlaySaveTop")?.addEventListener("click",save);
+  $("sn7OverlaySave")?.addEventListener("click",save);
   $("sn7OverlayReset")?.addEventListener("click",()=>{config=defaults();selected=null;render()});
   $("sn7OverlayCopy")?.addEventListener("click",async()=>{const v=$("sn7OverlayUrl")?.value||"";if(!v)return;try{await navigator.clipboard.writeText(v);if(typeof window.sn7ShowToast==="function")window.sn7ShowToast("URL do Overlay copiada.");}catch(_){$("sn7OverlayUrl").select();document.execCommand("copy")}});
+  function setPreviewFullscreen(active){
+    const preview=$("sn7OverlayPreview");
+    if(!preview)return;
+    preview.classList.toggle("is-fullscreen-fallback",!!active);
+    if(active){
+      document.body.classList.add("sn7-overlay-preview-mode");
+      render();
+    }else{
+      document.body.classList.remove("sn7-overlay-preview-mode");
+      render();
+    }
+  }
+  async function enterPreviewFullscreen(){
+    const preview=$("sn7OverlayPreview");
+    if(!preview)return;
+    try{
+      if(document.fullscreenElement===preview){await document.exitFullscreen();return;}
+      if(preview.requestFullscreen){await preview.requestFullscreen();return;}
+    }catch(err){console.warn("[SN7 OVERLAY FULLSCREEN]",err)}
+    setPreviewFullscreen(!preview.classList.contains("is-fullscreen-fallback"));
+  }
+  $("sn7OverlayFullscreen")?.addEventListener("click",enterPreviewFullscreen);
+  document.addEventListener("fullscreenchange",()=>{
+    const preview=$("sn7OverlayPreview");
+    if(!preview)return;
+    const active=document.fullscreenElement===preview;
+    preview.classList.toggle("is-fullscreen-fallback",false);
+    document.body.classList.toggle("sn7-overlay-preview-mode",active);
+    const btn=$("sn7OverlayFullscreen");
+    if(btn)btn.textContent=active?"⛶ Sair da tela cheia":"⛶ Tela cheia";
+    render();
+  });
+  window.addEventListener("keydown",ev=>{
+    if(ev.key!=="Escape")return;
+    const preview=$("sn7OverlayPreview");
+    if(preview?.classList.contains("is-fullscreen-fallback")){setPreviewFullscreen(false);}
+  });
   window.loadOverlayStudio=load;
   window.addEventListener("resize",()=>render());
   document.addEventListener("DOMContentLoaded",load);
@@ -944,7 +998,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   document.addEventListener("DOMContentLoaded",()=>{init(); if(document.querySelector('nav button[data-tab="store"]')?.classList.contains('active'))loadStoreAdmin();});
 })();
 </script>
-<script src="/static/js/app.js?v=sn7-1.9.64-overlay-studio"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.65-overlay-fullscreen"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -1532,8 +1586,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
 });
 </script>
-<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.64-overlay-studio"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.64-overlay-studio"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.64-overlay-studio"></script>
+<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.65-overlay-fullscreen"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.65-overlay-fullscreen"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.65-overlay-fullscreen"></script>
 </body>
 </html>
