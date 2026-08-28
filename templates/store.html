@@ -340,14 +340,22 @@
     const sections=document.querySelectorAll('#store-public .sn7-public-store-category[data-mobile-store-page]');
     const buttons=nav.querySelectorAll('[data-mobile-store-tab]');
     const apply=kind=>{
+      kind=kind==='audio'?'audio':'reward';
       nav.dataset.active=kind;
       buttons.forEach(b=>{const active=b.dataset.mobileStoreTab===kind;b.classList.toggle('active',active);b.setAttribute('aria-selected',active?'true':'false')});
       sections.forEach(s=>{const active=s.dataset.mobileStorePage===kind;s.classList.toggle('mobile-store-tab-active',active);s.classList.toggle('mobile-store-tab-hidden',!active)});
       try{sessionStorage.setItem('sn7_store_mobile_tab',kind)}catch(_){}
-      window.scrollTo({top:0,behavior:'smooth'});
     };
-    let initial='reward'; try{if(sessionStorage.getItem('sn7_store_mobile_tab')==='audio')initial='audio'}catch(_){}
-    buttons.forEach(b=>b.addEventListener('click',()=>apply(b.dataset.mobileStoreTab)));
+    nav._sn7ApplyMobileStoreTab=apply;
+    if(!nav._sn7MobileTabsBound){
+      buttons.forEach(b=>b.addEventListener('click',()=>{
+        apply(b.dataset.mobileStoreTab);
+        window.scrollTo({top:0,behavior:'smooth'});
+      }));
+      nav._sn7MobileTabsBound=true;
+    }
+    let initial='reward';
+    try{if(sessionStorage.getItem('sn7_store_mobile_tab')==='audio')initial='audio'}catch(_){}
     apply(initial);
   }
 
@@ -430,6 +438,17 @@
       const audios=d.items.filter(i=>i.item_type==="audio");
       $('public-reward-items').innerHTML=rewards.length?rewards.map(i=>itemCard(i,false)).join(''):'<div class="sn7-store-empty">Este canal ainda não adicionou itens de loja.</div>';
       $('public-audio-items').innerHTML=audios.length?audios.map(i=>itemCard(i,false)).join(''):'<div class="sn7-store-empty">Este canal ainda não adicionou áudios.</div>';
+
+      /* Reaplica a aba atual depois de renderizar os dados públicos. */
+      const mobileNav=$('sn7MobileStoreNav');
+      if(mobileNav?._sn7ApplyMobileStoreTab){
+        let activeTab='reward';
+        try{
+          activeTab=sessionStorage.getItem('sn7_store_mobile_tab')==='audio'?'audio':'reward';
+        }catch(_){}
+        mobileNav._sn7ApplyMobileStoreTab(activeTab);
+      }
+
       document.querySelectorAll('#public-reward-items [data-redeem],#public-audio-items [data-redeem]').forEach(b=>b.onclick=async()=>{
         const card=b.closest('.sn7-shop-item');
         const itemName=card?.querySelector('h3')?.textContent?.trim() || 'este item';
