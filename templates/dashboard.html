@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.72-store-performance">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.74-store-ui-fix">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}.sn7-music-remove{position:relative;min-width:32px;min-height:32px}.sn7-music-remove[aria-busy="true"]{cursor:wait}.sn7-inline-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.22);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .62s linear infinite;vertical-align:middle}.sn7-music-row-removing{opacity:.45;transform:scale(.985);transition:opacity .12s ease,transform .12s ease}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -1072,29 +1072,34 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     const now=Date.now();
     if(!force && lastAdminLoad && now-lastAdminLoad<4000)return;
     if(adminLoadPromise)return adminLoadPromise;
+
     const rewardBox=$("admin-reward-items"),audioBox=$("admin-audio-items"),historyBox=$("admin-redemptions");
-    const skeleton='<div class="sn7-store-items-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>';
-    if(rewardBox && !rewardBox.children.length)rewardBox.innerHTML=skeleton;
-    if(audioBox && !audioBox.children.length)audioBox.innerHTML=skeleton;
+    const emptyRewards='<div class="sn7-store-empty">Nenhum item criado ainda. Clique em “Novo item”.</div>';
+    const emptyAudios='<div class="sn7-store-empty">Nenhum áudio criado ainda. Clique em “Novo áudio”.</div>';
+    if(rewardBox && !rewardBox.children.length)rewardBox.innerHTML=emptyRewards;
+    if(audioBox && !audioBox.children.length)audioBox.innerHTML=emptyAudios;
+
     adminLoadPromise=(async()=>{
       loading=true;
       try{
-        // As duas fontes são independentes: carregamos em paralelo para
-        // reduzir o tempo de espera percebido no painel.
-        const [d,h]=await Promise.all([
-          api(`/api/store/${encodeURIComponent(bid)}/admin`),
-          api(`/api/store/${encodeURIComponent(bid)}/redemptions?limit=30`)
-        ]);
-        const rewards=d.items.filter(i=>i.item_type!=="audio");
-        const audios=d.items.filter(i=>i.item_type==="audio");
-        rewardBox.innerHTML=rewards.length?rewards.map(itemCard).join(''):'<div class="sn7-store-empty">Nenhum item criado ainda. Clique em “Novo item”.</div>';
-        audioBox.innerHTML=audios.length?audios.map(itemCard).join(''):'<div class="sn7-store-empty">Nenhum áudio criado ainda. Clique em “Novo áudio”.</div>';
-        historyBox.innerHTML=h.redemptions.length?h.redemptions.map(r=>`<div class="sn7-shop-history-row"><strong>${esc(r.viewer_username)}</strong><span>${esc(r.name)}</span><b>✦ ${Number(r.price||0).toLocaleString('pt-BR')}</b><small>${esc(r.status)}</small></div>`).join(''):'<div class="sn7-store-empty">Nenhum resgate ainda.</div>';
+        try{
+          const d=await api(`/api/store/${encodeURIComponent(bid)}/admin`);
+          const rewards=d.items.filter(i=>i.item_type!=="audio");
+          const audios=d.items.filter(i=>i.item_type==="audio");
+          rewardBox.innerHTML=rewards.length?rewards.map(itemCard).join(''):emptyRewards;
+          audioBox.innerHTML=audios.length?audios.map(itemCard).join(''):emptyAudios;
+        }catch(e){
+          rewardBox.innerHTML=`<div class="sn7-store-empty">${esc(e.message||"Não foi possível carregar os itens.")}</div>`;
+          audioBox.innerHTML=`<div class="sn7-store-empty">${esc(e.message||"Não foi possível carregar os áudios.")}</div>`;
+        }
+
+        try{
+          const h=await api(`/api/store/${encodeURIComponent(bid)}/redemptions?limit=30`);
+          historyBox.innerHTML=h.redemptions.length?h.redemptions.map(r=>`<div class="sn7-shop-history-row"><strong>${esc(r.viewer_username)}</strong><span>${esc(r.name)}</span><b>✦ ${Number(r.price||0).toLocaleString('pt-BR')}</b><small>${esc(r.status)}</small></div>`).join(''):'<div class="sn7-store-empty">Nenhum resgate ainda.</div>';
+        }catch(e){
+          historyBox.innerHTML='<div class="sn7-store-empty">Histórico indisponível.</div>';
+        }
         lastAdminLoad=Date.now();
-      }catch(e){
-        rewardBox.innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`;
-        audioBox.innerHTML="";
-        historyBox.innerHTML='<div class="sn7-store-empty">Histórico indisponível.</div>';
       }finally{
         loading=false;
         adminLoadPromise=null;
@@ -1102,7 +1107,6 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     })();
     return adminLoadPromise;
   }
-
 
   function openForm(kind){
     resetForm();
@@ -1117,7 +1121,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
 
   function init(){
     if(!bid)return;
-    document.querySelectorAll("[data-admin-category]").forEach(card=>card.addEventListener("click",()=>{
+    document.querySelectorAll("[data-admin-category]").forEach(card=>card.addEventListener("click",(event)=>{event.preventDefault();event.stopPropagation();
       const kind=card.dataset.adminCategory,panel=$(`sn7-admin-panel-${kind}`),was=card.getAttribute("aria-expanded")==="true";
       document.querySelectorAll("[data-admin-category]").forEach(x=>x.setAttribute("aria-expanded","false"));
       document.querySelectorAll(".sn7-store-admin-panel").forEach(x=>x.hidden=true);
@@ -1166,6 +1170,10 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
 
     document.querySelectorAll("#admin-reward-items,#admin-audio-items").forEach(container=>container.addEventListener("click",async e=>{
       const toggle=e.target.closest("[data-toggle]"),del=e.target.closest("[data-delete]");
+      if(!toggle&&!del)return;
+      e.preventDefault();
+      e.stopPropagation();
+
       if(toggle){
         const card=e.target.closest(".sn7-shop-item");
         const next=toggle.dataset.active!=="1";setCardLoading(card,true);
@@ -1176,15 +1184,27 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
         }catch(x){setCardLoading(card,false);toast(x.message||"Não foi possível alterar o item.","Não foi possível alterar")}
         return;
       }
-      if(del){
-        let yes=false;
-        if(typeof window.sn7ConfirmAction==="function")yes=await window.sn7ConfirmAction("Excluir item","Deseja excluir este item? O histórico de resgates será preservado e, se já houver resgates, o item precisará ser desativado.","Excluir");
-        else yes=confirm("Deseja excluir este item?");
-        if(!yes)return;
-        const card=e.target.closest(".sn7-shop-item");
-        setCardLoading(card,true);
-        try{await api(`/api/store/${encodeURIComponent(bid)}/items/${del.dataset.delete}`,{method:"DELETE"});await loadStoreAdmin(true);toast("Item excluído.","Loja atualizada")}
-        catch(x){setCardLoading(card,false);toast(x.message||"Não foi possível excluir o item.","Não foi possível excluir")}
+
+      let yes=false;
+      if(typeof window.sn7ConfirmAction==="function")yes=await window.sn7ConfirmAction("Excluir item","Deseja excluir este item? O histórico de resgates será preservado.","Excluir");
+      else yes=confirm("Deseja excluir este item?");
+      if(!yes)return;
+
+      const card=e.target.closest(".sn7-shop-item");
+      setCardLoading(card,true);
+      try{
+        await api(`/api/store/${encodeURIComponent(bid)}/items/${del.dataset.delete}`,{method:"DELETE"});
+        card?.remove();
+        if(container&&!container.querySelector(".sn7-shop-item")){
+          container.innerHTML=container.id==="admin-audio-items"
+            ? '<div class="sn7-store-empty">Nenhum áudio criado ainda. Clique em “Novo áudio”.</div>'
+            : '<div class="sn7-store-empty">Nenhum item criado ainda. Clique em “Novo item”.</div>';
+        }
+        lastAdminLoad=Date.now();
+        toast("Item excluído.","Loja atualizada");
+      }catch(x){
+        setCardLoading(card,false);
+        toast(x.message||"Não foi possível excluir o item.","Não foi possível excluir");
       }
     }));
     const refreshRedemptions=$("sn7-refresh-redemptions");
@@ -1204,7 +1224,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   document.addEventListener("DOMContentLoaded",init);
 })();
 </script>
-<script src="/static/js/app.js?v=sn7-1.9.72-store-performance"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.74-store-ui-fix"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -1792,8 +1812,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
 });
 </script>
-<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.72-store-performance"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.72-store-performance"></script>
+<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.74-store-ui-fix"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.74-store-ui-fix"></script>
 <script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.71-store-ui-buy"></script>
 </body>
 </html>
