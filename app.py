@@ -16,6 +16,7 @@ from routes.obs import obs_bp
 from routes.twitch import twitch_bp
 from routes.youtube import youtube_bp
 from routes.store import store_bp, validate_audio_player_token, _resolve_channel
+from routes.overlay import overlay_bp
 import os
 import re
 
@@ -26,7 +27,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
 )
 
-SN7_VERSION = "1.9.64-dashboard-store-fix"
+SN7_VERSION = "1.9.64-overlay-studio"
 SN7_STATIC_CACHE = "public, max-age=31536000, immutable"
 
 
@@ -49,6 +50,7 @@ app.register_blueprint(obs_bp)
 app.register_blueprint(twitch_bp, url_prefix="/twitch")
 app.register_blueprint(youtube_bp, url_prefix="/youtube")
 app.register_blueprint(store_bp, url_prefix="/api/store")
+app.register_blueprint(overlay_bp)
 
 
 @app.after_request

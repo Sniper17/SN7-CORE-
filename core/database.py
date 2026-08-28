@@ -353,6 +353,23 @@ CREATE TABLE IF NOT EXISTS minigame_runtime (
     PRIMARY KEY (broadcaster_user_id, platform, game)
 );
 
+
+CREATE TABLE IF NOT EXISTS overlay_configs (
+    broadcaster_user_id BIGINT PRIMARY KEY,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS overlay_events (
+    id BIGSERIAL PRIMARY KEY,
+    broadcaster_user_id BIGINT NOT NULL,
+    event_type TEXT NOT NULL,
+    payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_overlay_events_channel_id
+    ON overlay_events(broadcaster_user_id, id);
+
 -- Safe migrations for databases created before Music OAuth/public controls.
 ALTER TABLE music_settings
     ADD COLUMN IF NOT EXISTS public_commands BOOLEAN NOT NULL DEFAULT FALSE;

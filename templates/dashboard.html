@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.63-dashboard-store">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.64-overlay-studio">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}.sn7-music-remove{position:relative;min-width:32px;min-height:32px}.sn7-music-remove[aria-busy="true"]{cursor:wait}.sn7-inline-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.22);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .62s linear infinite;vertical-align:middle}.sn7-music-row-removing{opacity:.45;transform:scale(.985);transition:opacity .12s ease,transform .12s ease}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -223,6 +223,32 @@ body.sn7-modal-open{overflow:hidden}
   @media(prefers-reduced-motion:reduce){.sn7-store-loader-spinner,.sn7-shop-item.sn7-store-card-loading::before{animation:none}.sn7-store-modal,.sn7-store-modal-card,.sn7-store-confirm-modal,.sn7-store-confirm-modal .sn7-store-confirm-card,.sn7-store-login-trigger,.sn7-store-platform-btn,.sn7-store-modal-action button,.sn7-shop-item{transition:none}}
 
 </style>
+
+<style id="sn7-overlay-studio-style">
+.sn7-overlay-studio{max-width:1180px;margin:0 auto}
+.sn7-overlay-head{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:18px}
+.sn7-overlay-head h2{margin:0 0 6px;font-size:25px}.sn7-overlay-head p{margin:0;color:var(--muted);line-height:1.5}
+.sn7-overlay-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px}
+.sn7-overlay-preview-card,.sn7-overlay-side{border:1px solid var(--border);background:#0f131a;border-radius:18px}
+.sn7-overlay-preview-card{padding:16px}.sn7-overlay-preview-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.sn7-overlay-preview{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:13px;border:1px solid rgba(255,255,255,.08);background:
+linear-gradient(45deg,#11151d 25%,transparent 25%) 0 0/24px 24px,
+linear-gradient(-45deg,#11151d 25%,transparent 25%) 0 0/24px 24px,
+linear-gradient(45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,
+linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
+.sn7-overlay-preview:before{content:"TRANSPARENTE • 1920 × 1080";position:absolute;left:12px;top:10px;color:#596273;font-size:8px;font-weight:900;letter-spacing:1.4px;z-index:0}
+.sn7-overlay-element{position:absolute;display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid rgba(155,140,255,.45);border-radius:12px;background:rgba(13,17,24,.88);color:#e9edf5;cursor:grab;user-select:none;box-shadow:0 10px 25px rgba(0,0,0,.22);min-width:110px;min-height:42px;font-size:10px;font-weight:800}
+.sn7-overlay-element.selected{outline:2px solid #a99cff;box-shadow:0 0 0 5px rgba(155,140,255,.10)}
+.sn7-overlay-element small{display:block;color:#7f899b;font-size:8px;margin-top:2px;font-weight:700}
+.sn7-overlay-element .ov-icon{font-size:18px}.sn7-overlay-side{padding:16px}
+.sn7-overlay-side h3{margin:0 0 4px;font-size:14px}.sn7-overlay-side>p{margin:0 0 14px;color:var(--muted);font-size:11px;line-height:1.5}
+.sn7-overlay-elements{display:grid;gap:8px}.sn7-overlay-element-row{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:12px;background:#151a22;cursor:pointer}
+.sn7-overlay-element-row.active{border-color:rgba(155,140,255,.55);background:#191b28}.sn7-overlay-element-row strong{display:block;font-size:11px}.sn7-overlay-element-row small{color:#697386;font-size:9px}
+.sn7-overlay-element-row input{accent-color:#a99cff}.sn7-overlay-actions{display:flex;gap:8px;margin-top:14px}.sn7-overlay-actions .btn{flex:1}
+.sn7-overlay-url{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}.sn7-overlay-url label{display:block;color:#8f98a8;font-size:9px;font-weight:900;letter-spacing:1px;margin-bottom:6px}.sn7-overlay-url-row{display:flex;gap:6px}.sn7-overlay-url-row input{min-width:0;flex:1;background:#0b0e13;border:1px solid var(--border);color:#aeb6c5;border-radius:9px;padding:9px;font-size:9px}.sn7-overlay-help{margin-top:8px;color:#697386;font-size:9px;line-height:1.45}
+@media(max-width:900px){.sn7-overlay-layout{grid-template-columns:1fr}.sn7-overlay-side{order:2}}
+@media(max-width:700px){.sn7-overlay-head{flex-direction:column}.sn7-overlay-actions{flex-direction:column}.sn7-overlay-url-row{flex-direction:column}.sn7-overlay-url-row .btn{width:100%}}
+</style>
 </head>
 <body>
 <div id="sn7BootLoader" class="sn7-boot-loader" aria-hidden="true"><span class="sn7-loader-spinner"></span></div>
@@ -252,6 +278,12 @@ body.sn7-modal-open{overflow:hidden}
           <svg viewBox="0 0 24 24" focusable="false"><path d="M7 20V10h4v10M13 20V4h4v16M3 20h18"/><path d="M5 7h2M15 7h2"/></svg>
         </span>
         <span class="sn7-nav-label" data-short="Ranking">Ranking</span>
+      </button>
+      <button type="button" data-tab="overlay" aria-label="Overlay">
+        <span class="sn7-nav-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M7 15 10.2 11.8l2.4 2.4 2-2 2.4 2.8"/><circle cx="8" cy="9" r="1.2"/></svg>
+        </span>
+        <span class="sn7-nav-label" data-short="Overlay">Overlay</span>
       </button>
       <button type="button" data-tab="store" aria-label="Loja">
         <span class="sn7-nav-icon" aria-hidden="true">
@@ -290,7 +322,7 @@ body.sn7-modal-open{overflow:hidden}
         <span class="sn7-nav-label" data-short="Perfil">Perfil</span>
       </button>
     </nav>
-    <div class="sidebar-footer">SN7 CORE <span>v1.9.63</span></div>
+    <div class="sidebar-footer">SN7 CORE <span>v1.9.64</span></div>
   </aside>
 
   <main>
@@ -343,6 +375,40 @@ body.sn7-modal-open{overflow:hidden}
       </div>
     </section>
 
+
+
+    <section id="overlay" class="tab">
+      <div class="sn7-overlay-studio">
+        <div class="sn7-overlay-head">
+          <div>
+            <div class="eyebrow">OVERLAY STUDIO</div>
+            <h2>Seu overlay, do seu jeito.</h2>
+            <p>Use uma única fonte no OBS e escolha onde cada alerta aparece. Loja, áudios e futuros eventos entram no mesmo overlay.</p>
+          </div>
+          <button class="btn" type="button" id="sn7OverlaySaveTop">Salvar alterações</button>
+        </div>
+        <div class="sn7-overlay-layout">
+          <div class="sn7-overlay-preview-card">
+            <div class="sn7-overlay-preview-toolbar"><strong>Pré-visualização</strong><span class="sn7-automation-badge">1920 × 1080</span></div>
+            <div id="sn7OverlayPreview" class="sn7-overlay-preview"></div>
+          </div>
+          <aside class="sn7-overlay-side">
+            <h3>Elementos do overlay</h3>
+            <p>Ative os elementos que deseja usar. Arraste no preview para posicionar.</p>
+            <div id="sn7OverlayElements" class="sn7-overlay-elements"><div class="sn7-store-empty">Carregando overlay…</div></div>
+            <div class="sn7-overlay-actions">
+              <button type="button" class="btn" id="sn7OverlayReset">Restaurar padrão</button>
+              <button type="button" class="btn" id="sn7OverlaySave">Salvar</button>
+            </div>
+            <div class="sn7-overlay-url">
+              <label>URL PARA O OBS</label>
+              <div class="sn7-overlay-url-row"><input id="sn7OverlayUrl" readonly placeholder="Conecte o OBS no Perfil"><button type="button" class="btn" id="sn7OverlayCopy">Copiar</button></div>
+              <div class="sn7-overlay-help">No OBS: Fonte → Navegador → cole esta URL. A mesma fonte poderá receber música, áudios da Loja e futuros alertas.</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
 
     <section id="store" class="tab">
       <div class="sn7-store-page sn7-dashboard-store-page">
@@ -725,6 +791,61 @@ body.sn7-modal-open{overflow:hidden}
 const SN7_OPEN_PROFILE={{ "true" if request.args.get("profile") or request.args.get("next") == "profile" else "false" }};
 const SN7_OPEN_STORE={{ "true" if request.args.get("store") == "1" else "false" }};
 const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
+
+<script id="sn7-overlay-studio-script">
+(function(){
+  "use strict";
+  const bid=(typeof BROADCASTER_ID!=="undefined"&&BROADCASTER_ID)?String(BROADCASTER_ID):"";
+  const $=id=>document.getElementById(id);
+  const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  const defaults=()=>({version:1,canvas:{width:1920,height:1080},elements:[
+    {id:"store-alert",type:"store_alert",name:"Alertas da Loja",x:1440,y:820,width:400,height:120,enabled:true,settings:{duration:5,text:"{viewer} resgatou {item}"}},
+    {id:"store-audio",type:"store_audio",name:"Áudios da Loja",x:760,y:840,width:400,height:120,enabled:true,settings:{volume:1}},
+    {id:"music",type:"music",name:"Música",x:760,y:40,width:400,height:80,enabled:true,settings:{show:true}}
+  ]});
+  let config=defaults(), selected=null, drag=null, loading=false;
+  function normalize(c){const d=defaults();return {version:1,canvas:d.canvas,elements:Array.isArray(c?.elements)&&c.elements.length?c.elements.map((e,i)=>Object.assign(d.elements[i]||{id:"element-"+i,type:"text",name:"Elemento",x:100,y:100,width:300,height:100,enabled:true,settings:{}},e)):d.elements};}
+  function render(){
+    const preview=$("sn7OverlayPreview"), list=$("sn7OverlayElements"); if(!preview||!list)return;
+    preview.innerHTML="";
+    config.elements.forEach((e)=>{
+      const el=document.createElement("div");el.className="sn7-overlay-element"+(selected===e.id?" selected":"");
+      const icon=e.type==="store_audio"?"🔊":e.type==="store_alert"?"🎁":e.type==="music"?"🎵":"✨";
+      el.innerHTML=`<span class="ov-icon">${icon}</span><span>${esc(e.name)}<small>${e.enabled?"ATIVO":"DESATIVADO"}</small></span>`;
+      const sx=preview.clientWidth/1920, sy=preview.clientHeight/1080;
+      el.style.left=(Number(e.x||0)*sx)+"px";el.style.top=(Number(e.y||0)*sy)+"px";
+      el.style.width=Math.max(70,Number(e.width||300)*sx)+"px";el.style.height=Math.max(38,Number(e.height||100)*sy)+"px";
+      el.addEventListener("pointerdown",ev=>{selected=e.id;drag={id:e.id,startX:ev.clientX,startY:ev.clientY,ox:Number(e.x||0),oy:Number(e.y||0)};el.setPointerCapture?.(ev.pointerId);render();});
+      el.addEventListener("pointermove",ev=>{if(!drag||drag.id!==e.id)return;const nx=Math.max(0,Math.min(1920-e.width,drag.ox+(ev.clientX-drag.startX)/sx));const ny=Math.max(0,Math.min(1080-e.height,drag.oy+(ev.clientY-drag.startY)/sy));e.x=nx;e.y=ny;render();});
+      el.addEventListener("pointerup",()=>{drag=null;});
+      preview.appendChild(el);
+    });
+    list.innerHTML=config.elements.map(e=>`<label class="sn7-overlay-element-row ${selected===e.id?"active":""}" data-id="${esc(e.id)}"><input type="checkbox" ${e.enabled?"checked":""}><span>${e.type==="store_audio"?"🔊":e.type==="store_alert"?"🎁":e.type==="music"?"🎵":"✨"}</span><span><strong>${esc(e.name)}</strong><small>${esc(e.type)}</small></span></label>`).join("");
+    list.querySelectorAll("[data-id]").forEach(row=>{const e=config.elements.find(x=>x.id===row.dataset.id);row.addEventListener("click",ev=>{if(ev.target.tagName==="INPUT"){e.enabled=ev.target.checked;render();return}selected=e.id;render()});});
+  }
+  async function load(){
+    if(!bid){$("sn7OverlayElements").innerHTML='<div class="sn7-store-empty">Conecte sua conta no Perfil para configurar o Overlay.</div>';return}
+    loading=true;
+    try{const r=await fetch(`/api/overlay/api/${encodeURIComponent(bid)}/config`,{credentials:"same-origin",cache:"no-store"});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível carregar o Overlay.");config=normalize(d.config);$("sn7OverlayUrl").value=d.overlay_url||"";render();}
+    catch(e){$("sn7OverlayElements").innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`}
+    finally{loading=false}
+  }
+  async function save(){
+    if(!bid||loading)return;
+    loading=true;[$("sn7OverlaySave"),$("sn7OverlaySaveTop")].forEach(b=>{if(b)b.disabled=true});
+    try{const r=await fetch(`/api/overlay/api/${encodeURIComponent(bid)}/config`,{method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({config})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Falha ao salvar.");config=normalize(d.config);$("sn7OverlayUrl").value=d.overlay_url||$("sn7OverlayUrl").value;render();if(typeof window.sn7ShowOperationLoader==="function")window.sn7ShowOperationLoader(false);}
+    catch(e){if(typeof window.sn7ShowToast==="function")window.sn7ShowToast(e.message);else alert(e.message)}
+    finally{loading=false;[$("sn7OverlaySave"),$("sn7OverlaySaveTop")].forEach(b=>{if(b)b.disabled=false})}
+  }
+  $("sn7OverlaySave")?.addEventListener("click",save);$("sn7OverlaySaveTop")?.addEventListener("click",save);
+  $("sn7OverlayReset")?.addEventListener("click",()=>{config=defaults();selected=null;render()});
+  $("sn7OverlayCopy")?.addEventListener("click",async()=>{const v=$("sn7OverlayUrl")?.value||"";if(!v)return;try{await navigator.clipboard.writeText(v);if(typeof window.sn7ShowToast==="function")window.sn7ShowToast("URL do Overlay copiada.");}catch(_){$("sn7OverlayUrl").select();document.execCommand("copy")}});
+  window.loadOverlayStudio=load;
+  window.addEventListener("resize",()=>render());
+  document.addEventListener("DOMContentLoaded",load);
+})();
+</script>
+
 <script id="sn7-store-admin-script">
 (function(){
   "use strict";
@@ -823,7 +944,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   document.addEventListener("DOMContentLoaded",()=>{init(); if(document.querySelector('nav button[data-tab="store"]')?.classList.contains('active'))loadStoreAdmin();});
 })();
 </script>
-<script src="/static/js/app.js?v=sn7-1.9.63-dashboard-store"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.64-overlay-studio"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -1411,8 +1532,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
 });
 </script>
-<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.63-dashboard-store"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.63-dashboard-store"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.63-dashboard-store"></script>
+<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.64-overlay-studio"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.64-overlay-studio"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.64-overlay-studio"></script>
 </body>
 </html>

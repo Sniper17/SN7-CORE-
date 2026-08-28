@@ -4,16 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>SN7 Core • Player</title>
+<title>SN7 Core • Overlay</title>
 <style>
 :root{color-scheme:dark}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#fff}body{display:grid;place-items:center}.wrap{width:100%;height:100%;display:grid;place-items:center;padding:18px}.card{width:min(760px,100%);min-height:170px;padding:22px;border:1px solid rgba(255,255,255,.10);border-radius:20px;background:linear-gradient(145deg,rgba(13,17,24,.96),rgba(8,10,15,.94));box-shadow:0 18px 60px rgba(0,0,0,.28);backdrop-filter:blur(8px)}.top{display:flex;align-items:center;gap:14px}.art{width:58px;height:58px;flex:0 0 58px;border-radius:16px;display:grid;place-items:center;background:#171d28;border:1px solid rgba(255,255,255,.08);font-size:25px}.meta{min-width:0;flex:1}.kicker{display:block;color:#6ee7a8;font-size:10px;font-weight:800;letter-spacing:1.4px;margin-bottom:5px}.title{font-size:19px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.artist{margin-top:3px;color:#9ba5b5;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.status{color:#9ba5b5;font-size:11px;text-align:right;white-space:nowrap}.progress{height:4px;background:#232a36;border-radius:99px;overflow:hidden;margin:18px 0 9px}.bar{height:100%;width:0;background:#5ee391;border-radius:inherit;transition:width .2s linear}.times{display:flex;justify-content:space-between;color:#6f798a;font-size:10px}.hidden-media{position:absolute;width:1px;height:1px;opacity:.001;pointer-events:none;left:-10000px;top:-10000px}.empty{color:#aab3c1;text-align:center;padding:25px 5px}.error{color:#ffb2b9;text-align:center;padding:25px 5px}.queue{margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.07);display:grid;gap:7px}.queue-row{display:grid;grid-template-columns:24px 1fr auto;gap:8px;align-items:center;font-size:11px;color:#aeb6c5}.queue-row strong{color:#e8ecf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.queue-row small{color:#697386}.queue-row .num{color:#667083;text-align:center}.unsupported{color:#f2c98b}.invalid{width:min(560px,100%);padding:25px;border:1px solid rgba(255,255,255,.1);border-radius:18px;background:#0c1017;text-align:center}.invalid h1{font-size:20px;margin:0 0 8px}.invalid p{margin:0;color:#8e98a8;font-size:12px}@media(max-width:560px){.card{padding:17px;border-radius:16px}.title{font-size:16px}.status{display:none}.art{width:50px;height:50px;flex-basis:50px}}
-</style>
+.overlay-stage{position:relative;width:100%;height:100%;overflow:hidden}.overlay-widget{position:absolute;z-index:10;pointer-events:none}.store-alert-widget{display:none;align-items:center;gap:12px;padding:14px 18px;border:1px solid rgba(155,140,255,.42);border-radius:16px;background:rgba(12,15,22,.92);box-shadow:0 18px 55px rgba(0,0,0,.32);backdrop-filter:blur(8px);opacity:0;transform:translateY(8px);transition:opacity .2s ease,transform .2s ease}.store-alert-widget.show{display:flex;opacity:1;transform:none}.store-alert-icon{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#171d28;font-size:22px;flex:0 0 44px}.store-alert-text strong{display:block;font-size:13px}.store-alert-text small{display:block;margin-top:4px;color:#9ba5b5;font-size:10px}.store-audio-status{display:none;padding:10px 14px;border-radius:12px;background:rgba(12,15,22,.88);border:1px solid rgba(255,255,255,.08);font-size:10px;color:#d9deea;box-shadow:0 12px 35px rgba(0,0,0,.24)}.store-audio-status.show{display:block}.studio-placeholder{display:none}.overlay-stage .card{position:absolute;margin:0;z-index:5;pointer-events:none;transform:none;transition:left .15s ease,top .15s ease,width .15s ease}.overlay-stage>.wrap{position:static;padding:0;width:100%;height:100%}</style>
 </head>
 <body>
 {% if invalid %}
 <div class="wrap"><div class="invalid"><h1>Conexão OBS inválida</h1><p>Gere uma nova conexão no perfil do SN7 Core.</p></div></div>
 {% else %}
-<div class="wrap"><div class="card" id="playerCard">
+<div class="overlay-stage" id="overlayStage"><div class="wrap"><div class="card" id="playerCard">
   <div class="top">
     <div class="art" id="art">♫</div>
     <div class="meta"><span class="kicker" id="kicker">SN7 CORE • PLAYER</span><div class="title" id="title">Aguardando música</div><div class="artist" id="artist">A fila está pronta.</div></div>
@@ -23,8 +23,12 @@
   <div class="times"><span id="elapsed">0:00</span><span id="duration">0:00</span></div>
   <div class="queue" id="queue"></div>
 </div></div>
+  <div id="storeAlert" class="overlay-widget store-alert-widget"><div class="store-alert-icon" id="storeAlertIcon">🎁</div><div class="store-alert-text"><strong id="storeAlertTitle">Novo resgate</strong><small id="storeAlertSub">Aguardando…</small></div></div>
+  <div id="storeAudioStatus" class="overlay-widget store-audio-status">🔊 Áudio da Loja</div>
+</div>
 <div id="youtube" class="hidden-media"></div>
 <audio id="audio" class="hidden-media" preload="auto" playsinline></audio>
+<audio id="storeAudio" class="hidden-media" preload="auto" playsinline></audio>
 <script>
 (() => {
   "use strict";
@@ -36,14 +40,94 @@
     spotifyState:null, spotifyInitPromise:null, spotifyToken:null,
     audio:null, audioUrl:null, lastEndedId:null, loadError:false,
     lastSeekRevision:0, progressBusy:false, lastProgressSent:0, loadingCurrent:false,
-    clockPosition:0, clockDuration:0, clockAt:0, clockRunning:false
+    clockPosition:0, clockDuration:0, clockAt:0, clockRunning:false, overlayConfig:null, lastOverlayEvent:0, storeAudio:null, storeAudioBusy:false
   };
   const $ = id => document.getElementById(id);
+  state.overlayConfig={{ (overlay_config or {})|tojson }};
+  applyOverlayLayout();
+  window.addEventListener("resize",applyOverlayLayout);
+
   const fmt = value => {
     const s=Math.max(0,Math.floor(Number(value)||0));
     return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
   };
   const esc = value => String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
+
+
+  function applyOverlayLayout(){
+    const cfg=state.overlayConfig||{};
+    const elements=Array.isArray(cfg.elements)?cfg.elements:[];
+    const stage=$("overlayStage");
+    if(!stage)return;
+    const sw=stage.clientWidth||window.innerWidth||1920, sh=stage.clientHeight||window.innerHeight||1080;
+    const byType={};
+    elements.forEach(e=>{if(e?.type)byType[e.type]=e;});
+    const music=byType.music;
+    const card=$("playerCard");
+    if(card&&music){
+      card.style.left=((Number(music.x||0)/1920)*sw)+"px";
+      card.style.top=((Number(music.y||0)/1080)*sh)+"px";
+      card.style.width=Math.max(120,(Number(music.width||760)/1920)*sw)+"px";
+      card.style.minHeight=Math.max(90,(Number(music.height||170)/1080)*sh)+"px";
+      card.style.display=music.enabled===false?"none":"block";
+    }
+    const alert=byType.store_alert, aw=$("storeAlert");
+    if(aw&&alert){aw.style.left=((Number(alert.x||0)/1920)*sw)+"px";aw.style.top=((Number(alert.y||0)/1080)*sh)+"px";aw.style.width=Math.max(120,(Number(alert.width||400)/1920)*sw)+"px";aw.style.minHeight=Math.max(42,(Number(alert.height||120)/1080)*sh)+"px";if(alert.enabled===false)aw.style.display="none";}
+    const audio=byType.store_audio, as=$("storeAudioStatus");
+    if(as&&audio){as.style.left=((Number(audio.x||0)/1920)*sw)+"px";as.style.top=((Number(audio.y||0)/1080)*sh)+"px";as.style.width=Math.max(120,(Number(audio.width||400)/1920)*sw)+"px";if(audio.enabled===false)as.style.display="none";}
+  }
+
+  function configuredElement(type){
+    return (state.overlayConfig?.elements||[]).find(e=>e.type===type && e.enabled!==false);
+  }
+
+  function showStoreAlert(p){
+    if(!configuredElement("store_alert"))return;
+    const box=$("storeAlert");if(!box)return;
+    $("storeAlertIcon").textContent=p.item_type==="audio"?"🔊":"🎁";
+    $("storeAlertTitle").textContent=String(p.item||"Nova recompensa");
+    $("storeAlertSub").textContent=`${String(p.viewer||"Alguém")} • ${Number(p.price||0).toLocaleString("pt-BR")} pontos`;
+    box.classList.add("show");
+    clearTimeout(state.storeAlertTimer);
+    state.storeAlertTimer=setTimeout(()=>box.classList.remove("show"),Math.max(2,Number(configuredElement("store_alert")?.settings?.duration||5))*1000);
+  }
+
+  async function playStoreAudio(p){
+    if(!p.audio_url||!configuredElement("store_audio"))return;
+    const audio=$("storeAudio");if(!audio)return;
+    try{
+      state.storeAudioBusy=true;
+      const wasPlaying=state.playing, oldVolume=state.volume;
+      const el=configuredElement("store_audio"), targetVolume=Math.max(0,Math.min(1,Number(el?.settings?.volume ?? 1)));
+      if(wasPlaying)syncVolume(Math.max(1,Math.round(oldVolume*0.18)));
+      audio.src=p.audio_url;audio.volume=targetVolume;audio.currentTime=0;
+      $("storeAudioStatus").classList.add("show");
+      await audio.play();
+      await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve;});
+      $("storeAudioStatus").classList.remove("show");
+      if(wasPlaying)syncVolume(oldVolume);
+    }catch(err){console.warn("[SN7 OVERLAY AUDIO]",err);$("storeAudioStatus")?.classList.remove("show");}
+    finally{state.storeAudioBusy=false;}
+  }
+
+  function handleOverlayEvent(ev){
+    if(!ev||ev.id<=state.lastOverlayEvent)return;
+    state.lastOverlayEvent=Math.max(state.lastOverlayEvent,Number(ev.id)||0);
+    if(ev.type!=="store_redemption")return;
+    const p=ev.payload||{};
+    showStoreAlert(p);
+    if(p.item_type==="audio")playStoreAudio(p);
+  }
+
+  async function pollOverlayEvents(){
+    if(!TOKEN)return;
+    try{
+      const r=await fetch(`/events/${encodeURIComponent(TOKEN)}?after=${encodeURIComponent(state.lastOverlayEvent)}`,{cache:"no-store"});
+      if(!r.ok)return;
+      const d=await r.json().catch(()=>({}));
+      (d.events||[]).forEach(handleOverlayEvent);
+    }catch(_){}
+  }
 
   function renderQueue(items){
     const box=$("queue"); if(!box)return;
@@ -499,9 +583,11 @@
 
   // O backend sincroniza fila/estado; o relógio acima permanece local e suave.
   setInterval(()=>poll().catch(()=>{}),1200);
+  setInterval(()=>pollOverlayEvents().catch(()=>{}),700);
   setInterval(()=>heartbeat(),2000);
   heartbeat();
   poll().catch(showError);
+  pollOverlayEvents().catch(()=>{});
 })();
 </script>
 {% endif %}

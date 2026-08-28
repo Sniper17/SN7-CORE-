@@ -465,6 +465,22 @@ def redeem(target,item_id):
     # O resgate já foi confirmado no banco; o aviso de chat é assíncrono para
     # nunca atrasar nem impedir a compra caso uma plataforma esteja lenta.
     _announce_purchase_async(platform, bid, username, item[2], price)
+    try:
+        from routes.overlay import emit_overlay_event
+        emit_overlay_event(bid, "store_redemption", {
+            "redemption_id": redemption_id,
+            "item_id": int(item_id),
+            "item_type": str(item[1] or "reward"),
+            "item": str(item[2] or ""),
+            "description": str(item[3] or ""),
+            "image_url": str(item[4] or ""),
+            "audio_url": str(item[5] or ""),
+            "price": price,
+            "viewer": username,
+            "platform": platform,
+        })
+    except Exception as exc:
+        print(f"[STORE-OVERLAY] evento de resgate falhou: {exc}", flush=True)
     return jsonify({"ok":True,"redemption_id":redemption_id,"points":new_points,"stock":new_stock,"item_id":int(item_id)})
 
 

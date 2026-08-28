@@ -548,6 +548,51 @@ def obs_overlay(token):
         response.status_code = 404
         response.headers['Cache-Control'] = 'no-store, max-age=0'
         return response
-    response = render_template('overlay.html', invalid=False, token=token)
+    try:
+        from routes.overlay import _load_config
+        overlay_config = _load_config(conn['broadcaster_user_id'])
+    except Exception as exc:
+        print(f'[OBS-OVERLAY] configuração indisponível: {exc}', flush=True)
+        overlay_config = None
+    response = render_template(
+        'overlay.html',
+        invalid=False,
+        token=token,
+        broadcaster_id=conn['broadcaster_user_id'],
+        overlay_config=overlay_config,
+    )
     response.headers['Cache-Control'] = 'no-store, max-age=0'
     return response
+
+
+@obs_bp.get('/events/<token>')
+def overlay_events(token):
+    """Eventos do Overlay Studio autenticado pelo mesmo token do OBS."""
+    if not _allow_overlay_request(token):
+        return jsonify({'ok': False, 'error': 'Muitas solicitações. Aguarde alguns segundos.'}), 429
+    conn = _find_by_token(token)
+    if not conn:
+        return jsonify({'ok': False, 'error': 'Conexão OBS inválida.'}), 404
+    try:
+        after = max(0, int(request.args.get('after', 0)))
+    except (TypeError, ValueError):
+        after = 0
+    try:
+        db = get_conn()
+        try:
+            with db.cursor() as cur:
+                cur.execute("""SELECT id,event_type,payload,created_at
+                                 FROM overlay_events
+                                WHERE broadcaster_user_id=%s AND id>%s
+                                ORDER BY id ASC LIMIT 50""",
+                            (int(conn['broadcaster_user_id']), after))
+                rows = cur.fetchall()
+        finally:
+            db.close()
+        return jsonify({'ok': True, 'events': [
+            {'id': int(r[0]), 'type': r[1], 'payload': r[2], 'created_at': r[3].isoformat()}
+            for r in rows
+        ]})
+    except Exception as exc:
+        print(f'[OBS-OVERLAY] eventos erro: {exc}', flush=True)
+        return jsonify({'ok': False, 'error': 'Eventos temporariamente indisponíveis.'}), 503
