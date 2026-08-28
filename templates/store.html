@@ -107,7 +107,23 @@
   .sn7-store-confirm-card{width:min(440px,100%);background:#11151d;border:1px solid #2a303c;border-radius:18px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.5);box-sizing:border-box}.sn7-store-confirm-card h3{margin:0 0 8px;font-size:19px}.sn7-store-confirm-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}.sn7-store-confirm-modal{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(3,5,9,.76);backdrop-filter:blur(7px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s cubic-bezier(.22,.8,.24,1),visibility 0s linear .16s}.sn7-store-confirm-modal.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .16s cubic-bezier(.22,.8,.24,1)}.sn7-store-confirm-modal.closing{opacity:0;visibility:hidden;pointer-events:none}.sn7-store-confirm-modal .sn7-store-confirm-card{transform:translateY(8px) scale(.985);opacity:.98;transition:transform .18s cubic-bezier(.22,.8,.24,1),opacity .18s cubic-bezier(.22,.8,.24,1)}.sn7-store-confirm-modal.open .sn7-store-confirm-card{transform:translateY(0) scale(1);opacity:1}
   .sn7-shop-item{position:relative;transition:transform .16s cubic-bezier(.22,.8,.24,1),border-color .16s ease,box-shadow .16s ease}.sn7-shop-item:hover{transform:translateY(-1px);border-color:#394253;box-shadow:0 16px 36px rgba(0,0,0,.16)}.sn7-shop-item.sn7-store-card-loading{pointer-events:none}.sn7-shop-item.sn7-store-card-loading::after{content:"";position:absolute;inset:0;z-index:30;background:rgba(11,13,18,.46);backdrop-filter:blur(2px);border-radius:inherit}.sn7-shop-item.sn7-store-card-loading::before{content:"";position:absolute;left:50%;top:50%;width:27px;height:27px;margin:-13.5px 0 0 -13.5px;z-index:31;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7StoreCardSpin .72s linear infinite;box-sizing:border-box}@keyframes sn7StoreCardSpin{to{transform:rotate(360deg)}}
   .sn7-store-logged-status{margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid rgba(167,139,250,.16);border-radius:11px;background:rgba(167,139,250,.045);color:#aeb6c5;font-size:10px}.sn7-store-logged-status strong{color:#dfe3ec}.sn7-store-logged-status button{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025);color:#aeb6c5;border-radius:9px;padding:7px 10px;font:inherit;font-size:9px;font-weight:800;cursor:pointer}.sn7-store-logged-status button:hover{background:#1b202a;color:#fff}
-  @media(max-width:700px){.sn7-store-public-topbar{top:10px;right:10px}.sn7-store-public-body .sn7-store-page{padding-top:62px}.sn7-store-login-trigger{min-width:68px}.sn7-store-account-badge{max-width:155px}.sn7-store-modal{align-items:flex-start;padding:10px}.sn7-store-modal-card{margin:auto 0;padding:22px 18px calc(20px + env(safe-area-inset-bottom));max-height:calc(100svh - 20px);overflow:auto}.sn7-store-modal-action{flex-direction:column}.sn7-store-modal-action button{width:100%}.sn7-store-confirm-modal{align-items:flex-start;padding:10px}.sn7-store-confirm-card{margin:auto 0}.sn7-store-logged-status{align-items:flex-start;flex-direction:column}.sn7-store-logged-status button{width:100%}}
+  
+
+   /* 1.9.75 — Loja pública mobile: abas separadas para itens e áudios. */
+   .sn7-mobile-store-nav{display:none}
+   @media(max-width:700px){
+     .sn7-store-public-body .sn7-store-page{padding-bottom:108px}
+     .sn7-mobile-store-nav{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:1000;display:grid;grid-template-columns:1fr 1fr;gap:4px;min-height:66px;padding:5px;border:1px solid rgba(255,255,255,.08);border-radius:18px;background:rgba(17,21,29,.94);backdrop-filter:blur(14px);box-shadow:0 16px 42px rgba(0,0,0,.42);box-sizing:border-box;isolation:isolate}
+     .sn7-mobile-store-nav-indicator{position:absolute;inset:5px auto 5px 5px;width:calc(50% - 7px);border-radius:14px;background:linear-gradient(145deg,rgba(155,140,255,.18),rgba(155,140,255,.07));border:1px solid rgba(155,140,255,.30);box-shadow:0 8px 22px rgba(0,0,0,.16);transition:transform .18s cubic-bezier(.22,.8,.24,1);pointer-events:none;z-index:0}
+     .sn7-mobile-store-nav[data-active="audio"] .sn7-mobile-store-nav-indicator{transform:translateX(calc(100% + 4px))}
+     .sn7-mobile-store-nav button{position:relative;z-index:1;appearance:none;border:0;background:transparent;color:#8f98a8;min-width:0;height:54px;border-radius:14px;padding:5px 8px;display:flex;align-items:center;justify-content:center;gap:5px;flex-direction:column;font:inherit;font-size:9px;font-weight:800;cursor:pointer}
+     .sn7-mobile-store-nav button.active{color:#eeeafc}.sn7-mobile-store-nav-icon{font-size:18px;line-height:20px}.sn7-mobile-store-nav button span:last-child{line-height:13px}
+     .sn7-store-public-body .sn7-public-store-category[data-mobile-store-page="audio"]{display:none}
+     .sn7-store-public-body .sn7-public-store-category.mobile-store-tab-hidden{display:none}
+     .sn7-store-public-body .sn7-public-store-category.mobile-store-tab-active{display:block}
+   }
+
+   @media(max-width:700px){.sn7-store-public-topbar{top:10px;right:10px}.sn7-store-public-body .sn7-store-page{padding-top:62px}.sn7-store-login-trigger{min-width:68px}.sn7-store-account-badge{max-width:155px}.sn7-store-modal{align-items:flex-start;padding:10px}.sn7-store-modal-card{margin:auto 0;padding:22px 18px calc(20px + env(safe-area-inset-bottom));max-height:calc(100svh - 20px);overflow:auto}.sn7-store-modal-action{flex-direction:column}.sn7-store-modal-action button{width:100%}.sn7-store-confirm-modal{align-items:flex-start;padding:10px}.sn7-store-confirm-card{margin:auto 0}.sn7-store-logged-status{align-items:flex-start;flex-direction:column}.sn7-store-logged-status button{width:100%}}
   @media(prefers-reduced-motion:reduce){.sn7-store-loader-spinner,.sn7-shop-item.sn7-store-card-loading::before{animation:none}.sn7-confirm-modal,.sn7-confirm-card,.sn7-store-modal,.sn7-store-modal-card,.sn7-store-confirm-modal,.sn7-store-confirm-modal .sn7-store-confirm-card,.sn7-store-login-trigger,.sn7-store-platform-btn,.sn7-store-modal-action button,.sn7-shop-item{transition:none}}
 
 </style>
@@ -239,7 +255,7 @@
 
       <section class="sn7-store-builder" id="store-public" {% if broadcaster_id %}hidden{% endif %}>
         <div class="sn7-store-builder-head"><div><div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.2 10.2c.8-1.1 4.8-1.1 5.6.3.9 1.7-1.1 2.4-2.8 2.7-1.7.3-3.7.8-2.9 2.5.7 1.5 4.9 1.6 5.8.1"/></svg></div><div><strong>Recompensas disponíveis</strong><p>Use seus pontos neste canal para resgatar os itens.</p></div></div><div id="public-wallet" class="sn7-store-wallet">—</div></div>
-        <section class="sn7-public-store-category" aria-label="Itens da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🎁</span><strong>Itens da Loja</strong></div><span>Recompensas compráveis com pontos</span></div><div id="public-reward-items" class="sn7-store-items-grid"><div class="sn7-store-items-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div></section><section class="sn7-public-store-category" aria-label="Áudios da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🔊</span><strong>Áudios da Loja</strong></div><span>Sustos, sons e efeitos para resgatar</span></div><div id="public-audio-items" class="sn7-store-items-grid"><div class="sn7-store-items-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div></section>
+        <section class="sn7-public-store-category" data-mobile-store-page="reward" aria-label="Itens da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🎁</span><strong>Itens da Loja</strong></div><span>Recompensas compráveis com pontos</span></div><div id="public-reward-items" class="sn7-store-items-grid"><div class="sn7-store-items-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div></section><section class="sn7-public-store-category" data-mobile-store-page="audio" aria-label="Áudios da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🔊</span><strong>Áudios da Loja</strong></div><span>Sustos, sons e efeitos para resgatar</span></div><div id="public-audio-items" class="sn7-store-items-grid"><div class="sn7-store-items-skeleton" aria-hidden="true"><span></span><span></span><span></span></div></div></section>
       </section>
 
       <section class="sn7-store-builder" id="store-history" {% if not broadcaster_id %}hidden{% endif %}>
@@ -273,6 +289,11 @@
     </div>
     <section class="sn7-public-store-category" aria-label="Itens da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🎁</span><strong>Itens da Loja</strong></div><span>Recompensas compráveis com pontos</span></div><div id="public-reward-items" class="sn7-store-items-grid"></div></section><section class="sn7-public-store-category" aria-label="Áudios da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🔊</span><strong>Áudios da Loja</strong></div><span>Sustos, sons e efeitos para resgatar</span></div><div id="public-audio-items" class="sn7-store-items-grid"></div></section>
   </section>
+  <nav class="sn7-mobile-store-nav" id="sn7MobileStoreNav" aria-label="Seções da Loja">
+    <span class="sn7-mobile-store-nav-indicator" aria-hidden="true"></span>
+    <button type="button" class="active" data-mobile-store-tab="reward" aria-selected="true"><span class="sn7-mobile-store-nav-icon" aria-hidden="true">🎁</span><span>Itens</span></button>
+    <button type="button" data-mobile-store-tab="audio" aria-selected="false"><span class="sn7-mobile-store-nav-icon" aria-hidden="true">🔊</span><span>Áudios</span></button>
+  </nav>
 </div>
 {% endif %}
 
@@ -310,6 +331,22 @@
   const $=id=>document.getElementById(id);
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const api=(u,o)=>fetch(u,Object.assign({headers:{'Content-Type':'application/json'},credentials:'same-origin',cache:'default'},o||{})).then(async r=>{let d={};try{d=await r.json()}catch(_){};if(!r.ok)throw Object.assign(new Error(d.error||'Erro na Loja'),{status:r.status,data:d});return d});
+  function setupMobileStoreTabs(){
+    const nav=$('sn7MobileStoreNav'); if(!nav)return;
+    const sections=document.querySelectorAll('#store-public .sn7-public-store-category[data-mobile-store-page]');
+    const buttons=nav.querySelectorAll('[data-mobile-store-tab]');
+    const apply=kind=>{
+      nav.dataset.active=kind;
+      buttons.forEach(b=>{const active=b.dataset.mobileStoreTab===kind;b.classList.toggle('active',active);b.setAttribute('aria-selected',active?'true':'false')});
+      sections.forEach(s=>{const active=s.dataset.mobileStorePage===kind;s.classList.toggle('mobile-store-tab-active',active);s.classList.toggle('mobile-store-tab-hidden',!active)});
+      try{sessionStorage.setItem('sn7_store_mobile_tab',kind)}catch(_){}
+      window.scrollTo({top:0,behavior:'smooth'});
+    };
+    let initial='reward'; try{if(sessionStorage.getItem('sn7_store_mobile_tab')==='audio')initial='audio'}catch(_){}
+    buttons.forEach(b=>b.addEventListener('click',()=>apply(b.dataset.mobileStoreTab)));
+    apply(initial);
+  }
+
   let publicLoadPromise=null;
   let publicLoadedAt=0;
   let publicLoadedPayload=null;
@@ -498,7 +535,8 @@
        try{const d=await api(`/api/store/${bid}/redemptions?limit=30`);$('admin-redemptions').innerHTML=d.redemptions.length?d.redemptions.map(r=>`<div class="sn7-shop-history-row"><strong>${esc(r.viewer_username)}</strong><span>${esc(r.name)}</span><b>✦ ${r.price.toLocaleString('pt-BR')}</b><small>${esc(r.status)}</small></div>`).join(''):'<div class="sn7-store-empty">Nenhum resgate ainda.</div>';}catch(e){$('admin-redemptions').innerHTML='<div class="sn7-store-empty">Histórico indisponível.</div>'}
        finally{setStoreBootDone()}
      }
-    update();loadAdmin();
+    setupMobileStoreTabs();
+  update();loadAdmin();
   }else loadPublic();
 })();
 </script>
