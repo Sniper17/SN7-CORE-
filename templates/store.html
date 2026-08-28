@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>Loja · SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.72-store-performance">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.77-mobile-store-tabs">
 <style>
   .sn7-store-page{width:100%;max-width:1080px;margin:0 auto}
   .sn7-store-hero{position:relative;overflow:hidden;padding:34px;min-height:300px;display:flex;align-items:center;background:radial-gradient(700px 260px at 82% 0%,rgba(155,140,255,.14),transparent 62%),linear-gradient(145deg,#141923,#0e1219 75%);border:1px solid var(--border);border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.24),inset 0 1px 0 rgba(255,255,255,.035)}
@@ -118,9 +118,13 @@
      .sn7-mobile-store-nav[data-active="audio"] .sn7-mobile-store-nav-indicator{transform:translateX(calc(100% + 4px))}
      .sn7-mobile-store-nav button{position:relative;z-index:1;appearance:none;border:0;background:transparent;color:#8f98a8;min-width:0;height:54px;border-radius:14px;padding:5px 8px;display:flex;align-items:center;justify-content:center;gap:5px;flex-direction:column;font:inherit;font-size:9px;font-weight:800;cursor:pointer}
      .sn7-mobile-store-nav button.active{color:#eeeafc}.sn7-mobile-store-nav-icon{font-size:18px;line-height:20px}.sn7-mobile-store-nav button span:last-child{line-height:13px}
-     .sn7-store-public-body .sn7-public-store-category[data-mobile-store-page="audio"]{display:none}
-     .sn7-store-public-body .sn7-public-store-category.mobile-store-tab-hidden{display:none}
-     .sn7-store-public-body .sn7-public-store-category.mobile-store-tab-active{display:block}
+     .sn7-store-public-body #store-public .sn7-public-store-category{display:none;margin-top:14px}
+     .sn7-store-public-body #store-public .sn7-public-store-category.mobile-store-tab-hidden{display:none}
+     .sn7-store-public-body #store-public .sn7-public-store-category.mobile-store-tab-active{display:block}
+     .sn7-store-public-body #store-public .sn7-store-items-grid{grid-template-columns:1fr;margin-top:14px}
+     .sn7-store-public-body #store-public .sn7-store-items-skeleton{grid-template-columns:1fr}
+     .sn7-store-public-body #store-public .sn7-store-items-skeleton span{height:230px}
+     .sn7-store-public-body #store-public .sn7-public-store-category:first-of-type{margin-top:14px}
    }
 
    @media(max-width:700px){.sn7-store-public-topbar{top:10px;right:10px}.sn7-store-public-body .sn7-store-page{padding-top:62px}.sn7-store-login-trigger{min-width:68px}.sn7-store-account-badge{max-width:155px}.sn7-store-modal{align-items:flex-start;padding:10px}.sn7-store-modal-card{margin:auto 0;padding:22px 18px calc(20px + env(safe-area-inset-bottom));max-height:calc(100svh - 20px);overflow:auto}.sn7-store-modal-action{flex-direction:column}.sn7-store-modal-action button{width:100%}.sn7-store-confirm-modal{align-items:flex-start;padding:10px}.sn7-store-confirm-card{margin:auto 0}.sn7-store-logged-status{align-items:flex-start;flex-direction:column}.sn7-store-logged-status button{width:100%}}
@@ -287,7 +291,7 @@
       </div>
       <div id="public-wallet" class="sn7-store-wallet">—</div>
     </div>
-    <section class="sn7-public-store-category" aria-label="Itens da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🎁</span><strong>Itens da Loja</strong></div><span>Recompensas compráveis com pontos</span></div><div id="public-reward-items" class="sn7-store-items-grid"></div></section><section class="sn7-public-store-category" aria-label="Áudios da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🔊</span><strong>Áudios da Loja</strong></div><span>Sustos, sons e efeitos para resgatar</span></div><div id="public-audio-items" class="sn7-store-items-grid"></div></section>
+    <section class="sn7-public-store-category mobile-store-tab-active" data-mobile-store-page="reward" aria-label="Itens da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🎁</span><strong>Itens da Loja</strong></div><span>Recompensas compráveis com pontos</span></div><div id="public-reward-items" class="sn7-store-items-grid"></div></section><section class="sn7-public-store-category mobile-store-tab-hidden" data-mobile-store-page="audio" aria-label="Áudios da Loja"><div class="sn7-store-category-head"><div class="sn7-public-store-category-title"><span aria-hidden="true">🔊</span><strong>Áudios da Loja</strong></div><span>Sustos, sons e efeitos para resgatar</span></div><div id="public-audio-items" class="sn7-store-items-grid"></div></section>
   </section>
   <nav class="sn7-mobile-store-nav" id="sn7MobileStoreNav" aria-label="Seções da Loja">
     <span class="sn7-mobile-store-nav-indicator" aria-hidden="true"></span>
@@ -353,8 +357,10 @@
   function setViewerText(text){if($('store-viewer-text'))$('store-viewer-text').textContent=text}
   function showStoreSkeletons(){
     const skeleton='<div class="sn7-store-items-skeleton" aria-hidden="true"><span></span><span></span><span></span></div>';
-    if($('public-reward-items') && !$('public-reward-items').children.length)$('public-reward-items').innerHTML=skeleton;
-    if($('public-audio-items') && !$('public-audio-items').children.length)$('public-audio-items').innerHTML=skeleton;
+    const active=document.querySelector('#store-public .sn7-public-store-category.mobile-store-tab-active');
+    const targetId=active?.dataset.mobileStorePage==='audio'?'public-audio-items':'public-reward-items';
+    const targetEl=$(targetId);
+    if(targetEl && !targetEl.children.length)targetEl.innerHTML=skeleton;
   }
   function itemCard(i,adminMode){
     const img=i.image_url?`<img src="${esc(i.image_url)}" alt="" loading="lazy" decoding="async">`:'<span class="sn7-store-card-placeholder">✦</span>';
@@ -537,7 +543,10 @@
      }
     setupMobileStoreTabs();
   update();loadAdmin();
-  }else loadPublic();
+  }else{
+    setupMobileStoreTabs();
+    loadPublic();
+  }
 })();
 </script>
 
