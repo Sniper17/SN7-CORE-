@@ -24,6 +24,7 @@
   .sn7-store-card-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:#1b202a;color:#b7abff;margin-bottom:15px}
   .sn7-store-card-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .sn7-store-card strong{display:block;font-size:14px;margin-bottom:5px}.sn7-store-card p{margin:0;color:var(--muted);font-size:11px;line-height:1.5}
+  .sn7-store-category{margin-top:20px}.sn7-store-category-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 2px 9px}.sn7-store-category-head strong{font-size:13px}.sn7-store-category-head span{font-size:9px;color:var(--muted)}
   .sn7-store-safe{margin-top:14px;padding:14px 16px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:rgba(10,13,18,.48);color:#8993a4;font-size:11px;line-height:1.6}
   .sn7-store-safe strong{color:#cbd2de}
   .sn7-store-nav-active{background:linear-gradient(145deg,rgba(155,140,255,.18),rgba(155,140,255,.055))!important;border-color:rgba(155,140,255,.23)!important;color:#eef0f6!important;box-shadow:0 9px 22px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.05)!important}
@@ -213,7 +214,7 @@
 
       <section class="sn7-store-builder" id="store-public" {% if broadcaster_id %}hidden{% endif %}>
         <div class="sn7-store-builder-head"><div><div class="sn7-store-builder-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.2 10.2c.8-1.1 4.8-1.1 5.6.3.9 1.7-1.1 2.4-2.8 2.7-1.7.3-3.7.8-2.9 2.5.7 1.5 4.9 1.6 5.8.1"/></svg></div><div><strong>Recompensas disponíveis</strong><p>Use seus pontos neste canal para resgatar os itens.</p></div></div><div id="public-wallet" class="sn7-store-wallet">—</div></div>
-        <div id="public-items" class="sn7-store-items-grid"></div>
+        <div class="sn7-store-category"><div class="sn7-store-category-head"><strong>Itens da Loja</strong><span>Recompensas compráveis com pontos</span></div><div id="public-reward-items" class="sn7-store-items-grid"></div></div><div class="sn7-store-category"><div class="sn7-store-category-head"><strong>Áudios</strong><span>Sustos, sons e efeitos para resgatar</span></div><div id="public-audio-items" class="sn7-store-items-grid"></div></div>
       </section>
 
       <section class="sn7-store-builder" id="store-history" {% if not broadcaster_id %}hidden{% endif %}>
@@ -245,7 +246,7 @@
       </div>
       <div id="public-wallet" class="sn7-store-wallet">—</div>
     </div>
-    <div id="public-items" class="sn7-store-items-grid"></div>
+    <div class="sn7-store-category"><div class="sn7-store-category-head"><strong>Itens da Loja</strong><span>Recompensas compráveis com pontos</span></div><div id="public-reward-items" class="sn7-store-items-grid"></div></div><div class="sn7-store-category"><div class="sn7-store-category-head"><strong>Áudios</strong><span>Sustos, sons e efeitos para resgatar</span></div><div id="public-audio-items" class="sn7-store-items-grid"></div></div>
   </section>
 </div>
 {% endif %}
@@ -330,8 +331,11 @@
           $('store-login-twitch').href=`/twitch/login?store=1&channel=${t}`;
         }
       }
-      $('public-items').innerHTML=d.items.length?d.items.map(i=>itemCard(i,false)).join(''):'<div class="sn7-store-empty">Este canal ainda não adicionou recompensas.</div>';
-      $('public-items').querySelectorAll('[data-redeem]').forEach(b=>b.onclick=async()=>{
+      const rewards=d.items.filter(i=>i.item_type!=="audio");
+      const audios=d.items.filter(i=>i.item_type==="audio");
+      $('public-reward-items').innerHTML=rewards.length?rewards.map(i=>itemCard(i,false)).join(''):'<div class="sn7-store-empty">Este canal ainda não adicionou itens de loja.</div>';
+      $('public-audio-items').innerHTML=audios.length?audios.map(i=>itemCard(i,false)).join(''):'<div class="sn7-store-empty">Este canal ainda não adicionou áudios.</div>';
+      document.querySelectorAll('#public-reward-items [data-redeem],#public-audio-items [data-redeem]').forEach(b=>b.onclick=async()=>{
         const card=b.closest('.sn7-shop-item');
         const itemName=card?.querySelector('h3')?.textContent?.trim() || 'este item';
         const priceText=card?.querySelector('.sn7-shop-price')?.textContent?.trim() || '';
@@ -355,7 +359,7 @@
           card?.setAttribute('aria-busy','false');
         }
       });
-    }catch(e){setViewerText(e.message);$('public-items').innerHTML='<div class="sn7-store-empty">Não foi possível carregar esta loja.</div>'}finally{setStoreBootDone()}
+    }catch(e){setViewerText(e.message);$('public-reward-items').innerHTML='<div class="sn7-store-empty">Não foi possível carregar esta loja.</div>'; $('public-audio-items').innerHTML=''}finally{setStoreBootDone()}
   }
   async function loadAdmin(){
     if(!bid)return;

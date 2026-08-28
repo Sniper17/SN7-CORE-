@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>SN7 Core</title>
-<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.67-overlay-custom-images">
+<link rel="stylesheet" href="/static/css/style.css?v=sn7-1.9.68-overlay-store-music">
 <style id="sn7-loader-style">
 .sn7-boot-loader,.sn7-operation-loader{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0b0d12;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility .18s ease}.sn7-boot-loader.done{opacity:0;visibility:hidden;pointer-events:none}.sn7-operation-loader{background:rgba(11,13,18,.42);backdrop-filter:blur(2px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}.sn7-operation-loader.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-loader-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.18);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .72s linear infinite;box-sizing:border-box}.sn7-operation-loader .sn7-loader-spinner{width:26px;height:26px}@keyframes sn7LoaderSpin{to{transform:rotate(360deg)}} .sn7-music-queue-card{position:relative}.sn7-music-queue-loading{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(11,13,18,.62);backdrop-filter:blur(3px);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease;border-radius:18px}.sn7-music-queue-loading.open{opacity:1;visibility:visible;pointer-events:auto}.sn7-music-queue-loading .sn7-loader-spinner{width:25px;height:25px}.sn7-music-queue-card[aria-busy="true"] .sn7-queue-clear{opacity:.55;pointer-events:none}.sn7-music-remove{position:relative;min-width:32px;min-height:32px}.sn7-music-remove[aria-busy="true"]{cursor:wait}.sn7-inline-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.22);border-top-color:#fff;border-radius:50%;animation:sn7LoaderSpin .62s linear infinite;vertical-align:middle}.sn7-music-row-removing{opacity:.45;transform:scale(.985);transition:opacity .12s ease,transform .12s ease}@media(prefers-reduced-motion:reduce){.sn7-boot-loader,.sn7-operation-loader{transition:none}.sn7-loader-spinner{animation:none}}
 </style>
@@ -150,6 +150,7 @@ body.sn7-modal-open{overflow:hidden}
   @media(max-width:900px){.sn7-store-grid{grid-template-columns:1fr 1fr}}
   @media(max-width:700px){.sn7-store-page{max-width:none}.sn7-store-hero{padding:25px 20px;min-height:0;border-radius:20px}.sn7-store-title{gap:10px}.sn7-store-title-icon{width:43px;height:43px;flex-basis:43px;border-radius:13px}.sn7-store-title h2{font-size:28px}.sn7-store-copy>p{font-size:12px}.sn7-store-grid{grid-template-columns:1fr}.sn7-store-card{min-height:0}.sn7-store-safe{margin-bottom:4px}}
 
+  .sn7-store-category{margin-top:20px}.sn7-store-category-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 2px 9px}.sn7-store-category-head strong{font-size:13px}.sn7-store-category-head span{font-size:9px;color:var(--muted)}
   .sn7-store-builder{margin-top:14px;padding:22px;background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)),var(--panel);border:1px solid var(--border);border-radius:20px;box-shadow:0 18px 45px rgba(0,0,0,.16)}
   .sn7-store-builder-head{display:flex;align-items:center;justify-content:space-between;gap:18px}
   .sn7-store-builder-head>div:first-child{display:flex;align-items:center;gap:14px;min-width:0}
@@ -251,9 +252,9 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
 .sn7-overlay-element-row .sn7-overlay-card-image{width:34px;height:34px;border-radius:8px;object-fit:cover;border:1px solid rgba(255,255,255,.08);background:#0b0f15}
 .sn7-overlay-element-row .sn7-overlay-card-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:8px;background:#111722;border:1px solid rgba(255,255,255,.06);font-size:17px}
 .sn7-overlay-element-row .sn7-overlay-card-main{min-width:0}
-.sn7-overlay-element-row .sn7-overlay-card-controls{grid-column:2 / span 2;display:flex;align-items:center;gap:7px;margin-top:7px}
-.sn7-overlay-element-row .sn7-overlay-image-btn{padding:5px 8px;font-size:9px}
-.sn7-overlay-element-row .sn7-overlay-image-name{color:#697386;font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sn7-overlay-element-row .sn7-overlay-card-controls{grid-column:2 / span 2;display:flex;align-items:center;gap:7px;margin-top:6px;min-width:0}
+.sn7-overlay-element-row .sn7-overlay-image-btn{padding:4px 7px;font-size:8px;border:1px solid rgba(255,255,255,.07);background:transparent;color:#7f8999;box-shadow:none;min-height:0}.sn7-overlay-element-row .sn7-overlay-image-btn:hover{color:#c8ced9;border-color:rgba(155,140,255,.24);background:rgba(155,140,255,.05)}
+.sn7-overlay-element-row .sn7-overlay-image-name{color:#697386;font-size:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
 .sn7-overlay-element-row .sn7-overlay-image-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .sn7-overlay-element-row .sn7-overlay-remove-image{padding:4px 7px;font-size:8px}
 .sn7-overlay-element-row .sn7-overlay-remove-image[hidden]{display:none!important}
@@ -436,7 +437,7 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
           </div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end"><button type="button" class="sn7-store-add-btn" id="sn7-open-audio-player"><span aria-hidden="true">🔊</span><span>Player da live</span></button><button type="button" class="sn7-store-add-btn" id="sn7-open-item-form"><span aria-hidden="true">+</span><span>Novo item</span></button></div>
         </div>
-        <div id="admin-items" class="sn7-store-items-grid"></div>
+        <div class="sn7-store-category"><div class="sn7-store-category-head"><strong>Itens da Loja</strong><span>Recompensas compráveis com pontos</span></div><div id="admin-reward-items" class="sn7-store-items-grid"></div></div><div class="sn7-store-category"><div class="sn7-store-category-head"><strong>Áudios da Loja</strong><span>Sustos, sons e efeitos resgatáveis</span></div><div id="admin-audio-items" class="sn7-store-items-grid"></div></div>
         <div class="sn7-store-item-form" id="sn7-item-form" hidden>
           <div class="sn7-store-form-title"><div><span class="sn7-store-form-kicker">CONFIGURAR RECOMPENSA</span><h3>Adicionar novo item</h3><p>Defina o conteúdo que ficará disponível para a comunidade.</p></div><button type="button" class="sn7-store-close-btn" id="sn7-close-item-form" aria-label="Fechar">×</button></div>
           <div class="sn7-store-form-grid">
@@ -850,7 +851,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
         <span class="sn7-overlay-card-main"><strong>${esc(e.name)}</strong><small>${e.enabled?"ATIVO":"DESATIVADO"} · ${esc(e.type)}</small></span>
         <div class="sn7-overlay-card-controls">
           <input class="sn7-overlay-image-input" id="sn7OverlayImage-${esc(e.id)}" type="file" accept="image/png,image/jpeg,image/webp">
-          <label class="btn sn7-overlay-image-btn" for="sn7OverlayImage-${esc(e.id)}">Imagem</label>
+          <label class="btn sn7-overlay-image-btn" for="sn7OverlayImage-${esc(e.id)}" title="Usar uma imagem personalizada">+ imagem</label>
           <button type="button" class="btn sn7-overlay-remove-image" data-remove-image="${esc(e.id)}" ${image?"":"hidden"}>Remover imagem</button>
           <span class="sn7-overlay-image-name">${image?"Imagem personalizada":"Padrão"}</span>
         </div>
@@ -993,21 +994,25 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
 
   async function loadStoreAdmin(force=false){
     if(!bid){
-      const list=$("admin-items"); if(list)list.innerHTML='<div class="sn7-store-empty">Conecte sua conta no Perfil para administrar a Loja.</div>';
+      const list=$("admin-reward-items"); const audioList=$("admin-audio-items"); if(list)list.innerHTML='<div class="sn7-store-empty">Conecte sua conta no Perfil para administrar a Loja.</div>';
       return;
     }
     if(loading || (!force && loadedFor===bid && document.querySelector('nav button[data-tab="store"]')?.classList.contains("active")===false)) return;
     loading=true;
     try{
       const d=await api(`/api/store/${bid}/admin`);
-      $("admin-items").innerHTML=d.items.length?d.items.map(itemCard).join(''):'<div class="sn7-store-empty">Nenhum item criado ainda. Clique em “Novo item”.</div>';
+      const rewards=d.items.filter(i=>i.item_type!=="audio");
+      const audios=d.items.filter(i=>i.item_type==="audio");
+      $("admin-reward-items").innerHTML=rewards.length?rewards.map(itemCard).join(''):'<div class="sn7-store-empty">Nenhum item de loja criado ainda.</div>';
+      $("admin-audio-items").innerHTML=audios.length?audios.map(itemCard).join(''):'<div class="sn7-store-empty">Nenhum áudio criado ainda.</div>';
       try{
         const h=await api(`/api/store/${bid}/redemptions?limit=30`);
         $("admin-redemptions").innerHTML=h.redemptions.length?h.redemptions.map(r=>`<div class="sn7-shop-history-row"><strong>${esc(r.viewer_username)}</strong><span>${esc(r.name)}</span><b>✦ ${Number(r.price||0).toLocaleString('pt-BR')}</b><small>${esc(r.status)}</small></div>`).join(''):'<div class="sn7-store-empty">Nenhum resgate ainda.</div>';
       }catch(e){$("admin-redemptions").innerHTML='<div class="sn7-store-empty">Histórico indisponível.</div>'}
       loadedFor=bid;
     }catch(e){
-      $("admin-items").innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`;
+      $("admin-reward-items").innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`;
+      $("admin-audio-items").innerHTML="";
     }finally{loading=false;}
   }
 
@@ -1031,12 +1036,13 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
         if(!d.ok)throw new Error(d.error||'Não foi possível salvar');resetForm();toggle(false);await loadStoreAdmin(true);
       }catch(e){notice(e.message)}finally{updateForm();sn7HideOperationLoader()}
     });
-    $("admin-items")?.addEventListener("click",async e=>{
+    document.querySelectorAll("#admin-reward-items,#admin-audio-items").forEach(container=>container.addEventListener("click",async e=>{
       const toggleBtn=e.target.closest('[data-toggle]'), del=e.target.closest('[data-delete]');
       try{
         if(toggleBtn){sn7ShowOperationLoader();await api(`/api/store/${bid}/items/${toggleBtn.dataset.toggle}`,{method:'PATCH',body:JSON.stringify({active:toggleBtn.textContent.includes('Desativar')?false:true})});await loadStoreAdmin(true);sn7HideOperationLoader();return}
         if(del){const yes=await window.sn7ConfirmAction('Excluir item','Deseja excluir este item? O histórico de resgates será preservado e, se já houver resgates, o item precisará ser desativado.','Excluir');if(!yes)return;sn7ShowOperationLoader();await api(`/api/store/${bid}/items/${del.dataset.delete}`,{method:'DELETE'});await loadStoreAdmin(true);sn7HideOperationLoader()}
       }catch(x){sn7HideOperationLoader();notice(x.message)}
+    });
     });
     updateForm();
   }
@@ -1044,7 +1050,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   document.addEventListener("DOMContentLoaded",()=>{init(); if(document.querySelector('nav button[data-tab="store"]')?.classList.contains('active'))loadStoreAdmin();});
 })();
 </script>
-<script src="/static/js/app.js?v=sn7-1.9.67-overlay-custom-images"></script><script>
+<script src="/static/js/app.js?v=sn7-1.9.68-overlay-store-music"></script><script>
 (function(){
   try{
     const params = new URLSearchParams(window.location.search);
@@ -1632,8 +1638,8 @@ document.addEventListener("DOMContentLoaded",()=>{
   }
 });
 </script>
-<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.67-overlay-custom-images"></script>
-<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.67-overlay-custom-images"></script>
-<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.67-overlay-custom-images"></script>
+<script src="/static/js/sn7-ui-fix.js?v=sn7-1.9.68-overlay-store-music"></script>
+<script src="/static/js/sn7-command-examples.js?v=sn7-1.9.68-overlay-store-music"></script>
+<script src="/static/js/sn7-performance-v5.js?v=sn7-1.9.68-overlay-store-music"></script>
 </body>
 </html>

@@ -69,6 +69,20 @@ def _load_config(bid):
         conn.close()
 
 
+def _clean_element_settings(settings):
+    clean = {}
+    for key in ("duration", "text", "volume", "show", "image_url"):
+        if key not in settings:
+            continue
+        value = settings.get(key)
+        if key == "image_url":
+            value = str(value or "").strip()
+            if value.startswith("data:") and len(value) > 3_000_000:
+                raise ValueError("A imagem personalizada é muito grande. Use uma imagem de até 2 MB.")
+        clean[key] = value
+    return clean
+
+
 def _save_config(bid, config):
     # Keep the stored document deliberately small and predictable.
     if not isinstance(config, dict):
@@ -93,7 +107,7 @@ def _save_config(bid, config):
             "width": max(40, min(1920, float(e.get("width", 300)))),
             "height": max(30, min(1080, float(e.get("height", 100)))),
             "enabled": bool(e.get("enabled", True)),
-            "settings": e.get("settings") if isinstance(e.get("settings"), dict) else {},
+            "settings": _clean_element_settings(e.get("settings") if isinstance(e.get("settings"), dict) else {}),
         })
     conn = get_conn()
     try:
