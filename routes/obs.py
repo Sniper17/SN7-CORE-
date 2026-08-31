@@ -341,7 +341,7 @@ def get_obs_connection(broadcaster_id):
     conn = _get_connection(broadcaster_id)
     if not conn:
         return jsonify({'ok': True, 'connected': False, 'connection': None})
-    return jsonify({
+    response = jsonify({
         'ok': True,
         'connected': True,
         'connection': {
@@ -351,6 +351,8 @@ def get_obs_connection(broadcaster_id):
             'overlay_url': f"{_public_base_url()}/overlay/{conn['access_token']}",
         },
     })
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
 
 
 @obs_bp.post('/api/obs/<int:broadcaster_id>/connect')
@@ -362,7 +364,7 @@ def connect_obs(broadcaster_id):
     existing = _get_connection(broadcaster_id)
     token = existing['access_token'] if existing else secrets.token_urlsafe(32)
     _save_connection(broadcaster_id, token)
-    return jsonify({
+    response = jsonify({
         'ok': True,
         'connected': True,
         'connection': {
@@ -370,6 +372,8 @@ def connect_obs(broadcaster_id):
             'overlay_url': f"{_public_base_url()}/overlay/{token}",
         },
     })
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
 
 
 @obs_bp.post('/api/obs/<int:broadcaster_id>/rotate')
@@ -380,7 +384,7 @@ def rotate_obs(broadcaster_id):
         return jsonify({'ok': False, 'error': str(exc)}), 403
     token = secrets.token_urlsafe(32)
     _save_connection(broadcaster_id, token)
-    return jsonify({
+    response = jsonify({
         'ok': True,
         'connected': True,
         'connection': {
@@ -388,6 +392,8 @@ def rotate_obs(broadcaster_id):
             'overlay_url': f"{_public_base_url()}/overlay/{token}",
         },
     })
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
 
 
 @obs_bp.get('/status/<token>')
