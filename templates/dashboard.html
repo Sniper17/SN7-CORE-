@@ -862,7 +862,20 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     {id:"music",type:"music",name:"Música",x:760,y:40,width:400,height:80,enabled:true,settings:{show:true}}
   ]});
   let config=defaults(), selected=null, drag=null, loading=false;
-  function normalize(c){const d=defaults();return {version:1,canvas:d.canvas,elements:Array.isArray(c?.elements)&&c.elements.length?c.elements.map((e,i)=>Object.assign(d.elements[i]||{id:"element-"+i,type:"text",name:"Elemento",x:100,y:100,width:300,height:100,enabled:true,settings:{}},e)):d.elements};}
+  function normalize(c){
+    const d=defaults();
+    const incoming=Array.isArray(c?.elements)?c.elements.filter(e=>e&&typeof e==="object"):[];
+    const byType=new Map(incoming.filter(e=>e.type).map(e=>[e.type,e]));
+    const elements=d.elements.map(def=>{
+      const saved=byType.get(def.type);
+      if(!saved)return JSON.parse(JSON.stringify(def));
+      const merged=Object.assign({},def,saved);
+      merged.settings=Object.assign({},def.settings||{},saved.settings||{});
+      return merged;
+    });
+    incoming.filter(e=>e.type&&!d.elements.some(def=>def.type===e.type)).forEach(e=>elements.push(e));
+    return {version:1,canvas:d.canvas,elements};
+  }
   const iconFor=e=>e.type==="store_audio"?"🔊":e.type==="store_alert"?"🎁":e.type==="music"?"🎵":"✨";
   const settingsFor=e=>{if(!e.settings||typeof e.settings!=="object")e.settings={};return e.settings};
   const imageFor=e=>String(settingsFor(e).image_url||"").trim();
