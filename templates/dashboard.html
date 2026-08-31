@@ -446,8 +446,8 @@ linear-gradient(-45deg,transparent 75%,#11151d 75%) 0 0/24px 24px,#0b0e13}
             </div>
             <div class="sn7-overlay-url">
               <label>URL PARA O OBS</label>
-              <div class="sn7-overlay-url-row"><input id="sn7OverlayUrl" readonly placeholder="Conecte o OBS no Perfil"><button type="button" class="btn" id="sn7OverlayCopy">Copiar</button></div>
-              <div class="sn7-overlay-help">No OBS: Fonte → Navegador → cole esta URL. A mesma fonte poderá receber música, áudios da Loja e futuros alertas.</div>
+              <div class="sn7-overlay-url-row"><input id="sn7OverlayUrl" readonly placeholder="Clique em Atualizar link do OBS"><button type="button" class="btn" id="sn7OverlayRefresh">Atualizar link do OBS</button><button type="button" class="btn" id="sn7OverlayCopy" disabled>Copiar</button></div>
+              <div class="sn7-overlay-help">Clique em <strong>Atualizar link do OBS</strong> para gerar ou atualizar a conexão. Depois, no OBS: Fonte → Navegador → cole a URL gerada. Se você atualizar novamente, o link anterior deixa de funcionar.</div>
             </div>
           </aside>
         </div>
@@ -944,7 +944,17 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   async function load(){
     if(!bid){$("sn7OverlayElements").innerHTML='<div class="sn7-store-empty">Conecte sua conta no Perfil para configurar o Overlay.</div>';return}
     loading=true;
-    try{const d=await overlayApi(`/api/overlay/${encodeURIComponent(bid)}/config`);config=normalize(d.config);$("sn7OverlayUrl").value=d.overlay_url||"";render();}
+    try{
+      const [d,obs]=await Promise.all([
+        overlayApi(`/api/overlay/${encodeURIComponent(bid)}/config`),
+        overlayApi(`/api/obs/${encodeURIComponent(bid)}/connection`)
+      ]);
+      config=normalize(d.config);
+      const url=obs?.connection?.overlay_url||"";
+      $("sn7OverlayUrl").value=url;
+      $("sn7OverlayCopy").disabled=!url;
+      render();
+    }
     catch(e){$("sn7OverlayElements").innerHTML=`<div class="sn7-store-empty">${esc(e.message)}</div>`}
     finally{loading=false}
   }
@@ -956,7 +966,7 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
     if(typeof window.sn7ShowOperationLoader==="function")window.sn7ShowOperationLoader();
     try{
       const d=await overlayApi(`/api/overlay/${encodeURIComponent(bid)}/config`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({config})});
-      config=normalize(d.config);$("sn7OverlayUrl").value=d.overlay_url||$("sn7OverlayUrl").value;render();
+      config=normalize(d.config);render();
       if(typeof window.sn7HideOperationLoader==="function")window.sn7HideOperationLoader();
       if(typeof window.sn7ShowToast==="function")window.sn7ShowToast("Overlay salvo com sucesso.","Overlay salvo");
     }catch(e){
@@ -966,6 +976,27 @@ const SN7_INITIAL_PROFILE={{ (kick_profile or {})|tojson }};</script>
   }
   $("sn7OverlaySave")?.addEventListener("click",save);
   $("sn7OverlayReset")?.addEventListener("click",()=>{config=defaults();selected=null;render()});
+  $("sn7OverlayRefresh")?.addEventListener("click",async()=>{
+    if(!bid||loading)return;
+    const button=$("sn7OverlayRefresh"), copy=$("sn7OverlayCopy");
+    loading=true;
+    if(button)button.disabled=true;
+    if(copy)copy.disabled=true;
+    if(typeof window.sn7ShowOperationLoader==="function")window.sn7ShowOperationLoader();
+    try{
+      const d=await overlayApi(`/api/obs/${encodeURIComponent(bid)}/rotate`,{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+      const url=d?.connection?.overlay_url||"";
+      $("sn7OverlayUrl").value=url;
+      if(copy)copy.disabled=!url;
+      if(typeof window.sn7ShowToast==="function")window.sn7ShowToast("Link do OBS atualizado. O link anterior foi revogado.","OBS atualizado");
+    }catch(e){
+      if(typeof window.sn7ShowToast==="function")window.sn7ShowToast(e.message,"Não foi possível atualizar o OBS");else console.error(e);
+    }finally{
+      if(typeof window.sn7HideOperationLoader==="function")window.sn7HideOperationLoader();
+      loading=false;
+      if(button)button.disabled=false;
+    }
+  });
   $("sn7OverlayCopy")?.addEventListener("click",async()=>{const v=$("sn7OverlayUrl")?.value||"";if(!v)return;try{await navigator.clipboard.writeText(v);if(typeof window.sn7ShowToast==="function")window.sn7ShowToast("URL do Overlay copiada.");}catch(_){$("sn7OverlayUrl").select();document.execCommand("copy")}});
   function setPreviewFullscreen(active){
     const preview=$("sn7OverlayPreview");

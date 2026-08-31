@@ -49,8 +49,8 @@ def _get_connection(broadcaster_id):
         'broadcaster_user_id': int(row[0]),
         'access_token': row[1],
         'label': row[2] or 'SN7 Core',
-        'created_at': row[11].isoformat() if row[3] else None,
-        'updated_at': row[12].isoformat() if row[4] else None,
+        'created_at': row[3].isoformat() if row[3] else None,
+        'updated_at': row[4].isoformat() if row[4] else None,
     }
 
 
