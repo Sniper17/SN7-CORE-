@@ -8,6 +8,40 @@
 <style>
 :root{color-scheme:dark}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#fff}body{display:grid;place-items:center}.wrap{width:100%;height:100%;display:grid;place-items:center;padding:18px}.card{width:min(760px,100%);min-height:170px;padding:22px;border:1px solid rgba(255,255,255,.10);border-radius:20px;background:linear-gradient(145deg,rgba(13,17,24,.96),rgba(8,10,15,.94));box-shadow:0 18px 60px rgba(0,0,0,.28);backdrop-filter:blur(8px)}.top{display:flex;align-items:center;gap:14px}.art{width:58px;height:58px;flex:0 0 58px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 50% 50%,#111 0 13%,#8b7cf6 14% 19%,#171b26 20% 48%,#080b11 49% 62%,#1b2230 63% 100%);border:1px solid rgba(255,255,255,.10);box-shadow:0 8px 24px rgba(0,0,0,.28);font-size:25px;position:relative;overflow:hidden}.art::after{content:"";width:11px;height:11px;border-radius:50%;background:#c8c0ff;box-shadow:0 0 0 3px #0c1017,0 0 0 4px rgba(255,255,255,.14)}.art.is-playing{animation:sn7DiscSpin 3.8s linear infinite}@keyframes sn7DiscSpin{to{transform:rotate(360deg)}}.meta{min-width:0;flex:1}.kicker{display:block;color:#6ee7a8;font-size:10px;font-weight:800;letter-spacing:1.4px;margin-bottom:5px}.title{font-size:19px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.artist{margin-top:3px;color:#9ba5b5;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.status{color:#9ba5b5;font-size:11px;text-align:right;white-space:nowrap}.progress{height:4px;background:#232a36;border-radius:99px;overflow:hidden;margin:18px 0 9px}.bar{height:100%;width:0;background:#5ee391;border-radius:inherit;transition:width .2s linear}.times{display:flex;justify-content:space-between;color:#6f798a;font-size:10px}.hidden-media{position:absolute;width:1px;height:1px;opacity:.001;pointer-events:none;left:-10000px;top:-10000px}.empty{color:#aab3c1;text-align:center;padding:25px 5px}.error{color:#ffb2b9;text-align:center;padding:25px 5px}.queue{display:none}.unsupported{color:#f2c98b}.invalid{width:min(560px,100%);padding:25px;border:1px solid rgba(255,255,255,.1);border-radius:18px;background:#0c1017;text-align:center}.invalid h1{font-size:20px;margin:0 0 8px}.invalid p{margin:0;color:#8e98a8;font-size:12px}@media(max-width:560px){.card{padding:17px;border-radius:16px}.title{font-size:16px}.status{display:none}.art{width:50px;height:50px;flex-basis:50px}}
 .overlay-stage{position:relative;width:100%;height:100%;overflow:hidden}.overlay-widget{position:absolute;z-index:10;pointer-events:none}.store-alert-widget{display:none;align-items:center;gap:12px;padding:14px 18px;border:1px solid rgba(155,140,255,.42);border-radius:16px;background:rgba(12,15,22,.92);box-shadow:0 18px 55px rgba(0,0,0,.32);backdrop-filter:blur(8px);opacity:0;transform:translateY(8px);transition:opacity .2s ease,transform .2s ease}.store-alert-widget.show{display:flex;opacity:1;transform:none}.store-alert-icon{width:44px;height:44px;overflow:hidden;border-radius:12px;display:grid;place-items:center;background:#171d28;font-size:22px;flex:0 0 44px}.store-alert-icon img{width:100%;height:100%;object-fit:cover;display:block}.store-alert-text strong{display:block;font-size:13px}.store-alert-text small{display:block;margin-top:4px;color:#9ba5b5;font-size:10px}.store-audio-status{display:none;align-items:center;gap:7px;padding:10px 14px;border-radius:12px;background:rgba(12,15,22,.88);border:1px solid rgba(255,255,255,.08);font-size:10px;color:#d9deea;box-shadow:0 12px 35px rgba(0,0,0,.24)}.store-audio-status.show{display:flex}.store-audio-custom-image{width:22px;height:22px;border-radius:6px;object-fit:cover}.studio-placeholder{display:none}.overlay-stage .card{position:absolute;margin:0;z-index:5;pointer-events:none;transform:none;transition:left .15s ease,top .15s ease,width .15s ease}.overlay-stage>.wrap{position:static;padding:0;width:100%;height:100%}@media(prefers-reduced-motion:reduce){.art.is-playing{animation:none}}
+
+/* SN7 CORE · MINI GAMES CINEMATIC OVERLAY */
+#sn7GameOverlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .18s ease,visibility .18s ease}
+#sn7GameOverlay.show{opacity:1;visibility:visible}
+.sn7-game-vignette{position:absolute;inset:0;background:radial-gradient(circle at center,rgba(20,24,34,.02),rgba(3,5,9,.48) 75%,rgba(0,0,0,.72));opacity:.9}
+.sn7-game-card{position:relative;width:min(920px,92vw);min-height:300px;padding:34px 38px;border:1px solid rgba(255,255,255,.13);border-radius:28px;background:linear-gradient(145deg,rgba(17,21,29,.97),rgba(7,10,15,.97));box-shadow:0 35px 110px rgba(0,0,0,.58),0 0 80px rgba(155,140,255,.10),inset 0 1px 0 rgba(255,255,255,.06);overflow:hidden;transform:translateY(18px) scale(.97);transition:transform .28s cubic-bezier(.2,.85,.25,1)}
+#sn7GameOverlay.show .sn7-game-card{transform:none}
+.sn7-game-card:before{content:"";position:absolute;inset:-35%;background:radial-gradient(circle at 50% 20%,rgba(155,140,255,.12),transparent 42%);pointer-events:none}
+.sn7-game-kicker{position:relative;text-align:center;color:#a99cff;font-size:10px;font-weight:1000;letter-spacing:3px;text-transform:uppercase}
+.sn7-game-title{position:relative;margin:8px 0 4px;text-align:center;font-size:clamp(24px,4vw,42px);font-weight:1000;letter-spacing:-1px}
+.sn7-game-sub{position:relative;text-align:center;color:#8f98a8;font-size:12px;line-height:1.5}
+.sn7-game-result{position:relative;margin:20px auto 0;max-width:800px;text-align:center;font-weight:900;font-size:clamp(13px,2vw,18px);color:#eef0f6;line-height:1.45}
+.sn7-game-user{color:#c9c0ff}.sn7-win{color:#6ee7a8}.sn7-loss{color:#ff9da6}.sn7-gold{color:#ffd66b}
+.sn7-slots{position:relative;display:flex;justify-content:center;gap:12px;margin:25px auto 8px;perspective:900px}
+.sn7-reel{width:150px;height:170px;padding:10px;border-radius:22px;border:1px solid rgba(255,255,255,.13);background:linear-gradient(180deg,#1c222e,#0b0e14);box-shadow:inset 0 2px 0 rgba(255,255,255,.05),0 15px 35px rgba(0,0,0,.35);display:grid;place-items:center;overflow:hidden}
+.sn7-reel-inner{width:100%;height:100%;border-radius:15px;background:linear-gradient(180deg,#f7f8fb,#bfc5cf);display:grid;place-items:center;box-shadow:inset 0 0 0 2px rgba(0,0,0,.10),inset 0 -18px 35px rgba(0,0,0,.13)}
+.sn7-symbol{font-size:76px;filter:drop-shadow(0 5px 2px rgba(0,0,0,.18));line-height:1}
+.sn7-reel.spinning .sn7-symbol{animation:sn7ReelSpin .11s linear infinite;filter:blur(2px) drop-shadow(0 5px 2px rgba(0,0,0,.18))}
+.sn7-reel.landed{animation:sn7Land .35s cubic-bezier(.2,1.5,.4,1)}
+@keyframes sn7ReelSpin{to{transform:translateY(16px) rotateX(18deg)}}
+@keyframes sn7Land{0%{transform:scale(1.06)}100%{transform:scale(1)}}
+.sn7-slot-lights{display:flex;justify-content:center;gap:8px;margin:8px 0}.sn7-slot-light{width:7px;height:7px;border-radius:50%;background:#6f7785;box-shadow:0 0 0 rgba(155,140,255,0)}.sn7-slot-light.on{background:#a99cff;box-shadow:0 0 14px rgba(155,140,255,.85);animation:sn7Blink .42s ease infinite alternate}@keyframes sn7Blink{to{opacity:.35}}
+.sn7-coin{width:170px;height:170px;margin:26px auto 12px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 28%,#fff0a8,#e6aa2f 35%,#7c4d0c 72%,#2d1b05 100%);border:8px solid #6d4610;box-shadow:0 22px 55px rgba(0,0,0,.45),0 0 45px rgba(255,206,87,.25);font-size:74px}.sn7-coin.flip{animation:sn7CoinFlip 1.15s cubic-bezier(.25,.7,.25,1)}@keyframes sn7CoinFlip{0%{transform:rotateY(0) rotateZ(0)}45%{transform:rotateY(900deg) rotateZ(12deg) scale(1.08)}100%{transform:rotateY(1800deg) rotateZ(0) scale(1)}}
+.sn7-bars{position:relative;margin:24px auto 5px;display:grid;gap:9px;max-width:720px}.sn7-bar-row{display:grid;grid-template-columns:minmax(110px,1fr) 3fr 55px;gap:10px;align-items:center;font-size:11px}.sn7-bar-track{height:13px;border-radius:99px;background:#1a202a;overflow:hidden;border:1px solid rgba(255,255,255,.05)}.sn7-bar-fill{height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#7564df,#b5abff);transition:width .7s cubic-bezier(.2,.8,.2,1)}.sn7-bar-count{text-align:right;color:#cbd1dc;font-weight:900}
+.sn7-quiz-box{position:relative;margin:25px auto 0;max-width:760px;padding:22px;border:1px solid rgba(155,140,255,.18);border-radius:18px;background:rgba(10,13,19,.72);text-align:center}.sn7-quiz-question{font-size:clamp(16px,2.4vw,24px);font-weight:900;line-height:1.35}.sn7-answer-pop{margin-top:15px;font-size:13px;color:#8f98a8}.sn7-answer-pop.correct{color:#6ee7a8}.sn7-answer-pop.wrong{color:#ff9da6}
+.sn7-race{position:relative;margin:25px auto 5px;max-width:820px;padding:15px;border:1px solid rgba(255,255,255,.08);border-radius:18px;background:linear-gradient(180deg,#131923,#0b0f15);overflow:hidden}.sn7-track{position:relative;display:grid;gap:8px}.sn7-lane{height:30px;position:relative;border-bottom:1px dashed rgba(255,255,255,.08);background:repeating-linear-gradient(90deg,transparent 0 55px,rgba(255,255,255,.035) 55px 56px)}.sn7-car{position:absolute;left:0;top:1px;width:42px;height:26px;border-radius:7px 11px 6px 7px;background:linear-gradient(145deg,#e7ebf2,#7c8798);box-shadow:0 5px 12px rgba(0,0,0,.35);font-size:16px;display:grid;place-items:center;transition:left 1.5s cubic-bezier(.15,.75,.2,1)}.sn7-car:after{content:"";position:absolute;right:5px;bottom:-4px;width:7px;height:7px;border-radius:50%;background:#080a0e;box-shadow:-24px 0 #080a0e}.sn7-race-finish{position:absolute;right:10px;top:0;bottom:0;width:4px;background:repeating-linear-gradient(180deg,#fff 0 8px,#222 8px 16px);opacity:.65}.sn7-race-label{display:flex;justify-content:space-between;color:#8f98a8;font-size:9px;margin-top:8px}.sn7-podium{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:18px auto 0}.sn7-podium span{padding:9px 13px;border-radius:10px;background:#161c26;border:1px solid rgba(255,255,255,.07);font-size:11px;font-weight:900}
+.sn7-survival-scene{position:relative;margin:25px auto 0;max-width:820px;height:250px;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:radial-gradient(circle at 50% 35%,rgba(104,130,92,.22),transparent 35%),linear-gradient(180deg,#101a18,#07100d)}.sn7-moon{position:absolute;right:10%;top:13%;width:60px;height:60px;border-radius:50%;background:#d9e1c5;box-shadow:0 0 35px rgba(220,230,190,.28)}.sn7-trees{position:absolute;inset:auto 0 0;height:70%;background:linear-gradient(150deg,transparent 0 45%,#07100d 46% 100%);opacity:.9}.sn7-survivors{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;gap:10px;padding:0 25px 28px;z-index:2}.sn7-person{width:54px;height:78px;border-radius:28px 28px 10px 10px;background:linear-gradient(180deg,#a7b1bd,#3b4654);display:grid;place-items:center;font-size:25px;box-shadow:0 10px 20px rgba(0,0,0,.3);transition:opacity .45s,transform .45s,filter .45s}.sn7-person.dead{opacity:.16;filter:grayscale(1);transform:translateY(20px) rotate(8deg)}.sn7-chapter{position:absolute;left:18px;top:16px;z-index:4;padding:7px 10px;border-radius:9px;background:rgba(5,8,10,.65);border:1px solid rgba(255,255,255,.08);font-size:9px;font-weight:1000;letter-spacing:1px}
+.sn7-target{position:relative;width:220px;height:220px;margin:25px auto 8px;border-radius:50%;background:repeating-radial-gradient(circle,#151b25 0 19px,#0a0d13 20px 22px);border:2px solid #8f98a8;box-shadow:0 0 0 8px rgba(255,255,255,.025),0 20px 55px rgba(0,0,0,.4)}.sn7-cross{position:absolute;inset:0}.sn7-cross:before,.sn7-cross:after{content:"";position:absolute;background:#a99cff;box-shadow:0 0 15px rgba(169,156,255,.55)}.sn7-cross:before{width:2px;height:100%;left:50%}.sn7-cross:after{height:2px;width:100%;top:50%}.sn7-shot{position:absolute;width:18px;height:18px;border-radius:50%;background:#ff6e78;box-shadow:0 0 25px rgba(255,80,95,.8);left:50%;top:50%;transform:translate(-50%,-50%);animation:sn7Shot .6s ease}@keyframes sn7Shot{0%{transform:translate(-50%,-50%) scale(2);opacity:0}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+.sn7-safe{position:relative;width:230px;height:170px;margin:25px auto 10px;border-radius:22px;border:9px solid #303744;background:linear-gradient(145deg,#596273,#1c222c);box-shadow:0 22px 50px rgba(0,0,0,.45);display:grid;place-items:center}.sn7-safe-wheel{width:105px;height:105px;border-radius:50%;border:10px solid #9da6b4;background:#262d38;display:grid;place-items:center;font-size:30px;animation:sn7SafeSpin 1.2s cubic-bezier(.2,.8,.2,1)}@keyframes sn7SafeSpin{to{transform:rotate(720deg)}}
+.sn7-heist{position:relative;height:210px;max-width:780px;margin:25px auto 0;border-radius:20px;overflow:hidden;background:linear-gradient(180deg,#111722,#080b10);border:1px solid rgba(255,255,255,.08)}.sn7-heist-mask{position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.02) 0 2px,transparent 2px 9px);opacity:.45}.sn7-heist-icon{position:absolute;font-size:82px;left:50%;top:50%;transform:translate(-50%,-50%);animation:sn7Sneak 1.2s ease-in-out infinite alternate}@keyframes sn7Sneak{to{transform:translate(-42%,-50%) rotate(-2deg)}}
+.sn7-jackpot{position:relative;margin:20px auto;width:260px;height:170px;border-radius:24px;display:grid;place-items:center;background:linear-gradient(145deg,#211a0b,#0c0d10);border:2px solid #8b6823;box-shadow:0 0 50px rgba(255,204,87,.17),0 25px 55px rgba(0,0,0,.45);font-size:78px}.sn7-jackpot.win{animation:sn7JackpotWin .8s ease-in-out infinite alternate}@keyframes sn7JackpotWin{to{transform:scale(1.04);box-shadow:0 0 90px rgba(255,204,87,.38),0 25px 55px rgba(0,0,0,.45)}}
+.sn7-flash{animation:sn7Flash .42s ease}@keyframes sn7Flash{50%{filter:brightness(1.8)}}
+@media(max-width:600px){.sn7-game-card{padding:24px 16px;min-height:260px;border-radius:22px}.sn7-reel{width:86px;height:112px;padding:7px}.sn7-symbol{font-size:50px}.sn7-slots{gap:7px}.sn7-coin{width:125px;height:125px;font-size:55px}.sn7-survival-scene{height:210px}.sn7-person{width:42px;height:62px;font-size:20px}.sn7-bar-row{grid-template-columns:90px 1fr 38px}.sn7-race{padding:9px}}
+@media(prefers-reduced-motion:reduce){:is(#sn7GameOverlay *{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -27,6 +61,7 @@
   <div id="storeAlert" class="overlay-widget store-alert-widget"><div class="store-alert-icon" id="storeAlertIcon">🎁</div><div class="store-alert-text"><strong id="storeAlertTitle">Novo resgate</strong><small id="storeAlertSub">Aguardando…</small></div></div>
   <div id="storeAudioStatus" class="overlay-widget store-audio-status">🔊 Áudio da Loja</div>
 </div>
+<div id="sn7GameOverlay" aria-hidden="true"><div class="sn7-game-vignette"></div><div class="sn7-game-card" id="sn7GameCard"></div></div>
 <div id="youtube" class="hidden-media"></div>
 <audio id="audio" class="hidden-media" preload="auto" playsinline></audio>
 <audio id="storeAudio" class="hidden-media" preload="auto" playsinline></audio>
@@ -130,10 +165,104 @@
   function handleOverlayEvent(ev){
     if(!ev||ev.id<=state.lastOverlayEvent)return;
     state.lastOverlayEvent=Math.max(state.lastOverlayEvent,Number(ev.id)||0);
-    if(ev.type!=="store_redemption")return;
     const p=ev.payload||{};
-    showStoreAlert(p);
-    if(p.item_type==="audio")playStoreAudio(p);
+    if(ev.type==="store_redemption"){
+      showStoreAlert(p);
+      if(p.item_type==="audio")playStoreAudio(p);
+      return;
+    }
+    if(ev.type==="minigame")showMinigame(p);
+  }
+
+  const gameUI={hideTimer:null, sequence:0};
+  function gameOverlay(){return document.getElementById("sn7GameOverlay")}
+  function gameCard(){return document.getElementById("sn7GameCard")}
+  function escGame(v){return esc(v)}
+  function showGame(html, duration=5200){
+    const box=gameOverlay(), card=gameCard(); if(!box||!card)return;
+    gameUI.sequence++; const seq=gameUI.sequence;
+    card.innerHTML=html; box.classList.add("show"); box.setAttribute("aria-hidden","false");
+    clearTimeout(gameUI.hideTimer);
+    gameUI.hideTimer=setTimeout(()=>{if(seq!==gameUI.sequence)return;box.classList.remove("show");box.setAttribute("aria-hidden","true")},duration);
+  }
+  function hideGame(){const box=gameOverlay();if(box){box.classList.remove("show");box.setAttribute("aria-hidden","true")}}
+  function gameHeader(k,t,s=""){return `<div class="sn7-game-kicker">SN7 CORE · ${escGame(k)}</div><div class="sn7-game-title">${escGame(t)}</div>${s?`<div class="sn7-game-sub">${escGame(s)}</div>`:""}`}
+  function showMinigame(p){
+    const game=String(p.game||"").toLowerCase();
+    if(game==="slots")return showSlots(p);
+    if(game==="coinflip")return showCoinflip(p);
+    if(game==="poll_start"||game==="poll_vote"||game==="poll_close")return showPoll(p);
+    if(game==="quiz_start"||game==="quiz_answer")return showQuiz(p);
+    if(game==="race_start"||game==="race_chapter"||game==="race_finish")return showRace(p);
+    if(game==="survival_start"||game==="survival_chapter"||game==="survival_finish")return showSurvival(p);
+    if(game==="target")return showTarget(p);
+    if(game==="secret")return showSecret(p);
+    if(game==="steal")return showSteal(p);
+    if(game==="vault")return showVault(p);
+    if(game==="jackpot")return showJackpot(p);
+    if(game==="duel_challenge"||game==="duel_result")return showDuel(p);
+  }
+  function showSlots(p){
+    const symbols=Array.isArray(p.symbol_list)&&p.symbol_list.length===3?p.symbol_list:["🎰","🎰","🎰"];
+    const lights=Array.from({length:7},(_,i)=>`<i class="sn7-slot-light ${i%2===0?"on":""}"></i>`).join("");
+    showGame(gameHeader("CASSINO","SLOT MACHINE",`${escGame(p.user||"Alguém")} apostou ${Number(p.amount||0).toLocaleString("pt-BR")} pontos`) + `<div class="sn7-slots">${symbols.map((s,i)=>`<div class="sn7-reel" data-slot="${i}"><div class="sn7-reel-inner"><span class="sn7-symbol">${escGame(s)}</span></div></div>`).join("")}</div><div class="sn7-slot-lights">${lights}</div><div class="sn7-game-result" id="sn7SlotResult"></div>`,Math.max(4200,String(p.outcome)==="jackpot"?6500:5200));
+    const reels=[...document.querySelectorAll(".sn7-reel")], result=document.getElementById("sn7SlotResult");
+    reels.forEach((r,i)=>setTimeout(()=>r.classList.add("spinning"),i*90));
+    setTimeout(()=>reels.forEach((r,i)=>setTimeout(()=>{r.classList.remove("spinning");r.classList.add("landed");r.querySelector(".sn7-symbol").textContent=symbols[i]},i*170)),900);
+    setTimeout(()=>{if(result){result.innerHTML=escGame(p.result_text||"");result.classList.add("sn7-flash")}},1550);
+  }
+  function showCoinflip(p){
+    showGame(gameHeader("APOSTA","CARA OU COROA",`${escGame(p.user||"Alguém")} apostou ${Number(p.amount||0).toLocaleString("pt-BR")} pontos`) + `<div class="sn7-coin flip">🪙</div><div class="sn7-game-result" id="sn7CoinResult">A moeda está no ar...</div>`,4200);
+    setTimeout(()=>{const r=document.getElementById("sn7CoinResult");if(r){r.innerHTML=`Saiu <strong>${escGame(p.result||"")}</strong>! ${Number(p.payout||0)>0?'<span class="sn7-win">VITÓRIA!</span>':'<span class="sn7-loss">PERDEU!</span>'}`}},1150);
+  }
+  function pollRows(state,counts){
+    const opts=Array.isArray(state?.options)?state.options:[]; const c=Array.isArray(counts)?counts:[]; const total=Math.max(1,c.reduce((a,b)=>a+Number(b||0),0));
+    return opts.map((o,i)=>`<div class="sn7-bar-row"><span>${escGame(o)}</span><div class="sn7-bar-track"><div class="sn7-bar-fill" data-pct="${Math.round((Number(c[i]||0)/total)*100)}"></div></div><b class="sn7-bar-count">${Number(c[i]||0)}</b></div>`).join("");
+  }
+  function showPoll(p){
+    const st=p.state||{}, counts=Array.isArray(p.counts)?p.counts:Object.values(st.votes||{}).reduce((a,idx)=>{const i=Number(idx)-1;if(i>=0){a[i]=(a[i]||0)+1}return a},[]);
+    showGame(gameHeader("INTERAÇÃO","ENQUETE",escGame(st.question||"Pergunta da live"))+`<div class="sn7-bars">${pollRows(st,counts)}</div><div class="sn7-game-result">${p.game==="poll_vote"?`<span class="sn7-game-user">${escGame(p.user||"Alguém")}</span> votou em <strong>${escGame(p.option||"")}</strong>`:p.game==="poll_close"?"RESULTADO FINAL":"Votação aberta"}</div>`,p.game==="poll_close"?6000:3000);
+    setTimeout(()=>document.querySelectorAll(".sn7-bar-fill").forEach(el=>el.style.width=el.dataset.pct+"%"),80);
+  }
+  function showQuiz(p){
+    const st=p.state||{}; const answer=p.game==="quiz_answer"?`<div class="sn7-answer-pop ${p.correct?"correct":"wrong"}">${p.correct?`🎉 ${escGame(p.user||"")} acertou!`:`❌ ${escGame(p.user||"")} errou. Tente novamente!`}</div>`:"<div class=\"sn7-answer-pop\">Responda no chat!</div>";
+    showGame(gameHeader("DESAFIO","QUIZ · "+String(st.theme||"GERAL").toUpperCase())+`<div class="sn7-quiz-box"><div class="sn7-quiz-question">${escGame(st.question||"Pergunta")}</div>${answer}</div>`,p.game==="quiz_answer"?4200:6500);
+  }
+  function raceLanes(st){
+    const players=Array.isArray(st?.players)?st.players:[]; const progress=st?.progress||{}; const elim=st?.eliminated||{};
+    return players.map((u,i)=>{const pct=Math.max(0,Math.min(94,Number(progress[u]||0)*.94));return `<div class="sn7-lane"><div class="sn7-car" data-left="${pct}" title="${escGame(u)}">🏎️</div></div>`}).join("");
+  }
+  function showRace(p){
+    const st=p.state||{}; const lanes=raceLanes(st); const finish=p.game==="race_finish"; const winners=Array.isArray(p.winners)?p.winners:[];
+    const podium=finish&&winners.length?`<div class="sn7-podium">${winners.map(w=>`<span>${w.place}º ${escGame(w.user)} · +${Number(w.prize||0)} pontos</span>`).join("")}</div>`:"";
+    showGame(gameHeader("MINI GAME","🏁 CORRIDA",escGame(st.location||"Pista desconhecida"))+`<div class="sn7-race"><div class="sn7-race-finish"></div><div class="sn7-track">${lanes||'<div class="sn7-sub">Preparando os carros...</div>'}</div><div class="sn7-race-label"><span>PARTIDA</span><span>CHEGADA</span></div></div>${p.chapter?`<div class="sn7-game-result">CAPÍTULO ${p.chapter}/3</div>`:""}${podium}`,finish?7500:4300);
+    document.querySelectorAll(".sn7-car").forEach((car,i)=>setTimeout(()=>car.style.left=car.dataset.left+"%",80+i*35));
+  }
+  function showSurvival(p){
+    const st=p.state||{}, players=Array.isArray(st.players)?st.players:[], alive=st.alive||{}; const dead=Array.isArray(p.dead)?p.dead:[];
+    const people=players.map(u=>`<div class="sn7-person ${alive[u]===false||dead.includes(u)?"dead":""}" title="${escGame(u)}">🧍</div>`).join("");
+    const finish=p.game==="survival_finish"; const winners=Array.isArray(p.winners)?p.winners:[];
+    const result=finish?(winners.length?`🏆 ${winners.map(w=>escGame(w.user)).join(" • ")} sobreviveram!`:"💀 Ninguém sobreviveu."):(p.event||"");
+    showGame(gameHeader("MINI GAME","🧟 SOBREVIVÊNCIA",escGame(st.location||"Zona desconhecida"))+`<div class="sn7-survival-scene"><div class="sn7-moon"></div><div class="sn7-trees"></div>${p.chapter?`<div class="sn7-chapter">CAPÍTULO ${p.chapter}/3 · ${Number(p.alive_count||0)} VIVOS</div>`:""}<div class="sn7-survivors">${people}</div></div><div class="sn7-game-result">${escGame(result)}</div>`,finish?7500:5200);
+  }
+  function showTarget(p){
+    showGame(gameHeader("PRECISÃO","🎯 ALVO",`${escGame(p.user||"Alguém")} mirou no número ${escGame(p.guess||"")}`)+`<div class="sn7-target"><div class="sn7-cross"></div><div class="sn7-shot"></div></div><div class="sn7-game-result">${p.win?'<span class="sn7-win">🎯 ALVO ACERTADO! +300 PONTOS</span>':`Distância do alvo: <strong>${Number(p.distance||0)}</strong>`}</div>`,4200);
+  }
+  function showSecret(p){
+    showGame(gameHeader("DESAFIO","🔢 NÚMERO SECRETO",`${escGame(p.user||"Alguém")} tentou ${escGame(p.guess||"")}`)+`<div class="sn7-game-title" style="margin-top:28px;font-size:68px;letter-spacing:5px">${p.win?escGame(p.guess||"🎉"):"? ? ?"}</div><div class="sn7-game-result">${p.win?'<span class="sn7-win">🎉 NÚMERO DESCOBERTO! +500 PONTOS</span>':`O número é <strong>${escGame(p.hint||"")}</strong>.`}</div>`,4200);
+  }
+  function showSteal(p){
+    showGame(gameHeader("AÇÃO","💰 ASSALTO",`${escGame(p.user||"Alguém")} contra ${escGame(p.target||"alguém")}`)+`<div class="sn7-heist"><div class="sn7-heist-mask"></div><div class="sn7-heist-icon">🕵️‍♂️</div></div><div class="sn7-game-result">${p.win?`💰 <span class="sn7-win">ROUBO BEM-SUCEDIDO! +${Number(p.amount||0)} PONTOS</span>`:'💨 <span class="sn7-loss">O roubo falhou!</span>'}</div>`,4300);
+  }
+  function showVault(p){
+    showGame(gameHeader("SEGURANÇA","🔐 COFRE",`${escGame(p.user||"Alguém")} escolheu a combinação ${escGame(p.choice||"")}`)+`<div class="sn7-safe"><div class="sn7-safe-wheel">🔒</div></div><div class="sn7-game-result">${p.win?'<span class="sn7-win">🔓 COFRE ABERTO! +400 PONTOS</span>':'<span class="sn7-loss">🔒 Combinação incorreta!</span>'}</div>`,4300);
+  }
+  function showJackpot(p){
+    showGame(gameHeader("CASSINO","👑 JACKPOT",escGame(p.user||"Alguém"))+`<div class="sn7-jackpot ${p.win?"win":""}">👑</div><div class="sn7-game-result">${p.win?`<span class="sn7-gold">JACKPOT! +${Number(p.prize||0).toLocaleString("pt-BR")} PONTOS</span>`:'O Jackpot não saiu desta vez...'}</div>`,p.win?7000:3800);
+  }
+  function showDuel(p){
+    const challenge=p.game==="duel_challenge"; const title=challenge?"⚔️ DESAFIO":"🏆 DUELO DECIDIDO";
+    showGame(gameHeader("APOSTA",title,`${escGame(p.attacker||"")}  VS  ${escGame(p.defender||"")}`)+`<div style="display:flex;justify-content:center;align-items:center;gap:30px;margin:35px auto 20px;flex-wrap:wrap"><div style="font-size:42px;font-weight:1000;color:#b9b0ff">${escGame(p.attacker||"A")}</div><div style="font-size:28px;font-weight:1000;color:#697386">VS</div><div style="font-size:42px;font-weight:1000;color:#ff9da6">${escGame(p.defender||"B")}</div></div><div class="sn7-game-result">${challenge?`Aposta de <strong>${Number(p.amount||0).toLocaleString("pt-BR")} pontos</strong> aguardando aceite...`:`🏆 <span class="sn7-win">${escGame(p.winner||"")} venceu!</span> · ${Number(p.amount||0).toLocaleString("pt-BR")} pontos`}</div>`,challenge?4500:6000);
   }
 
   async function pollOverlayEvents(){

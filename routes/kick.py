@@ -76,6 +76,10 @@ def _schedule_race_story(bid, platform, delay=STORY_CHAPTER_DELAY_SECONDS):
                 return
             if result.get("event"):
                 _send_chat(bid, result["event"])
+                _emit_minigame_overlay(bid, "race_chapter", {
+                    "chapter": result.get("chapter"), "event": result.get("event"),
+                    "state": result.get("state") or {},
+                })
             if result.get("done"):
                 final = race_finish(bid, platform)
                 if final.get("ok"):
@@ -89,6 +93,10 @@ def _schedule_race_story(bid, platform, delay=STORY_CHAPTER_DELAY_SECONDS):
                         _send_chat(bid, "🏁 FIM DA CORRIDA! Ninguém chegou ao final.")
                     if eliminated:
                         _send_chat(bid, "💥 Fora da corrida: " + " • ".join(_mention(u) for u in eliminated))
+                    _emit_minigame_overlay(bid, "race_finish", {
+                        "winners": [{"place": i + 1, "user": u, "prize": prize} for i, (u, prize) in enumerate(winners)],
+                        "eliminated": eliminated, "state": final.get("state") or result.get("state") or {},
+                    })
                 return
             _schedule_race_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
         except Exception as exc:
@@ -110,6 +118,11 @@ def _schedule_survival_story(bid, platform, delay=STORY_CHAPTER_DELAY_SECONDS):
                 return
             if result.get("event"):
                 _send_chat(bid, result["event"])
+                _emit_minigame_overlay(bid, "survival_chapter", {
+                    "chapter": result.get("chapter"), "event": result.get("event"),
+                    "dead": result.get("dead_this_chapter") or [], "alive_count": result.get("alive_count", 0),
+                    "state": result.get("state") or {},
+                })
             if result.get("done"):
                 final = survival_finish(bid, platform)
                 if final.get("ok"):
@@ -123,6 +136,10 @@ def _schedule_survival_story(bid, platform, delay=STORY_CHAPTER_DELAY_SECONDS):
                         _send_chat(bid, "🧟 FIM DA SOBREVIVÊNCIA! Ninguém sobreviveu.")
                     if dead:
                         _send_chat(bid, "💀 Eliminados: " + " • ".join(_mention(u) for u in dead))
+                    _emit_minigame_overlay(bid, "survival_finish", {
+                        "winners": [{"user": u, "prize": prize} for u, prize in winners],
+                        "dead": dead, "state": final.get("state") or result.get("state") or {},
+                    })
                 return
             _schedule_survival_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
         except Exception as exc:
@@ -156,6 +173,7 @@ def _start_race_after_join_window(bid, platform):
         state = begun.get("state") or {}
         count = len(state.get("players") or [])
         _send_chat(bid, f"🏁🏎️ Inscrições encerradas! {count} corredores. A corrida começou! 3 capítulos e o resultado final!")
+        _emit_minigame_overlay(bid, "race_start", {"state": state, "location": state.get("location"), "players": state.get("players") or []})
         _schedule_race_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
     elif begun.get("empty"):
         _send_chat(bid, "🏁 Corrida encerrada: ninguém entrou nos 90 segundos.")
@@ -167,6 +185,7 @@ def _start_survival_after_join_window(bid, platform):
         state = begun.get("state") or {}
         count = len(state.get("players") or [])
         _send_chat(bid, f"🧟 Tempo encerrado! {count} participantes. A história começou! Serão 3 capítulos e o resultado final!")
+        _emit_minigame_overlay(bid, "survival_start", {"state": state, "location": state.get("location"), "players": state.get("players") or []})
         _schedule_survival_story(bid, platform, STORY_CHAPTER_DELAY_SECONDS)
     elif begun.get("empty"):
         _send_chat(bid, "🧟 Sobrevivência encerrada: ninguém entrou nos 90 segundos.")
@@ -992,6 +1011,17 @@ def _mention(username):
     return value if value.startswith("@") else f"@{value}"
 
 
+def _emit_minigame_overlay(bid, game, payload=None):
+    """Publica uma animação de Mini Game no Browser Source do OBS."""
+    try:
+        from routes.overlay import emit_overlay_event
+        data = dict(payload or {})
+        data["game"] = str(game or "").strip().lower()
+        emit_overlay_event(bid, "minigame", data)
+    except Exception as exc:
+        print(f"[MINIGAME-OVERLAY] evento não publicado: {exc}", flush=True)
+
+
 
 def _extract_command_values(args):
     values = {}
@@ -1619,18 +1649,24 @@ def _process_chat(payload, send_chat=None):
             if not result.get("ok"): send_chat(bid,result["error"]); return
             icon="🪙" if result["result"]=="cara" else "👑"
             text=f"{icon} Saiu {result['result']}! " + (f"🎉 Você venceu +{result['payout']} {currency}." if result['payout'] else f"💥 Você perdeu {result['amount']} {currency}.")
-            send_chat(bid,_render_response(cfg["response"],{"user":_mention(user),"choice":choice,"coinflip_result":text,"new_points":result["points"],"currency":currency})); return
+            send_chat(bid,_render_response(cfg["response"],{"user":_mention(user),"choice":choice,"coinflip_result":text,"new_points":result["points"],"currency":currency}))
+            _emit_minigame_overlay(bid, "coinflip", {"user": user, "choice": choice, "result": result.get("result"), "amount": result.get("amount"), "payout": result.get("payout"), "points": result.get("points"), "text": text})
+            return
 
         if key == "poll":
             raw=" ".join(args); parts=[x.strip() for x in raw.split("|")]
             result=start_poll(bid,user,parts[0] if parts else "",parts[1:] if len(parts)>1 else [],platform)
-            send_chat(bid, result.get("error") or f"📊 Enquete aberta: {result['state']['question']} — " + " | ".join(f"{i+1}) {o}" for i,o in enumerate(result['state']['options']))); return
+            send_chat(bid, result.get("error") or f"📊 Enquete aberta: {result['state']['question']} — " + " | ".join(f"{i+1}) {o}" for i,o in enumerate(result['state']['options'])));
+            if result.get("ok"): _emit_minigame_overlay(bid, "poll_start", {"state": result.get("state") or {}})
+            return
         if key == "vote":
-            result=vote_poll(bid,user," ".join(args),platform); send_chat(bid,result.get("error") or f"📊 {_mention(user)} votou em {result['option']}."); return
+            result=vote_poll(bid,user," ".join(args),platform); send_chat(bid,result.get("error") or f"📊 {_mention(user)} votou em {result['option']}.");
+            if result.get("ok"): _emit_minigame_overlay(bid, "poll_vote", {"user": user, "option": result.get("option"), "state": result.get("state") or {}})
+            return
         if key == "poll_close":
             result=close_poll(bid,platform)
             if not result.get("ok"): send_chat(bid,result["error"]); return
-            st=result["state"]; counts=result["counts"]; send_chat(bid,"📊 Resultado: " + " • ".join(f"{o}: {counts[i]}" for i,o in enumerate(st["options"]))); return
+            st=result["state"]; counts=result["counts"]; send_chat(bid,"📊 Resultado: " + " • ".join(f"{o}: {counts[i]}" for i,o in enumerate(st["options"]))); _emit_minigame_overlay(bid, "poll_close", {"state": st, "counts": counts}); return
 
         if key in {"quiz","quiz_answer"}:
             from core.minigames import quiz_start, quiz_answer
@@ -1650,6 +1686,7 @@ def _process_chat(payload, send_chat=None):
                     f"🧠 QUIZ {state.get('theme', 'geral').upper()}: {state['question']} "
                     f"Use {answer_cmd} sua resposta!",
                 )
+                _emit_minigame_overlay(bid, "quiz_start", {"state": state, "user": user})
                 return
 
             result = quiz_answer(
@@ -1670,6 +1707,7 @@ def _process_chat(payload, send_chat=None):
                 )
             else:
                 send_chat(bid, f"🧠 {_mention(user)} errou. Tente novamente!")
+            _emit_minigame_overlay(bid, "quiz_answer", {"user": user, "correct": bool(result.get("correct")), "points": result.get("points", 0), "state": result.get("state") or {}})
             return
 
         if key == "race":
@@ -1716,11 +1754,11 @@ def _process_chat(payload, send_chat=None):
         if key == "target":
             result=target_guess(bid,user,args[0] if args else "",platform)
             if not result.get("ok"): send_chat(bid,result["error"]); return
-            send_chat(bid, f"🎯 🎉 {_mention(user)} acertou o alvo e ganhou 300 {currency}!" if result.get("win") else f"🎯 {_mention(user)} ficou a {result['distance']} do alvo."); return
+            send_chat(bid, f"🎯 🎉 {_mention(user)} acertou o alvo e ganhou 300 {currency}!" if result.get("win") else f"🎯 {_mention(user)} ficou a {result['distance']} do alvo."); _emit_minigame_overlay(bid, "target", {"user": user, "guess": args[0] if args else "", "win": bool(result.get("win")), "distance": result.get("distance")}); return
         if key == "secret":
             result=secret_guess(bid,user,args[0] if args else "",platform)
             if not result.get("ok"): send_chat(bid,result["error"]); return
-            send_chat(bid, f"🔢 🎉 {_mention(user)} descobriu o número e ganhou 500 {currency}!" if result.get("win") else f"🔢 Tente um número {result['hint']}."); return
+            send_chat(bid, f"🔢 🎉 {_mention(user)} descobriu o número e ganhou 500 {currency}!" if result.get("win") else f"🔢 Tente um número {result['hint']}."); _emit_minigame_overlay(bid, "secret", {"user": user, "guess": args[0] if args else "", "win": bool(result.get("win")), "hint": result.get("hint")}); return
         if key == "survival_on":
             if not ismod:
                 send_chat(bid, "⛔ Apenas streamer/mod pode iniciar a sobrevivência.")
@@ -1778,15 +1816,15 @@ def _process_chat(payload, send_chat=None):
             target=args[0].lstrip("@").strip()
             result=steal_points(bid,user,target,platform,uid)
             if not result.get("ok"): send_chat(bid,result["error"]); return
-            send_chat(bid, f"💰 {_mention(user)} roubou {result['amount']} {currency}! Saldo: {result['points']} {currency}." if result.get("win") else f"💨 {_mention(user)} tentou roubar, mas falhou!"); return
+            send_chat(bid, f"💰 {_mention(user)} roubou {result['amount']} {currency}! Saldo: {result['points']} {currency}." if result.get("win") else f"💨 {_mention(user)} tentou roubar, mas falhou!"); _emit_minigame_overlay(bid, "steal", {"user": user, "target": target, "win": bool(result.get("win")), "amount": result.get("amount", 0), "points": result.get("points")}); return
         if key == "vault":
             result=vault_play(bid,user,args[0] if args else "",platform)
             if not result.get("ok"): send_chat(bid,result["error"]); return
-            send_chat(bid, f"🔐 🎉 {_mention(user)} abriu o cofre e ganhou 400 {currency}!" if result.get("win") else f"🔐 O cofre não abriu. Tente novamente!"); return
+            send_chat(bid, f"🔐 🎉 {_mention(user)} abriu o cofre e ganhou 400 {currency}!" if result.get("win") else f"🔐 O cofre não abriu. Tente novamente!"); _emit_minigame_overlay(bid, "vault", {"user": user, "choice": args[0] if args else "", "win": bool(result.get("win")), "points": result.get("points", 0)}); return
         if key == "jackpot":
             result=jackpot_play(bid,user,platform,uid)
             if not result.get("ok"): send_chat(bid,result["error"]); return
-            send_chat(bid, f"👑 🎉 {_mention(user)} ganhou {result['prize']} {currency} do Jackpot! Saldo: {result['points']} {currency}." if result.get("win") else f"👑 O Jackpot não saiu desta vez!"); return
+            send_chat(bid, f"👑 🎉 {_mention(user)} ganhou {result['prize']} {currency} do Jackpot! Saldo: {result['points']} {currency}." if result.get("win") else f"👑 O Jackpot não saiu desta vez!"); _emit_minigame_overlay(bid, "jackpot", {"user": user, "win": bool(result.get("win")), "prize": result.get("prize", 0), "points": result.get("points")}); return
 
         if key == "slots":
             if not args:
@@ -1834,6 +1872,7 @@ def _process_chat(payload, send_chat=None):
                 "house": result["house"],
             }
             send_chat(bid, _render_response(cfg["response"], values))
+            _emit_minigame_overlay(bid, "slots", {"user": user, "amount": result.get("amount"), "symbol_list": result.get("symbol_list") or [], "symbols": result.get("symbols"), "outcome": result.get("outcome"), "multiplier": result.get("multiplier"), "payout": result.get("payout"), "profit": result.get("profit"), "points": result.get("points"), "house": result.get("house"), "result_text": slots_result})
             if result.get("refill"):
                 hours = result.get("refill_hours") or 1
                 send_chat(bid, f"⏱️ O cassino recebeu +{result['refill']} {currency} por {hours}h de live. Banco: {result['house']} {currency}.")
@@ -1983,6 +2022,7 @@ def _process_chat(payload, send_chat=None):
                 "bet_id": bet_id,
             }
             send_chat(bid, _render_response(cfg["response"], duel_values))
+            _emit_minigame_overlay(bid, "duel_challenge", {"attacker": user, "defender": target_value, "amount": amount_value, "bet_id": bet_id})
             return
 
         if key in {"bet_accept", "bet_decline"}:
@@ -2117,6 +2157,7 @@ def _process_chat(payload, send_chat=None):
                     ),
                 )
                 send_chat(bid, result_message)
+                _emit_minigame_overlay(bid, "duel_result", {"attacker": challenger, "defender": defender, "winner": winner, "loser": loser, "amount": amount, "bet_id": bet_id})
             else:
                 send_chat(
                     bid,
